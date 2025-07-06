@@ -71,16 +71,10 @@ class PingAggregator:
         current_rtts = self.dht.run_coroutine(partial(ping_parallel, peer_ids, **kwargs))
         logger.debug(f"Current RTTs: {current_rtts}")
 
-        print("ping current_rtts", current_rtts)
-
         with self.lock:
             expiration = mesh.get_dht_time() + self.expiration
-            print("ping expiration", expiration)
             for peer_id, rtt in current_rtts.items():
-                print("ping peer_id", peer_id)
-                print("ping rtt", rtt)
                 prev_rtt = self.ping_emas.get(peer_id)
-                print("ping prev_rtt", prev_rtt)
                 if prev_rtt is not None and prev_rtt.value != math.inf:
                     rtt = self.ema_alpha * rtt + (1 - self.ema_alpha) * prev_rtt.value  # Exponential smoothing
                 self.ping_emas.store(peer_id, rtt, expiration)
@@ -88,6 +82,5 @@ class PingAggregator:
     def to_dict(self) -> Dict[mesh.PeerID, float]:
         with self.lock, self.ping_emas.freeze():
             smoothed_rtts = {peer_id: rtt.value for peer_id, rtt in self.ping_emas.items()}
-            print("ping to_dict smoothed_rtts", smoothed_rtts)
             logger.debug(f"Smothed RTTs: {smoothed_rtts}")
             return smoothed_rtts

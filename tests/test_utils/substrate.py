@@ -23,9 +23,7 @@ def start_substrate_node():
     )
 
     first_line = substrate_node_proc.stderr.readline()
-    print("first_line", first_line)
     substrate_pattern_match = _SUBSTRATE_START_PATTERN.search(first_line)
-    print("substrate_pattern_match", substrate_pattern_match)
     assert substrate_pattern_match is not None, first_line
 
     substrate_node_proc.stderr.close()

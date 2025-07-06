@@ -79,16 +79,10 @@ def hypertensor_consensus_predicate() -> Callable[[DHTRecord], bool]:
             elif key_type == "consensus":
                 # Must be submitted before deadline
                 if percent_complete > CONSENSUS_STORE_DEADLINE:
-                    print(f"Store consensus error=past deadline of {CONSENSUS_STORE_DEADLINE}, at {percent_complete}")
                     return False
 
                 max_expiration = dht_time + MAX_CONSENSUS_TIME
                 if record.expiration_time > max_expiration:
-                    print("dht_time test pred ", dht_time)
-                    print("expiration_time test pred ", record.expiration_time)
-
-                    print(f"Store consensus error=past max_expiration of {max_expiration}, at {record.expiration_time}, diff={record.expiration_time-max_expiration}")
-                    print(f"Store consensus error=current_epoch{current_epoch}, at {percent_complete}")
                     return False
                 try:
                     loaded = MSGPackSerializer.loads(record.value)
@@ -96,18 +90,14 @@ def hypertensor_consensus_predicate() -> Callable[[DHTRecord], bool]:
                     ConsensusTensorModel(tensor=tensor)
                     return True
                 except ValidationError:
-                    print("Store consensus error=pydantic schema")
                     return False
 
             # ⸺ 15-50%
             elif key_type == "validator-reveal":
                 max_expiration = dht_time + MAX_VALIDATOR_REVEAL_TIME
                 if record.expiration_time > max_expiration:
-                    print("Store validator-reveal error=past max_expiration")
                     return False
-                # if percent_complete > VALIDATOR_REVEAL_START and percent_complete <= VALIDATOR_REVEAL_DEADLINE:
                 if percent_complete <= VALIDATOR_REVEAL_START and percent_complete > VALIDATOR_REVEAL_DEADLINE:
-                    print("Store validator-reveal error=past deadline")
                     return False
                 return True
 
@@ -115,7 +105,6 @@ def hypertensor_consensus_predicate() -> Callable[[DHTRecord], bool]:
             elif key_type == "hoster-commit":
                 max_expiration = dht_time + MAX_HOSTER_COMMIT_TIME
                 if record.expiration_time > max_expiration:
-                    print("Store hoster-commit error=past max_expiration")
                     return False
                 if percent_complete <= CONSENSUS_STORE_DEADLINE and percent_complete > HOSTER_COMMIT_DEADLINE:
                     return False
@@ -126,11 +115,8 @@ def hypertensor_consensus_predicate() -> Callable[[DHTRecord], bool]:
             elif key_type == "hoster-reveal":
                 max_expiration = dht_time + MAX_HOSTER_REVEAL_TIME
                 if record.expiration_time > max_expiration:
-                    print("Store hoster-reveal error=past max_expiration")
                     return False
-                # if percent_complete > HOSTER_COMMIT_DEADLINE and percent_complete <= HOSTER_REVEAL_DEADLINE:
                 if percent_complete <= HOSTER_COMMIT_DEADLINE and percent_complete > HOSTER_REVEAL_DEADLINE:
-                    print("Store hoster-reveal error=past deadline")
                     return False
                 return True
 
@@ -138,11 +124,8 @@ def hypertensor_consensus_predicate() -> Callable[[DHTRecord], bool]:
             elif key_type == "validator-commit":
                 max_expiration = dht_time + MAX_VALIDATOR_COMMIT_TIME
                 if record.expiration_time > max_expiration:
-                    print("Store validator-commit error=past max_expiration")
                     return False
-                # if percent_complete >= VALIDATOR_COMMIT_START:
                 if percent_complete < VALIDATOR_COMMIT_START:
-                    print(f"Store validator-commit error=past deadline of {VALIDATOR_COMMIT_START}, at {percent_complete}")
                     return False
                 return True
 

@@ -2,7 +2,6 @@ syntax = "proto3";
 import "auth.proto";
 
 // this protocol defines how nodes form a distributed hash table.
-// For more info, see https://learning-at-home.readthedocs.io/en/latest/modules/dht.html or help(mesh.dht.DHTNode)
 
 message NodeInfo {
   // note: both node_id and port are optional: if specified, ask peer to add you to its routing table;

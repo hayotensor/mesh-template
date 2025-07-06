@@ -387,7 +387,6 @@ class AuthRPCWrapperStreamer:
         else:
             @functools.wraps(method)
             async def wrapped_unary_rpc(request, *args, **kwargs):
-                print("wrapped_unary_rpc")
                 if authorizer:
                     if role == AuthRole.CLIENT:
                         await authorizer.sign_request(request, service_public_key)

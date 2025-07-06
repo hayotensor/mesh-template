@@ -137,10 +137,8 @@ async def test_consensus_with_key_validator():
     used_dhts.append(someone)
 
     epoch_progress = hypertensor.get_epoch_progress()
-    print("epoch_progress", epoch_progress)
 
     results = someone_new.get(consensus_key)
-    print("results", results)
     assert results is not None
 
     for dht in dhts:

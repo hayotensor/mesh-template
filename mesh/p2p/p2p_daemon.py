@@ -531,8 +531,6 @@ class P2P:
                          Default: False
         """
 
-        print("add_protobuf_handler name", name)
-
         if not stream_input and not stream_output:
             await self._add_protobuf_unary_handler(name, handler, input_protobuf_type, balanced=balanced)
             return

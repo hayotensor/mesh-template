@@ -2,17 +2,14 @@ from __future__ import annotations
 
 import threading
 import time
-from typing import Dict, List, Optional, Sequence, Union
-
-import torch
+from typing import Dict, List, Optional
 
 import mesh
 from mesh import DHT, get_dht_time
 from mesh.dht.crypto import RSASignatureValidator
 from mesh.dht.validation import RecordValidatorBase
-from mesh.proto.runtime_pb2 import CompressionType
 from mesh.subnet.consensus.consensus import Consensus
-from mesh.subnet.data_structures import QuantType, ServerClass, ServerInfo, ServerState
+from mesh.subnet.data_structures import ServerClass, ServerInfo, ServerState
 from mesh.subnet.reachability import ReachabilityProtocol, check_direct_reachability
 from mesh.subnet.protocols.mock_protocol import MockProtocol
 from mesh.subnet.utils.dht import declare_node, get_node_infos
@@ -32,12 +29,10 @@ class Server:
         self,
         *,
         initial_peers: List[str],
-        converted_model_name_or_path: str,
         public_name: Optional[str] = None,
         role: ServerClass,
         update_period: float = 60,
         expiration: Optional[float] = None,
-        skip_reachability_check: bool = False,
         reachable_via_relay: Optional[bool] = None,
         use_relay: bool = True,
         use_auto_relay: bool = True,
@@ -53,8 +48,6 @@ class Server:
         if expiration is None:
             expiration = max(2 * update_period, MAX_DHT_TIME_DISCREPANCY_SECONDS)
         self.expiration = expiration
-
-        self.converted_model_name_or_path = converted_model_name_or_path
 
         self.initial_peers = initial_peers
         self.announce_maddrs = kwargs.get('announce_maddrs')  # Returns None if 'my_key' not present
@@ -102,7 +95,7 @@ class Server:
             **throughput_info,
         )
 
-        self.inference_protocol = None
+        self.mock_protocol = None
         self.module_container = None
         self.consensus = None
         self.stop = threading.Event()
@@ -113,7 +106,7 @@ class Server:
 
         self.protocol = MockProtocol(dht=self.dht)
         """
-        self.inference_protocol = MockProtocol(
+        self.mock_protocol = MockProtocol(
             dht=self.dht,
             subnet_id=self.subnet_id,
             hypertensor=self.hypertensor,
@@ -129,15 +122,15 @@ class Server:
             start=True
         )
 
-        self.consensus = ConsensusThread(
-            dht=self.dht,
-            server_info=self.server_info,
-            subnet_id=self.subnet_id,
-            subnet_node_id=self.subnet_node_id,
-            record_validator=self.rsa_signature_validator,
-            hypertensor=self.hypertensor,
-            start=True
-        )
+        # self.consensus = ConsensusThread(
+        #     dht=self.dht,
+        #     server_info=self.server_info,
+        #     subnet_id=self.subnet_id,
+        #     subnet_node_id=self.subnet_node_id,
+        #     record_validator=self.rsa_signature_validator,
+        #     hypertensor=self.hypertensor,
+        #     start=True
+        # )
 
         """
         Keep server running forever
@@ -148,8 +141,8 @@ class Server:
         logger.info("Shutting down Server, wait to shutdown properly")
         self.stop.set()
 
-        if self.inference_protocol is not None:
-            self.inference_protocol.shutdown()
+        if self.mock_protocol is not None:
+            self.mock_protocol.shutdown()
 
         if self.reachability_protocol is not None:
             self.reachability_protocol.shutdown()
@@ -219,6 +212,8 @@ class ConsensusThread(threading.Thread):
         self.subnet_node_id = subnet_node_id
         self.rsa_signature_validator = record_validator
         self.hypertensor = hypertensor
+        self.consensus = None
+        self.validator = None
 
         if start:
             self.run()
@@ -245,7 +240,6 @@ class ConsensusThread(threading.Thread):
             role=self.server_info.role,
             record_validator=self.rsa_signature_validator,
             hypertensor=self.hypertensor,
-            validator=self.validator,
             start=True,
         )
 
@@ -255,9 +249,6 @@ class ConsensusThread(threading.Thread):
 
         if self.validator is not None:
             self.validator.shutdown()
-
-        if self.hoster is not None:
-            self.hoster.shutdown()
 
         self.join()
 
@@ -300,13 +291,12 @@ class ModuleHeartbeatThread(threading.Thread):
                 self.server_info.next_pings = {
                     peer_id.to_base58(): rtt for peer_id, rtt in self.ping_aggregator.to_dict().items()
                 }
-                print("self.server_info.next_pings", self.server_info.next_pings)
             else:
                 self.server_info.next_pings = None  # No need to ping if we're disconnecting
 
             declare_node(
                 dht=self.dht,
-                key="hoster",
+                key="validator",
                 server_info=self.server_info,
                 expiration_time=get_dht_time() + self.expiration,
             )

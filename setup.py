@@ -118,7 +118,7 @@ def download_p2p_daemon():
     if binary_name not in P2P_BINARY_HASH:
         raise RuntimeError(
             f"mesh does not provide a precompiled p2pd binary for {platform.system()} ({arch}). "
-            f"Please install Go and build it from source: https://github.com/learning-at-home/mesh#from-source"
+            f"Please install Go and build it from source: https://github.com/hypertensor-blockchain/mesh#from-source"
         )
     expected_hash = P2P_BINARY_HASH[binary_name]
 
@@ -190,7 +190,7 @@ setup(
     "across the world.",
     author="Learning@home & contributors",
     author_email="mesh-team@hotmail.com",
-    url="https://github.com/learning-at-home/mesh",
+    url="https://github.com/hypertensor-protocol/mesh",
     packages=find_packages(exclude=["tests"]),
     package_data={"mesh": ["proto/*", "mesh_cli/*"]},
     include_package_data=True,
@@ -219,9 +219,7 @@ setup(
         "console_scripts": [
             "mesh-dht = mesh.mesh_cli.run_dht:main",
             "mesh-server = mesh.mesh_cli.run_server:main",
-            "mesh-hoster = mesh.mesh_cli.run_hoster:main",
-            "mesh-test = mesh.mesh_cli.run_hoster_test:main",
-            "mesh-test-mock = mesh.mesh_cli.run_hoster_test_mock:main",
+            "mesh-server-mock = mesh.mesh_cli.run_server_mock:main",
         ]
     },
     # What does your project relate to?

@@ -99,15 +99,6 @@ async def test_call_inference_session():
         dht=validator_dht,
     )
 
-    prompt = "A cat sat?"
-    tokenizer = AutoTokenizer.from_pretrained(converted_model_name_or_path)
-    inputs = tokenizer(prompt, return_tensors="pt").input_ids
-
-    inference_session = Session(remote_manager=remote_manager, max_length=50)
-
-    async for response in inference_session.inference_v2(prompt, inputs):
-        print("response", response)
-
     for dht in dhts:
         dht.shutdown()
 

@@ -10,6 +10,9 @@ from mesh.utils.networking import log_visible_maddrs
 use_mesh_log_handler("in_root_logger")
 logger = get_logger(__name__)
 
+"""
+Bootstrap node
+"""
 
 async def report_status(dht: DHT, node: DHTNode):
     logger.info(

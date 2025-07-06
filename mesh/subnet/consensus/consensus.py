@@ -5,7 +5,6 @@ from typing import List
 
 from mesh import DHT
 from mesh.dht.validation import RecordValidatorBase
-from mesh.subnet.roles.validator_v5 import Validator
 from mesh.subnet.utils.consensus import (
     ConsensusScores,
 )
@@ -23,7 +22,6 @@ class Consensus(threading.Thread):
         subnet_node_id: int,
         record_validator: RecordValidatorBase,
         hypertensor: Hypertensor,
-        validator: Validator,
         skip_activate_subnet: bool = False,
         start: bool = True
     ):
@@ -34,7 +32,6 @@ class Consensus(threading.Thread):
         self.subnet_node_id = subnet_node_id
         self.hypertensor = hypertensor
         self.record_validator = record_validator
-        self.validator = validator
         self.validator_scores = None
         self.previous_epoch_data = None
         self.is_subnet_active = False
@@ -51,7 +48,9 @@ class Consensus(threading.Thread):
 
     def get_scores(self) -> List[ConsensusScores]:
         """
-        Merge hoster and validator scores submitted by Consensus
+        Fill in a way to get scores on each node
+
+        These scores must be deterministic
         """
         if self.validator_scores is None:
             return []

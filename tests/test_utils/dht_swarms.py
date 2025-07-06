@@ -285,7 +285,6 @@ def launch_dht_instances_with_record_validators_kwargs(
 
     dhts = [DHT(start=True, record_validators=[record_validators[0]], identity_path=identity_paths[0], **bootstrap_kwargs)]
     initial_peers = dhts[0].get_visible_maddrs()
-    print("launch_dht_instances_with_record_validators_kwargs initial_peers", initial_peers)
 
     dhts.extend(
         DHT(

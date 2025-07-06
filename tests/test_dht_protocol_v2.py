@@ -156,8 +156,6 @@ async def test_dht_protocol():
     peer1_node_id, peer1_proc, peer1_id, peer1_maddrs = launch_protocol_listener(1)
     peer2_node_id, peer2_proc, peer2_id, peer2_maddrs = launch_protocol_listener(2, initial_peers=peer1_maddrs)
 
-    # print("peer1_proc", peer1_proc._)
-
     peer_3_identity_path = f"rsa_test_path_{3}.key"
     test_identity_paths.append(peer_3_identity_path)
     private_key, public_key, public_bytes, encoded_public_key, encoded_digest, peer_id = generate_rsa_private_key_file(peer_3_identity_path)

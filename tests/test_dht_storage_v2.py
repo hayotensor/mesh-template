@@ -15,7 +15,6 @@ def test_store():
     d = DHTLocalStorage()
     d.store(DHTID.generate("key"), b"val", get_dht_time() + 0.5)
     val = d.get(DHTID.generate("key"))
-    print("val", val)
     assert d.get(DHTID.generate("key"))[0] == b"val", "Wrong value"
 
 
