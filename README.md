@@ -5,7 +5,7 @@ The Hypertensor Subnet Template includes all the core components required to lau
 - **Asyncio-based DHT Node** – designed for fast, concurrent communications
 - **DHT Protocol** – allows DHT nodes to request keys/neighbors from other DHT nodes, and manages routing tables
 - **DHT Record Storage** – with support for versioned and validated records with customizable predicate extensions
-- **Record Validators** – attach custom validation logic to any stored record, such as key authentication and pydantic schemas
+- **Record Validators** – attach custom validation logic to any stored record, such as key authentication and Pydantic schemas
 - **DHT Traversal Tools** – Traverse the DHT graph
 - **Routing Tables** – manage network topology and neighbor nodes. A data structure that contains DHT peers bucketed according to their distance to node_id. Follows Kademlia routing table
 - **P2P Servicer Base** – register RPC methods to the DHT for nodes to call on one another
@@ -13,6 +13,9 @@ The Hypertensor Subnet Template includes all the core components required to lau
 - **Hypertensor Consensus** – Ready to run in parallel to the Hypertensor consensus mechanism
 - **Substrate Integration** – Connect to Hypertensor with an RPC endpoint
 - **Secure Communication** – support for Ed25519 and RSA authentication for communication
+
+> 💡 Focus on Logic, Not Plumbing
+> The networking, cryptography, consensus, and storage layers are already handled. As a subnet builder, your only responsibility is to implement the application logic — the custom AI protocols and behaviors that live on top of the DHT.
 
 ## Full Documentation
 
