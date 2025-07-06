@@ -1,5 +1,5 @@
 FROM nvcr.io/nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
-LABEL maintainer="Learning@home"
+LABEL maintainer="Hypertensor@home"
 LABEL repository="mesh"
 
 WORKDIR /home
@@ -27,10 +27,8 @@ RUN conda install python~=3.11.0 pip && \
 
 COPY requirements.txt mesh/requirements.txt
 COPY requirements-dev.txt mesh/requirements-dev.txt
-COPY examples/albert/requirements.txt mesh/examples/albert/requirements.txt
 RUN pip install --no-cache-dir -r mesh/requirements.txt && \
     pip install --no-cache-dir -r mesh/requirements-dev.txt && \
-    pip install --no-cache-dir -r mesh/examples/albert/requirements.txt && \
     rm -rf ~/.cache/pip
 
 COPY . mesh/
