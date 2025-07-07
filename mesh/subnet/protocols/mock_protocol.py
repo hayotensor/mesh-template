@@ -38,6 +38,7 @@ class MockProtocol(mp.context.ForkProcess, ServicerBase):
         shutdown_timeout: float = 3,
         hypertensor: Optional[Hypertensor] = None,
         authorizer: Optional[AuthorizerBase] = None,
+        parallel_rpc: Optional[int] = None,
         client: bool = False,
         start: bool = False,
     ):
@@ -46,12 +47,12 @@ class MockProtocol(mp.context.ForkProcess, ServicerBase):
         self.subnet_id = subnet_id
         self.peer_id = dht.peer_id
         self.node_id = dht.node_id
-        self.node_info = dht_pb2.NodeInfo(node_id=self.node_id.to_bytes())
+        self.node_info = dht_pb2.NodeInfo(node_id=self.node_id.to_bytes()) # used in key authorizer
         self.balanced, self.shutdown_timeout = balanced, shutdown_timeout
         self._p2p = None
         self.authorizer = authorizer
         self.ready = MPFuture()
-        self.rpc_semaphore = asyncio.Semaphore(float("inf"))
+        self.rpc_semaphore = asyncio.Semaphore(parallel_rpc if parallel_rpc is not None else float("inf"))
         self._inner_pipe, self._outer_pipe = mp.Pipe(duplex=True)
         self.daemon = True
         self.hypertensor = hypertensor
@@ -212,17 +213,17 @@ class MockProtocol(mp.context.ForkProcess, ServicerBase):
         A peer wants us to perform an inference stream
         """
         tensor = deserialize_torch_tensor(requests.tensor)
-
-        # caller_peer_id = extract_rsa_peer_id_from_ssh(requests.auth.client_access_token.public_key)
-        # """
-        # Don't allow other hosters to call inference on me if it matches
-        # the current epochs random consensus tensors
-        # """
-        # if self.authorizer is not None and not caller_peer_id.__eq__(self.peer_id):
-        #     # Don't bother pinging the decentralized storage unless we have to
-        #     run_inference = self.should_process_inference(tensor)
-        #     if run_inference is False:
-        #         raise ValueError("Tensor must not match the current validation tensor.")
+        
+        caller_peer_id = extract_rsa_peer_id_from_ssh(requests.auth.client_access_token.public_key)
+        """
+        Don't allow other hosters to call inference on me if it matches
+        the current epochs random consensus tensors
+        """
+        if self.authorizer is not None and not caller_peer_id.__eq__(self.peer_id):
+            # Don't bother pinging the decentralized storage unless we have to
+            run_inference = self.should_process_inference(tensor)
+            if run_inference is False:
+                raise ValueError("Tensor must not match the current validation tensor.")
 
         async for token_tensor in await self._async_model.submit(tensor):
             yield inference_protocol_pb2.InferenceResponseAuth(

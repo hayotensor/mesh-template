@@ -1,10 +1,14 @@
 import asyncio
 import functools
+import inspect
 import secrets
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Dict, Optional
+from mesh.utils.asyncio import (
+    anext,
+)
 
 from mesh.p2p.p2p_daemon_bindings.datastructures import PeerID
 from mesh.proto.auth_pb2 import AccessToken
@@ -117,7 +121,12 @@ class Ed25519ProofOfStakeAuthorizer(AuthorizerBase):
         auth.signature = self._local_private_key.sign(response.SerializeToString())
 
     async def validate_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> bool:
-        auth = response.auth
+        if inspect.isasyncgen(response):
+            # asyncgenerator block
+            response = await anext(response)
+            auth = response.auth
+        else:
+            auth = response.auth
 
         service_public_key = Ed25519PublicKey.from_bytes(auth.service_access_token.public_key)
         signature = auth.signature
@@ -310,7 +319,12 @@ class RSAProofOfStakeAuthorizer(AuthorizerBase):
         auth.signature = self._local_private_key.sign(response.SerializeToString())
 
     async def validate_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> bool:
-        auth = response.auth
+        if inspect.isasyncgen(response):
+            # asyncgenerator block
+            response = await anext(response)
+            auth = response.auth
+        else:
+            auth = response.auth
 
         service_public_key = RSAPublicKey.from_bytes(auth.service_access_token.public_key)
         signature = auth.signature

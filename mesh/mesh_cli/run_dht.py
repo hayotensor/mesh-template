@@ -60,8 +60,8 @@ def main():
         "If the file does not exist, writes a new private key to this file.",
     )
     parser.add_argument(
-        "--no_relay",
-        action="store_false",
+        "--use_relay",
+        action="store_true",
         dest="use_relay",
         help="Disable circuit relay functionality in libp2p (see https://docs.libp2p.io/concepts/nat/circuit-relay/)",
     )

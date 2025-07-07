@@ -16,8 +16,9 @@ from setuptools.command.develop import develop
 
 P2PD_VERSION = "v0.5.0.hivemind1"
 
-P2PD_SOURCE_URL = f"https://github.com/hypertensor-blockchain/go-libp2p-daemon/archive/refs/tags/{P2PD_VERSION}.tar.gz"
-P2PD_BINARY_URL = f"https://github.com/hypertensor-blockchain/go-libp2p-daemon/releases/download/{P2PD_VERSION}/"
+# TODO: Update to our own repo
+P2PD_SOURCE_URL = f"https://github.com/learning-at-home/go-libp2p-daemon/archive/refs/tags/{P2PD_VERSION}.tar.gz"
+P2PD_BINARY_URL = f"https://github.com/learning-at-home/go-libp2p-daemon/releases/download/{P2PD_VERSION}/"
 
 # The value is sha256 of the binary from the release page
 P2P_BINARY_HASH = {
@@ -220,6 +221,7 @@ setup(
             "mesh-dht = mesh.mesh_cli.run_dht:main",
             "mesh-server = mesh.mesh_cli.run_server:main",
             "mesh-server-mock = mesh.mesh_cli.run_server_mock:main",
+            "keygen = mesh.mesh_cli.crypto.keygen:main",
         ]
     },
     # What does your project relate to?

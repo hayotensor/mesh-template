@@ -14,6 +14,9 @@ from mesh.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
+# keygen --path test-rsa.key --bootstrap_path test-b-rsa.key --client_path test-c-rsa.key --key_type rsa
+# keygen --path test-ed25519.key --bootstrap_path test-b-ed25519.key --client_path test-c-ed25519.key --key_type ed25519
+
 def generate_rsa_private_key_file(path: str):
     # Generate the RSA private key
     private_key = rsa.generate_private_key(

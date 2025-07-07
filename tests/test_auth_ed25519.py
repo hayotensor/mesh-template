@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import pytest
@@ -29,16 +29,20 @@ class MockAuthorizer(TokenEd25519AuthorizerBase):
 
         self._authority_public_key = MockAuthorizer._authority_private_key.get_public_key()
 
+        now = datetime.now(timezone.utc)
+        expiration = now + timedelta(minutes=1)
+
         token = AccessToken(
             username=self._username,
             public_key=self.local_public_key.to_bytes(),
-            expiration_time=str(datetime.utcnow() + timedelta(minutes=1)),
+            expiration_time=str(expiration),
         )
         token.signature = MockAuthorizer._authority_private_key.sign(self._token_to_bytes(token))
         return token
 
     def is_token_valid(self, access_token: AccessToken) -> bool:
         data = self._token_to_bytes(access_token)
+
         if not self._authority_public_key.verify(data, access_token.signature):
             logger.exception("Access token has invalid signature")
             return False
@@ -50,10 +54,13 @@ class MockAuthorizer(TokenEd25519AuthorizerBase):
                 f"datetime.fromisoformat() failed to parse expiration time: {access_token.expiration_time}"
             )
             return False
-        if expiration_time.tzinfo is not None:
-            logger.exception(f"Expected to have no timezone for expiration time: {access_token.expiration_time}")
-            return False
-        if expiration_time < datetime.utcnow():
+
+        if expiration_time.tzinfo is None:
+            logger.warning("Expiration time was naive; assuming UTC")
+            expiration_time = expiration_time.replace(tzinfo=timezone.utc)
+
+        now = datetime.now(timezone.utc)
+        if expiration_time < now:
             logger.exception("Access token has expired")
             return False
 
@@ -62,8 +69,17 @@ class MockAuthorizer(TokenEd25519AuthorizerBase):
     _MAX_LATENCY = timedelta(minutes=1)
 
     def does_token_need_refreshing(self, access_token: AccessToken) -> bool:
-        expiration_time = datetime.fromisoformat(access_token.expiration_time)
-        return expiration_time < datetime.utcnow() + self._MAX_LATENCY
+        try:
+            expiration_time = datetime.fromisoformat(access_token.expiration_time)
+        except ValueError:
+            return True
+
+        if expiration_time.tzinfo is None:
+            expiration_time = expiration_time.replace(tzinfo=timezone.utc)
+
+        now = datetime.now(timezone.utc)
+        return expiration_time < now + self._MAX_LATENCY
+
 
     @staticmethod
     def _token_to_bytes(access_token: AccessToken) -> bytes:
