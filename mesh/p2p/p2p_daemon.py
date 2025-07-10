@@ -98,7 +98,7 @@ class P2P:
         tls: bool = True,
         use_auto_relay: bool = False,
         use_ipfs: bool = False,
-        use_relay: bool = False,
+        use_relay: bool = True,
         persistent_conn_max_msg_size: int = DEFAULT_MAX_MSG_SIZE,
         quic: Optional[bool] = None,
         use_relay_hop: Optional[bool] = None,
