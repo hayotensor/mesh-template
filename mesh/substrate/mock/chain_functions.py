@@ -24,7 +24,7 @@ class MockHypertensor:
         epoch_length = self.get_epoch_length()
         return current_block // epoch_length
 
-    def get_epoch_progress(self) -> EpochData:
+    def get_epoch_data(self) -> EpochData:
         current_block = self.get_block_number()
         epoch_length = self.get_epoch_length()
         epoch = current_block // epoch_length

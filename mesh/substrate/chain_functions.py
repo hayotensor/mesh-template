@@ -21,6 +21,20 @@ class EpochData:
   seconds_elapsed: int
   seconds_remaining: int
 
+  @staticmethod
+  def zero(current_block: int, epoch_length: int) -> "EpochData":
+    return EpochData(
+      block=current_block,
+      epoch=0,
+      block_per_epoch=epoch_length,
+      seconds_per_epoch=epoch_length * BLOCK_SECS,
+      percent_complete=0.0,
+      blocks_elapsed=0,
+      blocks_remaining=epoch_length,
+      seconds_elapsed=0,
+      seconds_remaining=epoch_length * BLOCK_SECS
+    )
+
 
 class Hypertensor:
   def __init__(self, url: str, phrase: str):
@@ -1575,6 +1589,22 @@ class Hypertensor:
 
     return make_query()
 
+  def get_subnet_slot(self, subnet_id: int):
+    """
+    Query maximum subnet entry interval blocks
+    """
+
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_query():
+      try:
+        with self.interface as _interface:
+          result = _interface.query('Network', 'SubnetSlot', [subnet_id])
+          return result
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_query()
+
   # EVENTS
 
   def get_reward_result_event(
@@ -1615,11 +1645,38 @@ class Hypertensor:
   """
   Helpers
   """
-  def get_epoch_progress(self) -> EpochData:
+  def get_epoch_data(self) -> EpochData:
     current_block = self.get_block_number()
     epoch_length = self.get_epoch_length()
     epoch = current_block // epoch_length
     blocks_elapsed = current_block % epoch_length
+    percent_complete = blocks_elapsed / epoch_length
+    blocks_remaining = epoch_length - blocks_elapsed
+    seconds_elapsed = blocks_elapsed * BLOCK_SECS
+    seconds_remaining = blocks_remaining * BLOCK_SECS
+
+    return EpochData(
+      block=current_block,
+      epoch=epoch,
+      block_per_epoch=epoch_length,
+      seconds_per_epoch=epoch_length * BLOCK_SECS,
+      percent_complete=percent_complete,
+      blocks_elapsed=blocks_elapsed,
+      blocks_remaining=blocks_remaining,
+      seconds_elapsed=seconds_elapsed,
+      seconds_remaining=seconds_remaining
+    )
+
+  def get_subnet_epoch_progress(self, slot: int) -> EpochData:
+    current_block = self.get_block_number()
+    epoch_length = self.get_epoch_length()
+
+    if current_block < slot:
+      return EpochData.zero(current_block=current_block, epoch_length=epoch_length)
+
+    blocks_since_start = current_block - slot
+    epoch = blocks_since_start // epoch_length
+    blocks_elapsed = blocks_since_start % epoch_length
     percent_complete = blocks_elapsed / epoch_length
     blocks_remaining = epoch_length - blocks_elapsed
     seconds_elapsed = blocks_elapsed * BLOCK_SECS

@@ -8,15 +8,15 @@ from pydantic.v1 import BaseModel, StrictInt, conint
 import mesh
 from mesh.dht.node import DHTNode
 from mesh.dht.schema import BytesWithEd25519PublicKey, SchemaValidator
-from mesh.dht.validation import DHTRecord, DHTRequestType, RecordValidatorBase
+from mesh.dht.validation import DHTRecord, DHTRecordRequestType, RecordValidatorBase
 from mesh.utils.timed_storage import get_dht_time
 
 # pytest tests/test_dht_schema_ed25519.py -rP
 
 class SampleSchema(BaseModel):
     experiment_name: bytes
-    n_batches: Dict[bytes, conint(ge=0, strict=True)]
-    signed_data: Dict[BytesWithEd25519PublicKey, bytes]
+    n_batches: Dict[bytes, conint(ge=0, strict=True)] # type: ignore
+    signed_data: Dict[BytesWithEd25519PublicKey, bytes] # type: ignore
 
 
 @pytest_asyncio.fixture
@@ -149,7 +149,7 @@ async def test_merging_schema_validators(dht_nodes_with_schema):
     alice, bob = dht_nodes_with_schema
 
     class TrivialValidator(RecordValidatorBase):
-        def validate(self, record: DHTRecord, type: DHTRequestType) -> bool:
+        def validate(self, record: DHTRecord, type: DHTRecordRequestType) -> bool:
             return True
 
     second_validator = TrivialValidator()

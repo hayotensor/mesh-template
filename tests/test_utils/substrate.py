@@ -1,7 +1,6 @@
 import os
 import re
 from subprocess import PIPE, Popen
-from time import sleep
 
 _DHT_START_PATTERN = re.compile(r"Running a DHT instance. To connect other peers to this one, use (.+)$")
 _SUBSTRATE_START_PATTERN = re.compile(r"Frontier Node")

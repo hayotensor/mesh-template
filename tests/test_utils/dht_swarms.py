@@ -239,6 +239,33 @@ def launch_dht_instances_with_record_validators_bootstrap_no_kwargs(
 
     return dhts
 
+def launch_dht_with_clients(
+    record_validators: List[RecordValidatorBase],
+    identity_paths: List[str],
+    **kwargs
+) -> List[DHT]:
+    """
+    Launch DHTs, with one RecordValidatorBase per peer
+    """
+    dhts = [DHT(start=True, record_validators=[record_validators[0]], identity_path=identity_paths[0])]
+    initial_peers = dhts[0].get_visible_maddrs()
+
+    dhts.extend(
+        DHT(
+            initial_peers=initial_peers,
+            record_validators=[record_validators[i]],
+            identity_path=identity_paths[i],
+            start=True,
+            await_ready=False,
+            client_mode=True,
+            **kwargs
+        ) for i in range(1, len(record_validators))
+    )
+    for process in dhts[1:]:
+        process.wait_until_ready()
+
+    return dhts
+
 def launch_dht_instances_with_record_validators_and_authorizers(
     record_validators: List[RecordValidatorBase],
     authorizers: List[RecordValidatorBase],

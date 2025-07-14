@@ -43,6 +43,8 @@ custom_rpc_type_registry = {
         ["initial_coldkeys", "BTreeSet"],
         ["owner", "AccountId"],
         ["registration_epoch", "u32"],
+        ["node_removal_system", "NodeRemovalSystem"],
+        ["key_type", "KeyType"],
       ],
     },
     "SubnetState": {
@@ -50,6 +52,23 @@ custom_rpc_type_registry = {
       "value_list": [
         "Registered",
         "Active",
+      ],
+    },
+    "NodeRemovalSystem": {
+      "type": "enum",
+      "value_list": [
+        "Consensus",
+        "Stake",
+        "Reputation",
+      ],
+    },
+    "KeyType": {
+      "type": "enum",
+      "value_list": [
+        "Rsa",
+        "Ed25519",
+        "Secp256k1",
+        "Ecdsa",
       ],
     },
     "SubnetNode": {

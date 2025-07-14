@@ -1,19 +1,13 @@
-import asyncio
-import concurrent.futures
 import os
-import random
-import time
 from typing import List
 
 import pytest
 
 from mesh.dht.crypto import RSASignatureValidator
-from mesh.subnet.utils.key import generate_rsa_private_key_file, get_rsa_peer_id, get_rsa_private_key
-from mesh.utils.auth import TokenRSAAuthorizerBase
+from mesh.subnet.utils.key import generate_rsa_private_key_file, get_rsa_private_key
 
 from test_utils.dht_swarms import (
-    launch_dht_instances_with_record_validators,
-    launch_dht_instances_with_record_validators_bootstrap_no_kwargs,
+    launch_dht_with_clients,
 )
 
 # pytest tests/test_dht_client.py::test_dht_same_clients -rP
@@ -24,7 +18,6 @@ def test_dht_same_clients(n_peers=10):
 
     test_paths = []
     record_validators: List[RSASignatureValidator] = []
-    token_rsa_validators: List[TokenRSAAuthorizerBase] = []
     for i in range(peers_len):
         test_path = f"rsa_test_path_{i}.key"
         root_path = os.path.dirname(os.path.abspath(__file__))
@@ -43,7 +36,7 @@ def test_dht_same_clients(n_peers=10):
             record_validators.append(record_validator)
 
 
-    dhts = launch_dht_instances_with_record_validators_bootstrap_no_kwargs(
+    dhts = launch_dht_with_clients(
         record_validators=record_validators,
         identity_paths=test_paths,
     )

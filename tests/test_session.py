@@ -25,21 +25,18 @@ from test_utils.dht_swarms import (
 
 logger = get_logger(__name__)
 
-# pytest tests/test_inference_session.py -rP
+"""
+NOT COMPLETE
+"""
 
-# converted_model_name_or_path = "bigscience/bloom-560m"
-# converted_model_name_or_path = "Orenguteng/Llama-3-8B-Lexi-Uncensored"
-# converted_model_name_or_path = "tiiuae/falcon-rw-1b"
-# converted_model_name_or_path = "sshleifer/tiny-gpt2"
-converted_model_name_or_path = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+# pytest tests/test_session.py -rP
 
-
-# pytest tests/test_inference_manager.py::test_call_inference_session -rP
-# pytest tests/test_inference_manager.py::test_call_inference_session --log-cli-level=DEBUG
+# pytest tests/test_session.py::test_mock_session -rP
+# pytest tests/test_session.py::test_mock_session --log-cli-level=DEBUG
 
 @pytest.mark.forked
 @pytest.mark.asyncio
-async def test_call_inference_session():
+async def test_mock_session():
     peers_len = 2
 
     test_paths = []

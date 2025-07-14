@@ -70,61 +70,13 @@ class TokenRSAAuthorizerBase(AuthorizerBase):
 
     async def get_token(self) -> AccessToken:
         # Uses the built in template ``AccessToken`` format
-        now = datetime.now(timezone.utc)
-        expiration = now + timedelta(minutes=1)
-
         token = AccessToken(
             username='',
             public_key=self._local_public_key.to_bytes(),
-            expiration_time=str(expiration),
+            expiration_time=str(datetime.now(timezone.utc) + timedelta(minutes=1)),
         )
         token.signature = self._local_private_key.sign(self._token_to_bytes(token))
         return token
-
-    def is_token_valid(self, access_token: AccessToken) -> bool:
-        data = self._token_to_bytes(access_token)
-
-        if not self._authority_public_key.verify(data, access_token.signature):
-            logger.exception("Access token has invalid signature")
-            return False
-
-        try:
-            expiration_time = datetime.fromisoformat(access_token.expiration_time)
-        except ValueError:
-            logger.exception(
-                f"datetime.fromisoformat() failed to parse expiration time: {access_token.expiration_time}"
-            )
-            return False
-
-        if expiration_time.tzinfo is None:
-            logger.warning("Expiration time was naive; assuming UTC")
-            expiration_time = expiration_time.replace(tzinfo=timezone.utc)
-
-        now = datetime.now(timezone.utc)
-        if expiration_time < now:
-            logger.exception("Access token has expired")
-            return False
-
-        return True
-
-    def does_token_need_refreshing(self, access_token: AccessToken) -> bool:
-        try:
-            expiration_time = datetime.fromisoformat(access_token.expiration_time)
-        except ValueError:
-            return True
-
-        if expiration_time.tzinfo is None:
-            expiration_time = expiration_time.replace(tzinfo=timezone.utc)
-
-        now = datetime.now(timezone.utc)
-        return expiration_time < now + self._MAX_LATENCY
-
-    async def refresh_token_if_needed(self) -> None:
-        if self._local_access_token is None or self.does_token_need_refreshing(self._local_access_token):
-            async with self._refresh_lock:
-                if self._local_access_token is None or self.does_token_need_refreshing(self._local_access_token):
-                    self._local_access_token = await self.get_token()
-                    assert self.is_token_valid(self._local_access_token)
 
     @staticmethod
     def _token_to_bytes(access_token: AccessToken) -> bytes:
@@ -135,7 +87,6 @@ class TokenRSAAuthorizerBase(AuthorizerBase):
         return self._local_public_key
 
     async def sign_request(self, request: AuthorizedRequestBase, service_public_key: Optional[RSAPublicKey]) -> None:
-        await self.refresh_token_if_needed()
         auth = request.auth
 
         local_access_token = await self.get_token()
@@ -154,7 +105,6 @@ class TokenRSAAuthorizerBase(AuthorizerBase):
     _MAX_CLIENT_SERVICER_TIME_DIFF = timedelta(minutes=1)
 
     async def validate_request(self, request: AuthorizedRequestBase) -> bool:
-        await self.refresh_token_if_needed()
         auth = request.auth
 
         client_public_key = RSAPublicKey.from_bytes(auth.client_access_token.public_key)
@@ -236,56 +186,14 @@ class TokenEd25519AuthorizerBase(AuthorizerBase):
 
         self._recent_nonces = TimedStorage()
 
-    async def get_token(self) -> AccessToken:
-        # Uses the built in template ``AccessToken`` format
-        now = datetime.now(timezone.utc)
-        expiration = now + timedelta(minutes=1)
+    @abstractmethod
+    async def get_token(self) -> AccessToken: ...
 
-        token = AccessToken(
-            username='',
-            public_key=self._local_public_key.to_bytes(),
-            expiration_time=str(expiration),
-        )
-        token.signature = self._local_private_key.sign(self._token_to_bytes(token))
-        return token
+    @abstractmethod
+    def is_token_valid(self, access_token: AccessToken) -> bool: ...
 
-    def is_token_valid(self, access_token: AccessToken) -> bool:
-        data = self._token_to_bytes(access_token)
-
-        if not self._authority_public_key.verify(data, access_token.signature):
-            logger.exception("Access token has invalid signature")
-            return False
-
-        try:
-            expiration_time = datetime.fromisoformat(access_token.expiration_time)
-        except ValueError:
-            logger.exception(
-                f"datetime.fromisoformat() failed to parse expiration time: {access_token.expiration_time}"
-            )
-            return False
-
-        if expiration_time.tzinfo is None:
-            logger.warning("Expiration time was naive; assuming UTC")
-            expiration_time = expiration_time.replace(tzinfo=timezone.utc)
-
-        now = datetime.now(timezone.utc)
-        if expiration_time < now:
-            logger.exception("Access token has expired")
-            return False
-
-        return True
-
-    def does_token_need_refreshing(self, access_token: AccessToken) -> bool:
-        try:
-            expiration_time = datetime.fromisoformat(access_token.expiration_time)
-        except ValueError:
-            return True
-
-        if expiration_time.tzinfo is None:
-            expiration_time = expiration_time.replace(tzinfo=timezone.utc)
-
-        now = datetime.now(timezone.utc)
-        return expiration_time < now + self._MAX_LATENCY
+    @abstractmethod
+    def does_token_need_refreshing(self, access_token: AccessToken) -> bool: ...
 
     async def refresh_token_if_needed(self) -> None:
         if self._local_access_token is None or self.does_token_need_refreshing(self._local_access_token):
@@ -293,10 +201,6 @@ class TokenEd25519AuthorizerBase(AuthorizerBase):
                 if self._local_access_token is None or self.does_token_need_refreshing(self._local_access_token):
                     self._local_access_token = await self.get_token()
                     assert self.is_token_valid(self._local_access_token)
-
-    @staticmethod
-    def _token_to_bytes(access_token: AccessToken) -> bytes:
-        return f"{access_token.username} {access_token.public_key} {access_token.expiration_time}".encode()
 
     @property
     def local_public_key(self) -> Ed25519PublicKey:
@@ -363,7 +267,7 @@ class TokenEd25519AuthorizerBase(AuthorizerBase):
 
     async def validate_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> bool:
         if inspect.isasyncgen(response):
-            # asyncgenerator block for inference protocol
+            # asyncgenerator block
             response = await anext(response)
             auth = response.auth
         else:

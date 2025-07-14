@@ -6,7 +6,7 @@ import pydantic.v1 as pydantic
 from mesh.dht.crypto import Ed25519SignatureValidator, RSASignatureValidator
 from mesh.dht.protocol import DHTProtocol
 from mesh.dht.routing import DHTID
-from mesh.dht.validation import DHTRecord, DHTRequestType, RecordValidatorBase
+from mesh.dht.validation import DHTRecord, DHTRecordRequestType, RecordValidatorBase
 from mesh.utils import get_logger
 
 logger = get_logger(__name__)
@@ -54,7 +54,7 @@ class SchemaValidator(RecordValidatorBase):
 
         schema.Config.extra = pydantic.Extra.forbid
 
-    def validate(self, record: DHTRecord, type: DHTRequestType) -> bool:
+    def validate(self, record: DHTRecord, type: DHTRecordRequestType) -> bool:
         """
         Validates ``record`` in two steps:
 

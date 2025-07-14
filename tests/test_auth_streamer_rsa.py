@@ -14,6 +14,38 @@ from mesh.utils.auth import (
 
 # pytest tests/test_auth_streamer_rsa.py -rP
 
+# class DummyRequest:
+#     def __init__(self, msg):
+#         self.msg = msg
+#         self.auth = type("Auth", (), {
+#             "client_access_token": type("Token", (), {})(),
+#             "service_public_key": b"",
+#             "time": 0.0,
+#             "nonce": b"",
+#             "signature": b""
+#         })()
+
+#     def SerializeToString(self):
+#         return self.msg.encode()
+
+# class DummyResponse:
+#     def __init__(self, reply):
+#         self.reply = reply
+#         self.auth = type("Auth", (), {
+#             "service_access_token": type("Token", (), {})(),
+#             "nonce": b"",
+#             "signature": b""
+#         })()
+
+#     def SerializeToString(self):
+#         return self.reply.encode()
+
+# class DummyStub:
+#     async def rpc_unary(self, request): return DummyResponse("echo:" + request.msg)
+#     async def rpc_stream(self, request) -> AsyncIterator[DummyResponse]:
+#         for i in range(2):
+#             yield DummyResponse(f"stream:{request.msg}:{i}")
+
 class DummyRequest:
     def __init__(self, msg: str):
         self.msg = msg
@@ -32,7 +64,7 @@ class DummyRequest:
     @property
     def __class__(self):
         # This trick makes isinstance(..., AuthorizedRequestBase) pass
-        class DummyClass(AuthorizedRequestBase): pass
+        class DummyClass(AuthorizedRequestBase): pass  # noqa: E701
         return DummyClass
 
 
@@ -89,23 +121,3 @@ async def test_authrpcwrapper_real_authorizer():
         replies.append(resp.reply)
 
     assert replies == ["stream:test:0", "stream:test:1"]
-
-    # # ❌ INVALID case: signature mismatch (tamper with request)
-    # tampered_request = DummyRequest("bad")
-    # await authorizer.sign_request(tampered_request, None)
-    # tampered_request.msg = "evil"  # Tamper after signing!
-
-    # # Validate manually
-    # is_valid = await authorizer.validate_request(tampered_request)
-    # assert not is_valid, "Should fail signature validation after tampering"
-
-    # # ❌ INVALID response test: tamper with signature
-    # request = DummyRequest("test2")
-    # response = DummyResponse("echo:test2")
-    # await authorizer.sign_request(request, None)
-    # await authorizer.sign_response(response, request)
-    # response.reply = "evil"  # Tamper the response
-
-    # is_valid_resp = await authorizer.validate_response(response, request)
-    # assert not is_valid_resp, "Should reject modified response"
-

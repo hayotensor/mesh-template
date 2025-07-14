@@ -265,7 +265,8 @@ class Consensus(threading.Thread):
         last_epoch = None
 
         while not self.stop.is_set() and not self._async_stop_event.is_set():
-            epoch_data = self.hypertensor.get_epoch_data()
+            # epoch_data = self.hypertensor.get_epoch_data()
+            epoch_data = self.hypertensor.get_subnet_epoch_progress(self.slot)
             current_epoch = epoch_data.epoch
 
             if current_epoch != last_epoch:
@@ -283,7 +284,8 @@ class Consensus(threading.Thread):
                 continue
 
             # Keep sleep interval accurate to blockchain clock
-            epoch_data = self.hypertensor.get_epoch_data()
+            # epoch_data = self.hypertensor.get_epoch_data()
+            epoch_data = self.hypertensor.get_subnet_epoch_progress(self.slot)
             epoch_data.seconds_remaining
 
             try:

@@ -9,8 +9,8 @@ from mesh.compression import (
 from mesh.proto.runtime_pb2 import CompressionType
 from mesh.utils.streaming import combine_from_streaming, split_for_streaming
 
-
 # pytest tests/test_compression.py -rP
+# may need to run `pip install bitsandbytes`
 
 @pytest.mark.forked
 def test_tensor_compression(size=(128, 128, 64), alpha=5e-08, beta=0.0008):

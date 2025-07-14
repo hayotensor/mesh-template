@@ -30,7 +30,7 @@ from mesh.dht.protocol import DHTProtocol
 from mesh.dht.routing import DHTID, BinaryDHTValue, DHTKey, DHTValue, Subkey, get_dht_time
 from mesh.dht.storage import DictionaryDHTValue
 from mesh.dht.traverse import traverse_dht
-from mesh.dht.validation import DHTRequestType
+from mesh.dht.validation import DHTRecordRequestType
 from mesh.p2p import P2P, PeerID
 from mesh.utils import MSGPackSerializer, SerializerBase, get_logger
 from mesh.utils.auth import AuthorizerBase
@@ -436,7 +436,7 @@ class DHTNode:
                         for subkey, record in zip(current_subkeys, stored_records):
                             if self.protocol.record_validator is None or self.protocol.record_validator.validate(
                                 record,
-                                DHTRequestType.POST
+                                DHTRecordRequestType.POST
                             ):
                                 store_ok[original_key, subkey] = self.protocol.storage.store(
                                     key_id, record.value, record.expiration_time, subkey=subkey

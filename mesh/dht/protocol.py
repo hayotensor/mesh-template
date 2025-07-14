@@ -8,7 +8,7 @@ from typing import Collection, Dict, List, Optional, Sequence, Tuple, Union
 from mesh.dht.crypto import DHTRecord, RecordValidatorBase
 from mesh.dht.routing import DHTID, BinaryDHTValue, RoutingTable, Subkey
 from mesh.dht.storage import DHTLocalStorage, DictionaryDHTValue
-from mesh.dht.validation import DHTRequestType
+from mesh.dht.validation import DHTRecordRequestType
 from mesh.p2p import P2P, P2PContext, PeerID, ServicerBase
 from mesh.proto import dht_pb2
 from mesh.utils import MSGPackSerializer, get_logger
@@ -260,7 +260,7 @@ class DHTProtocol(ServicerBase):
                 continue
 
             # if not self._validate_record(key, tag, value_bytes, expiration_time):
-            if not self._validate_record(key, tag, value_bytes, expiration_time, DHTRequestType.POST):
+            if not self._validate_record(key, tag, value_bytes, expiration_time, DHTRecordRequestType.POST):
                 response.store_ok.append(False)
                 continue
 
@@ -315,7 +315,7 @@ class DHTProtocol(ServicerBase):
                     #     key_bytes, self.IS_REGULAR_VALUE, result.value, result.expiration_time
                     # ):
                     if not self._validate_record(
-                        key_bytes, self.IS_REGULAR_VALUE, result.value, result.expiration_time, DHTRequestType.GET
+                        key_bytes, self.IS_REGULAR_VALUE, result.value, result.expiration_time, DHTRecordRequestType.GET
                     ):
                         output[key] = None, nearest
                         continue
@@ -324,7 +324,7 @@ class DHTProtocol(ServicerBase):
                 elif result.type == dht_pb2.FOUND_DICTIONARY:
                     value_dictionary = self.serializer.loads(result.value)
                     # if not self._validate_dictionary(key_bytes, value_dictionary):
-                    if not self._validate_dictionary(key_bytes, value_dictionary, DHTRequestType.GET):
+                    if not self._validate_dictionary(key_bytes, value_dictionary, DHTRecordRequestType.GET):
                         output[key] = None, nearest
                         continue
 
@@ -412,7 +412,7 @@ class DHTProtocol(ServicerBase):
                 del self.routing_table[node_id]
 
     def _validate_record(
-        self, key_bytes: bytes, subkey_bytes: bytes, value_bytes: bytes, expiration_time: float, type: DHTRequestType
+        self, key_bytes: bytes, subkey_bytes: bytes, value_bytes: bytes, expiration_time: float, type: DHTRecordRequestType
     ) -> bool:
         if self.record_validator is None:
             return True
@@ -420,7 +420,7 @@ class DHTProtocol(ServicerBase):
         record = DHTRecord(key_bytes, subkey_bytes, value_bytes, expiration_time)
         return self.record_validator.validate(record, type)
 
-    def _validate_dictionary(self, key_bytes: bytes, dictionary: DictionaryDHTValue, type: DHTRequestType) -> bool:
+    def _validate_dictionary(self, key_bytes: bytes, dictionary: DictionaryDHTValue, type: DHTRecordRequestType) -> bool:
         if self.record_validator is None:
             return True
 

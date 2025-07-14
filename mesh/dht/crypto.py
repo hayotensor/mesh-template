@@ -2,7 +2,7 @@ import dataclasses
 import re
 from typing import Optional
 
-from mesh.dht.validation import DHTRecord, DHTRequestType, RecordValidatorBase
+from mesh.dht.validation import DHTRecord, DHTRecordRequestType, RecordValidatorBase
 from mesh.utils import MSGPackSerializer, get_logger
 from mesh.utils.crypto import Ed25519PrivateKey, Ed25519PublicKey, RSAPrivateKey, RSAPublicKey
 
@@ -38,7 +38,7 @@ class Ed25519SignatureValidator(RecordValidatorBase):
     def local_public_key(self) -> bytes:
         return self._local_public_key
 
-    def validate(self, record: DHTRecord, type: DHTRequestType) -> bool:
+    def validate(self, record: DHTRecord, type: DHTRecordRequestType) -> bool:
         public_keys = self._PUBLIC_KEY_RE.findall(record.key)
         if record.subkey is not None:
             public_keys += self._PUBLIC_KEY_RE.findall(record.subkey)
@@ -119,7 +119,7 @@ class RSASignatureValidator(RecordValidatorBase):
     def local_public_key(self) -> bytes:
         return self._local_public_key
 
-    def validate(self, record: DHTRecord, type: DHTRequestType) -> bool:
+    def validate(self, record: DHTRecord, type: DHTRecordRequestType) -> bool:
         public_keys = self._PUBLIC_KEY_RE.findall(record.key)
         if record.subkey is not None:
             public_keys += self._PUBLIC_KEY_RE.findall(record.subkey)

@@ -9,7 +9,7 @@ from mesh.dht.crypto import RSASignatureValidator
 from mesh.dht.protocol import DHTProtocol
 from mesh.dht.routing import DHTID
 from mesh.dht.schema import BytesWithRSAPublicKey, SchemaValidator
-from mesh.dht.validation import CompositeValidator, DHTRecord, DHTRequestType
+from mesh.dht.validation import CompositeValidator, DHTRecord, DHTRecordRequestType
 
 # pytest tests/test_dht_validation_rsa.py -rP
 
@@ -79,7 +79,7 @@ def test_composite_validator(validators_for_app):
     # Expect only one signature since two RSASignatureValidatos have been merged
     assert signed_record.value.count(b"[signature:") == 1
     # Expect successful validation since the second SchemaValidator has been merged to the first
-    assert validator.validate(signed_record, DHTRequestType.POST)
+    assert validator.validate(signed_record, DHTRecordRequestType.POST)
     assert validator.strip_value(signed_record) == record.value
 
     record = DHTRecord(
@@ -92,4 +92,4 @@ def test_composite_validator(validators_for_app):
     signed_record = dataclasses.replace(record, value=validator.sign_value(record))
     assert signed_record.value.count(b"[signature:") == 0
     # Expect failed validation since `unknown_key` is not a part of any schema
-    assert not validator.validate(signed_record, DHTRequestType.POST)
+    assert not validator.validate(signed_record, DHTRecordRequestType.POST)
