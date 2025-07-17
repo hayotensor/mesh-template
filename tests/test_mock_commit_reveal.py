@@ -13,7 +13,7 @@ from mesh.subnet.utils.mock_commit_reveal import (
     COMMIT_DEADLINE,
     CONSENSUS_STORE_DEADLINE,
     MAX_CONSENSUS_TIME,
-    get_consensus_key,
+    get_mock_consensus_key,
     get_mock_commit_key,
     get_mock_reveal_key,
     mock_hypertensor_consensus_predicate,
@@ -85,7 +85,7 @@ async def test_predicate_validator():
     """
     Mock consensus
     """
-    consensus_key = get_consensus_key(epoch)
+    consensus_key = get_mock_consensus_key(epoch)
     value = 123
     store_ok = dhts[0].store(consensus_key, value, get_dht_time() + _max_consensus_time, subkey=record_validators[0][0].local_public_key)
     assert store_ok is True

@@ -24,7 +24,7 @@ def get_mock_commit_key(epoch: int) -> str:
 def get_mock_reveal_key(epoch: int) -> str:
     return f"reveal_epoch_{epoch}"
 
-def get_consensus_key(epoch: int) -> str:
+def get_mock_consensus_key(epoch: int) -> str:
     return f"consensus_epoch_{epoch}"
 
 # Created At validations

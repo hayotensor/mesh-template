@@ -10,8 +10,8 @@ from mesh.dht.crypto import RSASignatureValidator
 from mesh.dht.validation import RecordValidatorBase
 from mesh.subnet.consensus.consensus import Consensus
 from mesh.subnet.data_structures import ServerClass, ServerInfo, ServerState
-from mesh.subnet.reachability import ReachabilityProtocol, check_direct_reachability
 from mesh.subnet.protocols.mock_protocol import MockProtocol
+from mesh.subnet.reachability import ReachabilityProtocol, check_direct_reachability
 from mesh.subnet.utils.dht import declare_node, get_node_infos
 from mesh.subnet.utils.key import get_rsa_private_key
 from mesh.subnet.utils.ping import PingAggregator
