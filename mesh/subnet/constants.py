@@ -30,19 +30,9 @@ except json.JSONDecodeError as e:
     raise ValueError(f"Failed to parse PUBLIC_INITIAL_PEERS as JSON: {e}")
 
 # The reachability API is currently used only when connecting to the public swarm
-REACHABILITY_API_URL = "https://health.subnet-name.com"
+# ** This is NOT required **
+# If the subnet has a centralized dashboard, this can be used to ensure the dashboard
+# can reach the node
+REACHABILITY_API_URL = "https://dashboard.subnet-name.com"
 
 DTYPE_MAP = dict(bfloat16=torch.bfloat16, float16=torch.float16, float32=torch.float32, auto="auto")
-
-"""
-Commit-reveal schema phases
-
-Each commit must be by the x% of the epoch with reveals after up until the end
-using the previous epochs random tensor from the DHT storage
-"""
-HOSTER_COMMIT_PHASE = 0.8
-
-"""
-The validator commits based on the previous epochs hosters commit-reveals
-"""
-VALIDATOR_COMMIT_PHASE = 0.5

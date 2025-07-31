@@ -1,6 +1,6 @@
-## A decentralized subnet template for Hypertensor.
+## A decentralized subnet base for Hypertensor.
 
-The Hypertensor Subnet Template includes all the core components required to launch a decentralized AI application, including:
+The Hypertensor Subnet Base includes all the core components required to launch a decentralized AI application, including:
 - **Kademlia DHT (KAD-DHT)** – for scalable, decentralized storage and routing
 - **Asyncio-based DHT Node** – designed for fast, concurrent communications
 - **DHT Protocol** – allows DHT nodes to request keys/neighbors from other DHT nodes, and manages routing tables
@@ -39,8 +39,8 @@ If you would like to verify that your installation is working properly, you can 
 instead. Then, you can run the tests with `pytest tests/`.
 
 By default, the contatiner uses the precompiled binary of
-the [go-libp2p-daemon](https://github.com/hypertensor-blockchain/go-libp2p-daemon) library. If you face compatibility issues
-or want to build the binary yourself, you can recompile it by running `pip install . --global-option="--buildgo"`.
+the [go-libp2p-daemon](https://github.com/hypertensor-blockchain/go-libp2p-daemon) library. If you face compatibility issues or want to build the binary yourself, you can recompile it by running `pip install . --global-option="--buildgo"`.
+
 Before running the compilation, please ensure that your machine has a recent version
 of [Go toolchain](https://golang.org/doc/install) (1.15 or 1.16 are supported).
 
@@ -58,9 +58,14 @@ of [Go toolchain](https://golang.org/doc/install) (1.15 or 1.16 are supported).
 
 ---
 
-## Documentation
+## Subnet Documentation
 
-##### Generate private keys
+##### Generate coldkey (if needed)
+
+##### Generate hotkey
+- This is the hotkey of the node. It is used for validating and attesting only.
+
+##### Generate peer private keys
 
   - This will create 3 private key files for your peer
       - `peer_id`: Main peer ID for communication and signing
@@ -86,7 +91,10 @@ Command to start node
 
 ## Future
 
-- Migrate to py-libp2p over the go-libp2p-daemon once py-libp2p is productionized.
+- Migrate to py-libp2p.
+  - Random-walk
+  - Gossip protocol integration
+  - Etc.
 
 ---
 

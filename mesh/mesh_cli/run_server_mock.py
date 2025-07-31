@@ -4,8 +4,8 @@ import logging
 import configargparse
 import torch
 
-from mesh.subnet.constants import DTYPE_MAP, PUBLIC_INITIAL_PEERS
-from mesh.subnet.data_structures import QuantType, ServerClass
+from mesh.subnet.constants import PUBLIC_INITIAL_PEERS
+from mesh.subnet.data_structures import ServerClass
 from mesh.subnet.server.server import Server
 from mesh.substrate.mock.chain_functions import MockHypertensor
 from mesh.utils import limits
