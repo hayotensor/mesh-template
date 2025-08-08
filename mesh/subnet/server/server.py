@@ -296,7 +296,7 @@ class ModuleHeartbeatThread(threading.Thread):
 
             declare_node(
                 dht=self.dht,
-                key="validator",
+                key="node",
                 server_info=self.server_info,
                 expiration_time=get_dht_time() + self.expiration,
             )
@@ -336,7 +336,7 @@ class ModuleHeartbeatThread(threading.Thread):
     def _ping_next_servers(self) -> Dict[mesh.PeerID, float]:
         module_infos = get_node_infos(
             self.dht,
-            uid="hoster",
+            uid="node",
             latest=True
         )
         if len(module_infos) == 0:

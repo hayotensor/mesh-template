@@ -42,7 +42,7 @@ class RemoteServerInfo:
         # Deduplicate by peer_id (most recent wins)
         deduped_by_peer = {}
         for info in all_infos:
-            deduped_by_peer[info.peer_id] = info  # overwrites earlier ones
+            deduped_by_peer[info.peer_id] = info
 
         self.server_infos = list(deduped_by_peer.values())
         self.servers_by_priority = self._sort_spans(self.server_infos)

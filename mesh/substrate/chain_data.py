@@ -44,7 +44,7 @@ custom_rpc_type_registry = {
         ["owner", "AccountId"],
         ["registration_epoch", "u32"],
         ["node_removal_system", "NodeRemovalSystem"],
-        ["key_type", "KeyType"],
+        ["key_types", "BTreeSet<KeyType>"],
       ],
     },
     "SubnetState": {
@@ -297,6 +297,8 @@ class SubnetInfo:
   initial_coldkeys: str
   owner: str
   registration_epoch: int
+  node_removal_system: int
+  key_types: list
 
   @classmethod
   def fix_decoded_values(cls, data_decoded: Any) -> "SubnetInfo":
@@ -320,6 +322,8 @@ class SubnetInfo:
       data_decoded["owner"], 42
     )
     data_decoded["registration_epoch"] = data_decoded["registration_epoch"]
+    data_decoded["node_removal_system"] = data_decoded["node_removal_system"]
+    data_decoded["key_types"] = data_decoded["key_types"]
 
     return cls(**data_decoded)
 

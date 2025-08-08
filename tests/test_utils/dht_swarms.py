@@ -9,6 +9,7 @@ from mesh.dht import DHT
 from mesh.dht.node import DHTID, DHTNode
 from mesh.dht.validation import RecordValidatorBase
 from mesh.p2p import PeerID
+from mesh.utils.auth import AuthorizerBase
 from mesh.utils.multiaddr import Multiaddr
 
 
@@ -268,7 +269,7 @@ def launch_dht_with_clients(
 
 def launch_dht_instances_with_record_validators_and_authorizers(
     record_validators: List[RecordValidatorBase],
-    authorizers: List[RecordValidatorBase],
+    authorizers: List[AuthorizerBase],
     identity_paths: List[str],
     **kwargs
 ) -> List[DHT]:

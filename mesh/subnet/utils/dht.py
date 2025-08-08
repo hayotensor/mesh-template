@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional, Union
 from mesh.dht import DHT, DHTNode, DHTValue
 from mesh.dht.crypto import Ed25519SignatureValidator, RSASignatureValidator
 from mesh.dht.routing import DHTKey
+from mesh.dht.validation import RecordValidatorBase
 from mesh.p2p import PeerID
 from mesh.subnet.data_structures import RemoteInfo, RemoteModuleInfo, ServerInfo, ServerState
 from mesh.utils import DHTExpiration, MPFuture, get_dht_time, get_logger
@@ -22,6 +23,7 @@ def declare_node(
     server_info: ServerInfo,
     expiration_time: DHTExpiration,
     wait: bool = True,
+    record_validator: Optional[RecordValidatorBase] = None,
 ):
     """
     Declare your node; update timestamps if declared previously
@@ -32,6 +34,7 @@ def declare_node(
     :param expiration_time: declared modules will be visible for this many seconds
     :returns: if wait, returns store status for every key (True = store succeeded, False = store rejected)
     """
+    subkey = dht.peer_id.to_base58().encode() + record_validator.local_public_key
     return dht.run_coroutine(
         partial(
             _store_node,
@@ -99,6 +102,9 @@ async def _get_node_infos(
 
     modules: List[RemoteModuleInfo] = []
     for subkey, values in inner_dict.items():
+        # If using record validator
+        # caller_peer_id = extract_rsa_peer_id_from_ssh(subkey)
+
         peers.append(PeerID.from_base58(subkey))
         server_info = ServerInfo.from_tuple(values.value)
 

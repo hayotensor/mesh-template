@@ -1,7 +1,7 @@
 ## A decentralized subnet base for Hypertensor.
 
 The Hypertensor Subnet Base includes all the core components required to launch a decentralized AI application, including:
-- **Kademlia DHT (KAD-DHT)** – for scalable, decentralized storage and routing
+- **[Kademlia DHT (KAD-DHT)][bittorrent]** – for scalable, decentralized storage and routing
 - **Asyncio-based DHT Node** – designed for fast, concurrent communications
 - **DHT Protocol** – allows DHT nodes to request keys/neighbors from other DHT nodes, and manages routing tables
 - **DHT Record Storage** – with support for versioned and validated records with customizable predicate extensions
@@ -14,7 +14,7 @@ The Hypertensor Subnet Base includes all the core components required to launch 
 - **Substrate Integration** – Connect to Hypertensor with an RPC endpoint
 - **Secure Communication** – support for Ed25519 and RSA authentication for communication
 
-> 💡 Focus on Logic, Not Plumbing
+> 💡 **Focus on Logic, Not Plumbing**
 > The networking, cryptography, consensus, and storage layers are already handled. As a subnet builder, your only responsibility is to implement the application logic — the custom AI protocols and behaviors that live on top of the DHT.
 
 ## Full Documentation
@@ -91,11 +91,14 @@ Command to start node
 
 ## Future
 
-- Migrate to py-libp2p.
-  - Random-walk
-  - Gossip protocol integration
-  - Etc.
-
+- Migrate to py-libp2p (from go-libp2p-daemon).
+- Random-walk
+- Gossip protocol integration
+- Noise Protocol (Diffie-Hellman key exchange)
+- Onion routing or mixnet options
+- Multiple encryption options
+- DHT Record uniqueness options
+- Etc.
 ---
 
 ## Contributing
@@ -105,3 +108,21 @@ This is currently at the active development stage, and we welcome all contributi
 If you want to contribute to this mesh template but don't know where to start, take a look at the unresolved [issues](https://github.com/hypertensor-blockchain/mesh/issues). 
 
 Open a new issue or join [our chat room](https://discord.gg/bY7NUEweQp) in case you want to discuss new functionality or report a possible bug. Bug fixes are always welcome, but new features should be preferably discussed with maintainers beforehand.
+
+## References
+
+[0]: Maymounkov, P., & Mazières, D. (2002). Kademlia: A Peer-to-Peer Information System Based on the XOR Metric. In P. Druschel, F. Kaashoek, & A. Rowstron (Eds.), Peer-to-Peer Systems (pp. 53–65). Berlin, Heidelberg: Springer Berlin Heidelberg. https://doi.org/10.1007/3-540-45748-8_5
+
+[1]: Baumgart, I., & Mies, S. (2014). S / Kademlia : A practicable approach towards secure key-based routing S / Kademlia : A Practicable Approach Towards Secure Key-Based Routing, (June). https://doi.org/10.1109/ICPADS.2007.4447808
+
+[2]: Freedman, M. J., & Mazières, D. (2003). Sloppy Hashing and Self-Organizing Clusters. In IPTPS. Springer Berlin / Heidelberg. Retrieved from https://www.cs.princeton.edu/~mfreed/docs/coral-iptps03.pdf
+
+[bittorrent]: http://bittorrent.org/beps/bep_0005.html
+
+[uvarint-spec]: https://github.com/multiformats/unsigned-varint
+
+[ping]: https://github.com/libp2p/specs/issues/183
+
+[go-libp2p-xor]: https://github.com/libp2p/go-libp2p-xor
+
+[provider-record-measurements]: https://github.com/protocol/network-measurements/blob/master/results/rfm17-provider-record-liveness.md

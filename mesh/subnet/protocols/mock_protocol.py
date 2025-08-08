@@ -29,7 +29,7 @@ class MockProtocol(mp.context.ForkProcess, ServicerBase):
 
     _async_model: AsyncInferenceServer
     """
-    
+
     def __init__(
         self,
         dht: DHT,
@@ -205,7 +205,7 @@ class MockProtocol(mp.context.ForkProcess, ServicerBase):
         to copy.
         """
         return True
-    
+
     async def rpc_inference_stream(
         self, requests: inference_protocol_pb2.InferenceRequestAuth, context: P2PContext
     ) -> AsyncIterator[inference_protocol_pb2.InferenceResponseAuth]:
@@ -213,7 +213,7 @@ class MockProtocol(mp.context.ForkProcess, ServicerBase):
         A peer wants us to perform an inference stream
         """
         tensor = deserialize_torch_tensor(requests.tensor)
-        
+
         caller_peer_id = extract_rsa_peer_id_from_ssh(requests.auth.client_access_token.public_key)
         """
         Don't allow other hosters to call inference on me if it matches

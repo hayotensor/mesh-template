@@ -6,14 +6,14 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Dict, Optional
-from mesh.utils.asyncio import (
-    anext,
-)
 
 from mesh.p2p.p2p_daemon_bindings.datastructures import PeerID
 from mesh.proto.auth_pb2 import AccessToken
 from mesh.subnet.utils.peer_id import get_ed25519_peer_id, get_rsa_peer_id
 from mesh.substrate.chain_functions import Hypertensor
+from mesh.utils.asyncio import (
+    anext,
+)
 from mesh.utils.auth import AuthorizedRequestBase, AuthorizedResponseBase, AuthorizerBase
 from mesh.utils.crypto import Ed25519PrivateKey, Ed25519PublicKey, RSAPrivateKey, RSAPublicKey
 from mesh.utils.logging import get_logger

@@ -37,14 +37,18 @@ class ServerState(Enum):
     JOINING = 1
     ONLINE = 2
 
+"""
+Create roles here
+"""
 class ServerClass(Enum):
-    HOSTER = "hoster"
     VALIDATOR = "validator"
 
 RPS = pydantic.confloat(ge=0, allow_inf_nan=False, strict=True)
 
 """
 Create server node data to store
+
+Note: The peer ID is in the subkey
 """
 @pydantic.dataclasses.dataclass
 class ServerInfo:

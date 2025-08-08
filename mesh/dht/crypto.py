@@ -8,6 +8,20 @@ from mesh.utils.crypto import Ed25519PrivateKey, Ed25519PublicKey, RSAPrivateKey
 
 logger = get_logger(__name__)
 
+# class SignatureValidatorBase(RecordValidatorBase):
+#     PUBLIC_KEY_FORMAT = b"[owner:_key_]"
+#     SIGNATURE_FORMAT = b"[signature:_value_]"
+
+#     PUBLIC_KEY_REGEX = re.escape(PUBLIC_KEY_FORMAT).replace(b"_key_", rb"(.+?)")
+#     _PUBLIC_KEY_RE = re.compile(PUBLIC_KEY_REGEX)
+#     _SIGNATURE_RE = re.compile(re.escape(SIGNATURE_FORMAT).replace(b"_value_", rb"(.+?)"))
+
+#     _cached_private_key = None
+
+#     @property
+#     def local_public_key(self) -> bytes:
+#         ...
+
 class Ed25519SignatureValidator(RecordValidatorBase):
     """
     Introduces a notion of *protected records* whose key/subkey contains substring
