@@ -1,7 +1,7 @@
 import dataclasses
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Callable, Iterable
+from typing import Callable, Iterable, Optional
 
 from mesh.substrate.chain_functions import Hypertensor
 
@@ -282,3 +282,43 @@ class HypertensorSlotPredicateValidator(RecordValidatorBase):
         # Ignore another KeyValidator instance (it doesn't make sense to have several
         # instances of this class) and report successful merge
         return True
+
+# class DHTPredicateValidator(RecordValidatorBase):
+#     """
+#     A general-purpose DHT validator that enables a callable function to be used in the 
+#     validation logic AND inherits the DHT to call the DHT records
+
+#     Attributes:
+#         record_predicate (Callable[[DHTRecord], bool]): A user-defined function that receives a record and returns True if valid.
+#     """
+
+#     def __init__(
+#         self,
+#         dht: DHT,
+#         record_predicate: Callable[[DHTRecord, DHTRecordRequestType], bool] = lambda r: True,
+#         hypertensor: Optional[Hypertensor] = None,
+#     ):
+#         self.dht = dht
+#         self.record_predicate = record_predicate
+#         self.hypertensor = hypertensor
+
+#     def validate(self, record: DHTRecord, type: DHTRecordRequestType) -> bool:
+#         return self.record_predicate(record, type, self._epoch_data())
+
+#     def sign_value(self, record: DHTRecord) -> bytes:
+#         return record.value
+
+#     def strip_value(self, record: DHTRecord) -> bytes:
+#         return record.value
+
+#     def _epoch_data(self):
+#         # Get epoch data from the blockchain and calulate the remaining
+#         return self.hypertensor.get_epoch_data()
+
+#     def merge_with(self, other: RecordValidatorBase) -> bool:
+#         if not isinstance(other, HypertensorPredicateValidator):
+#             return False
+
+#         # Ignore another KeyValidator instance (it doesn't make sense to have several
+#         # instances of this class) and report successful merge
+#         return True

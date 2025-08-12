@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(Path.cwd(), '.env'))
 
 """
+NOTE: In production, we get the bootnodes from the blockchain
+
 Default bootstrap nodes
 
 # How to use:

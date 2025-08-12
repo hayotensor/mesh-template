@@ -13,8 +13,8 @@ from mesh.subnet.utils.mock_commit_reveal import (
     COMMIT_DEADLINE,
     CONSENSUS_STORE_DEADLINE,
     MAX_CONSENSUS_TIME,
-    get_mock_consensus_key,
     get_mock_commit_key,
+    get_mock_consensus_key,
     get_mock_reveal_key,
     mock_hypertensor_consensus_predicate,
 )

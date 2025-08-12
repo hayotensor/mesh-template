@@ -17,7 +17,9 @@ from mesh.subnet.utils.key import get_rsa_private_key
 from mesh.subnet.utils.ping import PingAggregator
 from mesh.subnet.utils.random import sample_up_to
 from mesh.substrate.chain_functions import Hypertensor
+from mesh.utils.auth import TokenRSAAuthorizerBase
 from mesh.utils.logging import get_logger
+from mesh.utils.proof_of_stake import RSAProofOfStakeAuthorizer
 from mesh.utils.timed_storage import MAX_DHT_TIME_DISCREPANCY_SECONDS
 
 logger = get_logger(__name__)
@@ -44,6 +46,7 @@ class Server:
         """
         Create a server
         """
+        self.reachability_protocol = None
         self.update_period = update_period
         if expiration is None:
             expiration = max(2 * update_period, MAX_DHT_TIME_DISCREPANCY_SECONDS)
@@ -56,17 +59,42 @@ class Server:
         self.subnet_node_id = subnet_node_id
         self.hypertensor = hypertensor
 
-        # Connect to DHT
-        if reachable_via_relay is None:
-            is_reachable = check_direct_reachability(initial_peers=initial_peers, use_relay=False, **kwargs)
-            reachable_via_relay = is_reachable is False  # if can't check reachability (returns None), run a full peer
-            logger.info(f"This server is accessible {'via relays' if reachable_via_relay else 'directly'}")
-
         identity_path = kwargs.get('identity_path', None)
         pk = get_rsa_private_key(identity_path)
 
+        """
+        Initialize record validators
+
+        See https://docs.hypertensor.org/mesh-template/dht-records/record-validator
+        """
+        # Initialize standard RSA signature record validator. See https://docs.hypertensor.org/mesh-template/dht-records/record-validator/signature-validators
         self.rsa_signature_validator = RSASignatureValidator(pk)
         self.record_validators=[self.rsa_signature_validator]
+
+        # Initialize predicate validator here. See https://docs.hypertensor.org/mesh-template/dht-records/record-validator/predicate-validators
+        ...
+
+        """
+        Initialize authorizers
+
+        See https://docs.hypertensor.org/mesh-template/authorizers
+        """
+        # Initialize PoS authorizer. See https://docs.hypertensor.org/mesh-template/authorizers/pos
+        # if self.hypertensor is not None:
+        #     self.pos_authorizer = RSAProofOfStakeAuthorizer(
+        #         pk,
+        #         self.subnet_id,
+        #         self.hypertensor
+        #     )
+
+        # Initialize RSA signature authorizer. See https://docs.hypertensor.org/mesh-template/authorizers/signature-authorizer
+        self.rsa_authorizer = TokenRSAAuthorizerBase(pk)
+
+        # Test connecting to the DHT as a direct peer
+        if reachable_via_relay is None:
+            is_reachable = check_direct_reachability(initial_peers=initial_peers, authorizer=self.rsa_authorizer, use_relay=False, **kwargs)
+            reachable_via_relay = is_reachable is False  # if can't check reachability (returns None), run a full peer
+            logger.info(f"This server is accessible {'via relays' if reachable_via_relay else 'directly'}")
 
         self.dht = DHT(
             initial_peers=initial_peers,
@@ -76,8 +104,8 @@ class Server:
             use_auto_relay=use_auto_relay,
             client_mode=reachable_via_relay,
             record_validators=self.record_validators,
-            **kwargs,
-            # **dict(kwargs, authorizer=authorizer)
+            # **kwargs,
+            **dict(kwargs, authorizer=self.rsa_authorizer)
         )
         self.reachability_protocol = ReachabilityProtocol.attach_to_dht(self.dht) if not reachable_via_relay else None
 
@@ -117,6 +145,7 @@ class Server:
         self.module_container = ModuleAnnouncerThread(
             dht=self.dht,
             server_info=self.server_info,
+            record_validator=self.rsa_signature_validator,
             update_period=self.update_period,
             expiration=self.expiration,
             start=True
@@ -158,6 +187,7 @@ class ModuleAnnouncerThread(threading.Thread):
         self,
         dht: DHT,
         server_info: ServerInfo,
+        record_validator: RecordValidatorBase,
         update_period: float,
         expiration: Optional[float] = None,
         start: bool = True,
@@ -169,6 +199,7 @@ class ModuleAnnouncerThread(threading.Thread):
         self.dht_announcer = ModuleHeartbeatThread(
             dht,
             server_info,
+            record_validator,
             update_period=update_period,
             expiration=expiration,
             daemon=True,
@@ -259,6 +290,7 @@ class ModuleHeartbeatThread(threading.Thread):
         self,
         dht: DHT,
         server_info: ServerInfo,
+        record_validator: RecordValidatorBase,
         *,
         update_period: float,
         expiration: float,
@@ -268,6 +300,7 @@ class ModuleHeartbeatThread(threading.Thread):
         super().__init__(**kwargs)
         self.dht = dht
         self.server_info = server_info
+        self.record_validator = record_validator
 
         self.update_period = update_period
         self.expiration = expiration
@@ -294,11 +327,19 @@ class ModuleHeartbeatThread(threading.Thread):
             else:
                 self.server_info.next_pings = None  # No need to ping if we're disconnecting
 
+            logger.info("Declaring node [Heartbeat]...")
+
+            """
+            Do not change the "node" key
+
+            See https://docs.hypertensor.org/build-a-subnet/requirements#node-key-public-key-subkey
+            """
             declare_node(
                 dht=self.dht,
                 key="node",
                 server_info=self.server_info,
                 expiration_time=get_dht_time() + self.expiration,
+                record_validator=self.record_validator
             )
 
             if self.server_info.state == ServerState.OFFLINE:
@@ -339,6 +380,7 @@ class ModuleHeartbeatThread(threading.Thread):
             uid="node",
             latest=True
         )
+        print("module_infos", module_infos)
         if len(module_infos) == 0:
             return
         middle_servers = {info.peer_id for info in module_infos}

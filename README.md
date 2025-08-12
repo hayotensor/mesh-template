@@ -58,7 +58,7 @@ of [Go toolchain](https://golang.org/doc/install) (1.15 or 1.16 are supported).
 
 ---
 
-## Subnet Documentation
+# Subnet Documentation
 
 ##### Generate coldkey (if needed)
 
@@ -76,15 +76,65 @@ of [Go toolchain](https://golang.org/doc/install) (1.15 or 1.16 are supported).
   - Call `register_subnet_node`
   - Retrieve your `start_epoch` by querying your SubnetNodesData storage element on polkadot.js with your subnet node ID. This is the epoch you must activate your node on + the grace period
 
-### Run node 
-*Fill in how to start and run a node for your subnet!*
+##### Run subnet node
+<i>(fill in docs here, examples are alow below)</i>
 
 ##### Activate node
   - Call `activate_subnet_node` in Hypertensor on your start epoch up to the grace period.
 
-##### Start Node
+---
+## Running Nodes
+Fill in the following with your subnets documentation on how to join the subnet, requirements, etc.
+
+### Run bootnode 
+A bootnode is an entry point into a decentralized network. 
+
+Each subnet must have at least one public and running bootnode at all times available for Overwatch Nodes to validate a subnet is running.
+
+- Replace port 31330 with your port of choice.
+- Replace `{your_ip}` with your IP.
+
+##### Start Bootnode and Start Subnet
+###### This starts an entirely new subnet and runs a bootnode
 ```bash
-Command to start node
+mesh-dht \
+--host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
+--announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
+--identity_path server2.id
+```
+
+##### Start Bootnode and Join Subnet
+###### This joins an existing subnets and runs a bootnode.
+- Get the bootnode multiaddresses from the subnets team or blockchain and add them to the `initial_peers` argument.
+```bash
+mesh-dht \
+--host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
+--announce_maddrs /ip4/{your_ip} \
+--initial_peers /ip4/{ip}/p2p/{peer_id} /ip4/{ip}/p2p/{peer_id}
+```
+
+### Run node 
+*Fill in how to start and run a node for your subnet!*
+
+##### Start DHT / Start Node
+NOT SUGGESTED
+This will start a new subnet (fresh swarm as initial node)
+```bash
+mesh-server-mock \
+--host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
+--announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
+--identity_path server2.id \
+--new_swarm  \
+--subnet_id 1 --subnet_node_id 1
+```
+
+##### Join DHT / Start Node
+```bash
+mesh-server-mock \
+--host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
+--announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
+--identity_path server2.id \
+--subnet_id 1 --subnet_node_id 1
 ```
 
 ---
@@ -97,7 +147,9 @@ Command to start node
 - Noise Protocol (Diffie-Hellman key exchange)
 - Onion routing or mixnet options
 - Multiple encryption options
+- Explore alternative tensor/AI parameter compression options
 - DHT Record uniqueness options
+- Runtime upgrades
 - Etc.
 ---
 

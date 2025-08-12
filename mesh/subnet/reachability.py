@@ -14,6 +14,7 @@ from mesh.p2p import P2P, P2PContext, PeerID, ServicerBase
 from mesh.proto import dht_pb2
 from mesh.subnet.constants import REACHABILITY_API_URL
 from mesh.utils import get_logger
+from mesh.utils.auth import AuthorizerBase
 from mesh.utils.remote_worker import RemoteWorker
 
 logger = get_logger(__name__)
@@ -50,10 +51,10 @@ def validate_reachability(peer_id, wait_time: float = 7 * 60, retry_delay: float
     )
 
 
-def check_direct_reachability(max_peers: int = 5, threshold: float = 0.5, **kwargs) -> Optional[bool]:
+def check_direct_reachability(max_peers: int = 5, threshold: float = 0.5, authorizer: Optional[AuthorizerBase] = None, **kwargs) -> Optional[bool]:
     """test if your peer is accessible by others in the swarm with the specified network options in **kwargs"""
     async def _check_direct_reachability():
-        target_dht = await DHTNode.create(client_mode=True, **kwargs)
+        target_dht = await DHTNode.create(client_mode=True, authorizer=authorizer, **kwargs)
         try:
             protocol = ReachabilityProtocol(probe=target_dht.protocol.p2p)
             async with protocol.serve(target_dht.protocol.p2p):
