@@ -145,6 +145,7 @@ class DHTProtocol(ServicerBase):
 
     async def rpc_ping(self, request: dht_pb2.PingRequest, context: P2PContext) -> dht_pb2.PingResponse:
         """Some node wants us to add it to our routing table."""
+        print("rpc_ping", request)
 
         response = dht_pb2.PingResponse(peer=self.node_info, dht_time=get_dht_time(), available=False)
 

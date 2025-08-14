@@ -79,16 +79,20 @@ class Server:
 
         See https://docs.hypertensor.org/mesh-template/authorizers
         """
-        # Initialize PoS authorizer. See https://docs.hypertensor.org/mesh-template/authorizers/pos
-        # if self.hypertensor is not None:
-        #     self.pos_authorizer = RSAProofOfStakeAuthorizer(
-        #         pk,
-        #         self.subnet_id,
-        #         self.hypertensor
-        #     )
-
         # Initialize RSA signature authorizer. See https://docs.hypertensor.org/mesh-template/authorizers/signature-authorizer
         self.rsa_authorizer = TokenRSAAuthorizerBase(pk)
+
+        # Initialize PoS authorizer. See https://docs.hypertensor.org/mesh-template/authorizers/pos
+        if self.hypertensor is not None:
+            self.pos_authorizer = RSAProofOfStakeAuthorizer(
+                pk,
+                self.subnet_id,
+                self.hypertensor
+            )
+        else:
+            # For testing purposes, at minimum require signatures
+            self.pos_authorizer = self.rsa_authorizer
+
 
         # Test connecting to the DHT as a direct peer
         if reachable_via_relay is None:
@@ -105,7 +109,7 @@ class Server:
             client_mode=reachable_via_relay,
             record_validators=self.record_validators,
             # **kwargs,
-            **dict(kwargs, authorizer=self.rsa_authorizer)
+            **dict(kwargs, authorizer=self.pos_authorizer)
         )
         self.reachability_protocol = ReachabilityProtocol.attach_to_dht(self.dht) if not reachable_via_relay else None
 
@@ -138,7 +142,7 @@ class Server:
             dht=self.dht,
             subnet_id=self.subnet_id,
             hypertensor=self.hypertensor,
-            authorizer=None,
+            authorizer=self.rsa_authorizer,
             start=True
         )
 

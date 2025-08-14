@@ -21,6 +21,12 @@ A mock CLI
 Add required parameters to start a node
 
 For example, if you're building an inference subnet, you may need a model name to load the model.
+
+mesh-server-mock \
+    --host_maddrs /ip4/0.0.0.0/tcp/31331 /ip4/0.0.0.0/udp/31331/quic \
+    --announce_maddrs /ip4/127.00.1/tcp/31331 /ip4/127.00.1/udp/31331/quic \
+    --identity_path server3.id \
+    --subnet_id 1 --subnet_node_id 2
 """
 def main():
     # fmt:off
@@ -113,7 +119,7 @@ def main():
         role=role,
         subnet_id=subnet_id,
         subnet_node_id=subnet_node_id,
-        hypertensor=hypertensor
+        hypertensor=None
     )
 
     try:

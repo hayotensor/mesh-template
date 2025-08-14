@@ -4,12 +4,12 @@ The Hypertensor Subnet Base includes all the core components required to launch 
 - **[Kademlia DHT (KAD-DHT)][bittorrent]** – for scalable, decentralized storage and routing
 - **Asyncio-based DHT Node** – designed for fast, concurrent communications
 - **DHT Protocol** – allows DHT nodes to request keys/neighbors from other DHT nodes, and manages routing tables
-- **DHT Record Storage** – with support for versioned and validated records with customizable predicate extensions
+- **DHT Record Storage** – decentralized key-value storage with support for versioned and validated records with customizable predicate extensions
 - **Record Validators** – attach custom validation logic to any stored record, such as key authentication and Pydantic schemas
 - **DHT Traversal Tools** – Traverse the DHT graph
 - **Routing Tables** – manage network topology and neighbor nodes. A data structure that contains DHT peers bucketed according to their distance to node_id. Follows Kademlia routing table
-- **P2P Servicer Base** – register RPC methods to the DHT for nodes to call on one another
-- **Proof-of-Stake Integration** – incentivize and secure participation
+- **P2P Servicer Base** – register RPC methods to the DHT for nodes to call on one another with security authorizer extensions
+- **Proof-of-Stake Integration** – incentivize and secure participation, i.e. must be staked to join the subnet
 - **Hypertensor Consensus** – Ready to run in parallel to the Hypertensor consensus mechanism
 - **Substrate Integration** – Connect to Hypertensor with an RPC endpoint
 - **Secure Communication** – support for Ed25519 and RSA authentication for communication
@@ -63,7 +63,7 @@ of [Go toolchain](https://golang.org/doc/install) (1.15 or 1.16 are supported).
 ##### Generate coldkey (if needed)
 
 ##### Generate hotkey
-- This is the hotkey of the node. It is used for validating and attesting only.
+- This is the hotkey of the node. It is used for validating and attesting only. Each hotkey is unique to each subnet node and no hotkey can be used twice.
 
 ##### Generate peer private keys
 
