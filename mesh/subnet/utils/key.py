@@ -237,7 +237,7 @@ def get_rsa_peer_id(public_bytes: bytes) -> Optional[PeerID]:
     )
     return PeerID(encoded_digest)
 
-def extract_rsa_peer_id_old(key)-> Optional[PeerID]:
+def extract_rsa_peer_id_from_record_validator(key)-> Optional[PeerID]:
   public_keys = RSASignatureValidator._PUBLIC_KEY_RE.findall(key)
 
   rsa_public_key = serialization.load_ssh_public_key(public_keys[0])

@@ -8,10 +8,16 @@ logger = get_logger(__name__)
 """
 Consensus scores
 """
-@dataclass# RSA subkey for records (protected records requiring signing/validating)
-
+# In-subnet helper
+@dataclass
 class ConsensusScores:
   peer_id: str
+  score: int
+
+# On-chain format
+@dataclass
+class OnChainConsensusScore:
+  node_id: int
   score: int
 
 """

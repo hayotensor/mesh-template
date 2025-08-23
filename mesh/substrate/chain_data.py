@@ -43,7 +43,7 @@ custom_rpc_type_registry = {
         ["initial_coldkeys", "BTreeSet"],
         ["owner", "AccountId"],
         ["registration_epoch", "u32"],
-        ["node_removal_system", "NodeRemovalSystem"],
+        ["node_removal_system", "Option<NodeRemovalPolicy>"],
         ["key_types", "BTreeSet<KeyType>"],
       ],
     },
@@ -54,12 +54,20 @@ custom_rpc_type_registry = {
         "Active",
       ],
     },
-    "NodeRemovalSystem": {
+    "NodeRemovalPolicy": {
+      "type": "struct",
+      "type_mapping": [
+        ["logic", "LogicExpr"],
+      ],
+    },
+    "LogicExpr": {
       "type": "enum",
       "value_list": [
-        "Consensus",
-        "Stake",
-        "Reputation",
+        "And",
+        "Or",
+        "Xor",
+        "Not",
+        "Condition"
       ],
     },
     "KeyType": {
@@ -77,14 +85,14 @@ custom_rpc_type_registry = {
         ["id", "u32"],
         ["hotkey", "AccountId"],
         ["peer_id", "Vec<u8>"],
-        ["bootstrap_peer_id", "Vec<u8>"],
+        ["bootnode_peer_id", "Vec<u8>"],
+        ["bootnode", "Option<BoundedVec<u8, DefaultMaxVectorLength>>"],
         ["client_peer_id", "Vec<u8>"],
         ["classification", "SubnetNodeClassification"],
         ["delegate_reward_rate", "u128"],
         ["last_delegate_reward_rate_update", "u32"],
-        ["a", "Option<BoundedVec<u8>>"],
-        ["b", "Option<BoundedVec<u8>>"],
-        ["c", "Option<BoundedVec<u8>>"],
+        ["unique", "Option<BoundedVec<u8, DefaultMaxVectorLength>>"],
+        ["non_unique", "Option<BoundedVec<u8, DefaultMaxVectorLength>>"],
       ],
     },
     "SubnetNodeClassification": {
@@ -101,14 +109,24 @@ custom_rpc_type_registry = {
         "Registered",
         "Idle",
         "Included",
-        "Validator"
+        "Validator",
+      ],
+    },
+    "SubnetNodeConsensusData": {
+      "type": "struct",
+      "type_mapping": [
+        ["subnet_node_id", "u32"],
+        ["score", "u128"],
       ],
     },
     "RewardsData": {
       "type": "struct",
       "type_mapping": [
-        ["peer_id", "Vec<u8>"],
-        ["score", "u128"],
+        ["overall_subnet_reward", "u128"],
+        ["subnet_owner_reward", "u128"],
+        ["subnet_rewards", "u128"],
+        ["delegate_stake_rewards", "u128"],
+        ["subnet_node_rewards", "u128"],
       ],
     },
     "SubnetNodeInfo": {
@@ -118,7 +136,7 @@ custom_rpc_type_registry = {
         ["coldkey", "AccountId"],
         ["hotkey", "AccountId"],
         ["peer_id", "Vec<u8>"],
-        ["bootstrap_peer_id", "Vec<u8>"],
+        ["bootnode_peer_id", "Vec<u8>"],
         ["client_peer_id", "Vec<u8>"],
         ["classification", "SubnetNodeClassification"],
         ["delegate_reward_rate", "u128"],
@@ -127,6 +145,21 @@ custom_rpc_type_registry = {
         ["b", "Vec<u8>"],
         ["c", "Vec<u8>"],
         ["stake_balance", "u128"],
+      ],
+    },
+    "ColdkeyIdentityData": {
+      "type": "struct",
+      "type_mapping": [
+        ["name", "BoundedVec<u8, DefaultMaxVectorLength>"],
+        ["url", "BoundedVec<u8, DefaultMaxUrlLength>"],
+        ["image", "BoundedVec<u8, DefaultMaxUrlLength>"],
+        ["discord", "BoundedVec<u8, DefaultMaxSocialIdLength>"],
+        ["x", "BoundedVec<u8, DefaultMaxSocialIdLength>"],
+        ["telegram", "BoundedVec<u8, DefaultMaxSocialIdLength>"],
+        ["github", "BoundedVec<u8, DefaultMaxUrlLength>"],
+        ["hugging_face", "BoundedVec<u8, DefaultMaxUrlLength>"],
+        ["description", "BoundedVec<u8, DefaultMaxVectorLength>"],
+        ["misc", "BoundedVec<u8, DefaultMaxVectorLength>"],
       ],
     },
   }
@@ -477,7 +510,8 @@ class SubnetNodeInfo:
   coldkey: str
   hotkey: str
   peer_id: str
-  bootstrap_peer_id: str
+  bootnode_peer_id: str
+  bootnode: str
   client_peer_id: str
   classification: str
   delegate_reward_rate: int
@@ -498,7 +532,8 @@ class SubnetNodeInfo:
       data_decoded["hotkey"], 42
     )
     data_decoded["peer_id"] = data_decoded["peer_id"]
-    data_decoded["bootstrap_peer_id"] = data_decoded["bootstrap_peer_id"]
+    data_decoded["bootnode_peer_id"] = data_decoded["bootnode_peer_id"]
+    data_decoded["bootnode"] = data_decoded["bootnode"]
     data_decoded["client_peer_id"] = data_decoded["client_peer_id"]
     data_decoded["classification"] = data_decoded["classification"]
     data_decoded["delegate_reward_rate"] = data_decoded["delegate_reward_rate"]
@@ -562,7 +597,8 @@ class SubnetNodeInfo:
       coldkey="000000000000000000000000000000000000000000000000",
       hotkey="000000000000000000000000000000000000000000000000",
       peer_id="000000000000000000000000000000000000000000000000",
-      bootstrap_peer_id="000000000000000000000000000000000000000000000000",
+      bootnode_peer_id="000000000000000000000000000000000000000000000000",
+      bootnode="",
       client_peer_id="000000000000000000000000000000000000000000000000",
       classification="",
       delegate_reward_rate=0,
@@ -582,7 +618,8 @@ class SubnetNode:
   id: int
   hotkey: str
   peer_id: str
-  bootstrap_peer_id: str
+  bootnode_peer_id: str
+  bootnode: str
   client_peer_id: str
   classification: str
   delegate_reward_rate: int
@@ -599,7 +636,8 @@ class SubnetNode:
       data_decoded["hotkey"], 42
     )
     data_decoded["peer_id"] = data_decoded["peer_id"]
-    data_decoded["bootstrap_peer_id"] = data_decoded["bootstrap_peer_id"]
+    data_decoded["bootnode_peer_id"] = data_decoded["bootnode_peer_id"]
+    data_decoded["bootnode"] = data_decoded["bootnode"]
     data_decoded["client_peer_id"] = data_decoded["client_peer_id"]
     data_decoded["classification"] = data_decoded["classification"]
     data_decoded["delegate_reward_rate"] = data_decoded["delegate_reward_rate"]
@@ -666,7 +704,7 @@ class SubnetNode:
       id=0,
       hotkey="000000000000000000000000000000000000000000000000",
       peer_id="000000000000000000000000000000000000000000000000",
-      bootstrap_peer_id="000000000000000000000000000000000000000000000000",
+      bootnode_peer_id="000000000000000000000000000000000000000000000000",
       client_peer_id="000000000000000000000000000000000000000000000000",
       classification="",
       delegate_reward_rate=0,

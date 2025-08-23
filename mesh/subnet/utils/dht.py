@@ -13,6 +13,7 @@ from mesh.dht.routing import DHTKey
 from mesh.dht.validation import RecordValidatorBase
 from mesh.p2p import PeerID
 from mesh.subnet.data_structures import RemoteInfo, RemoteModuleInfo, ServerInfo, ServerState
+from mesh.subnet.utils.key import extract_rsa_peer_id_from_ssh, extract_rsa_peer_id_from_record_validator
 from mesh.utils import DHTExpiration, MPFuture, get_dht_time, get_logger
 
 logger = get_logger(__name__)
@@ -59,7 +60,7 @@ async def _store_node(
         subkey=subkey,
         value=server_info.to_tuple(),
         expiration_time=expiration_time,
-        num_workers=1,
+        num_workers=32,
     )
 
 def get_node_infos(
@@ -114,7 +115,6 @@ async def _get_node_infos(
                 server=server_info
             )
         )
-
     return modules
 
 def store_data(
@@ -187,6 +187,7 @@ def declare_node_rsa(
     wait: bool = True,
     record_validator: Optional[RSASignatureValidator] = None,
 ):
+    print("declaring rsa nodes")
     """
     Declare your node; update timestamps if declared previously
 
@@ -196,9 +197,9 @@ def declare_node_rsa(
     :param expiration_time: declared modules will be visible for this many seconds
     :returns: if wait, returns store status for every key (True = store succeeded, False = store rejected)
     """
-
     return dht.run_coroutine(
-        partial(_declare_declare_node_rsa,
+        partial(
+            _declare_declare_node_rsa,
             key=key,
             server_info=server_info,
             expiration_time=expiration_time,
@@ -218,12 +219,69 @@ async def _declare_declare_node_rsa(
     subkey = dht.peer_id.to_base58() if record_validator is None else dht.peer_id.to_base58().encode() + record_validator.local_public_key
 
     return await node.store(
-        keys=key,
+        key=key,
         subkey=subkey,
-        values=server_info.to_tuple(),
+        value=server_info.to_tuple(),
         expiration_time=expiration_time,
         num_workers=32,
     )
+
+def get_node_infos_rsa(
+    dht: DHT,
+    uid: Any, # type: ignore
+    expiration_time: Optional[DHTExpiration] = None,
+    *,
+    latest: bool = False,
+    return_future: bool = False,
+    record_validator: Optional[RSASignatureValidator] = None,
+) -> Union[List[RemoteModuleInfo], MPFuture]:
+    return dht.run_coroutine(
+        partial(
+            _get_node_infos_rsa,
+            uid=uid,
+            expiration_time=expiration_time,
+            latest=latest,
+        ),
+        return_future=return_future,
+    )
+
+async def _get_node_infos_rsa(
+    dht: DHT,
+    node: DHTNode,
+    uid: Any, # type: ignore
+    expiration_time: Optional[DHTExpiration],
+    latest: bool,
+    record_validator: Optional[RSASignatureValidator] = None,
+) -> List[RemoteModuleInfo]:
+    if latest:
+        assert expiration_time is None, "You should define either `expiration_time` or `latest`, not both"
+        expiration_time = math.inf
+    elif expiration_time is None:
+        expiration_time = get_dht_time()
+    num_workers = 1 if dht.num_workers is None else 1
+    found: Dict[Any, DHTValue] = await node.get_many([uid], expiration_time, num_workers=num_workers) # type: ignore
+
+    if found[uid] is None:
+        return []
+    peers = []
+    inner_dict = found[uid].value
+
+    modules: List[RemoteModuleInfo] = []
+    for subkey, values in inner_dict.items():
+        caller_peer_id = extract_rsa_peer_id_from_record_validator(subkey)
+        peers.append(caller_peer_id)
+        server_info = ServerInfo.from_tuple(values.value)
+
+        modules.append(
+            RemoteModuleInfo(
+                peer_id=caller_peer_id,
+                server=server_info
+            )
+        )
+
+    return modules
+
+
 
 def declare_node_ed25519(
     dht: DHT,
@@ -244,9 +302,10 @@ def declare_node_ed25519(
     """
 
     return dht.run_coroutine(
-        partial(_declare_declare_node_ed25519,
+        partial(
+            _declare_declare_node_ed25519,
             key=key,
-            server_info=server_info,
+            server_info=server_info.to_tuple(),
             expiration_time=expiration_time,
             record_validator=record_validator
         ),
@@ -264,9 +323,9 @@ async def _declare_declare_node_ed25519(
     subkey = dht.peer_id.to_base58() if record_validator is None else dht.peer_id.to_base58().encode() + record_validator.local_public_key
 
     return await node.store(
-        keys=key,
+        key=key,
         subkey=subkey,
-        values=server_info.to_tuple(),
+        value=server_info.to_tuple(),
         expiration_time=expiration_time,
         num_workers=32,
     )

@@ -222,8 +222,15 @@ setup(
             "mesh-server = mesh.mesh_cli.run_server:main",
             "mesh-server-mock = mesh.mesh_cli.run_server_mock:main",
             "keygen = mesh.mesh_cli.crypto.keygen:main",
+            # hypertensor subnet
+            "register-subnet = mesh.mesh_cli.hypertensor.subnet.register:main",
+            "activate-subnet = mesh.mesh_cli.hypertensor.subnet.activate:main",
+            # hypertensor node
+            "register-node = mesh.mesh_cli.hypertensor.node.register:main",
+            "activate-node = mesh.mesh_cli.hypertensor.node.activate:main",
+            "register-activate-node = mesh.mesh_cli.hypertensor.node.register_activate:main",
         ]
     },
     # What does your project relate to?
-    keywords="pytorch, deep learning, machine learning, gpu, distributed computing, volunteer computing, dht",
+    keywords="pytorch, deep learning, machine learning, gpu, distributed computing, P2P, dht, decentralized",
 )

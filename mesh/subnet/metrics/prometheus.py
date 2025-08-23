@@ -10,7 +10,7 @@ from prometheus_client import Gauge, start_http_server
 from mesh import DHT, PeerID
 from mesh.subnet.data_structures import RemoteModuleInfo, ServerState
 from mesh.subnet.metrics.config import INITIAL_PEERS, UPDATE_PERIOD
-from mesh.subnet.utils.consensus import ConsensusScores
+from mesh.subnet.utils.consensus import OnChainConsensusScore
 from mesh.subnet.utils.dht import get_node_infos
 from mesh.substrate.chain_functions import Hypertensor
 from mesh.utils.multiaddr import Multiaddr
@@ -153,7 +153,7 @@ class MetricsServer:
             for peer_id, score in scores.items()
         }
 
-    def filter_merged_scores(self, scores: Dict[str, float]) -> List[ConsensusScores]:
+    def filter_merged_scores(self, scores: Dict[str, float]) -> List[OnChainConsensusScore]:
         """
         Filter scores against the blockchain activated subnet nodes
         """

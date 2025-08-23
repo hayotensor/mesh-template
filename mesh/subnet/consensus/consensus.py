@@ -6,8 +6,9 @@ from typing import List
 from mesh import DHT
 from mesh.dht.validation import RecordValidatorBase
 from mesh.subnet.utils.consensus import (
-    ConsensusScores,
+    OnChainConsensusScore,
 )
+from mesh.subnet.utils.dht import get_node_infos_rsa
 from mesh.substrate.chain_functions import Hypertensor
 from mesh.substrate.config import BLOCK_SECS
 from mesh.utils import get_logger
@@ -47,19 +48,32 @@ class Consensus(threading.Thread):
         validator = self.hypertensor.get_rewards_validator(self.subnet_id, epoch)
         return validator
 
-    def get_scores(self) -> List[ConsensusScores]:
+    def get_scores(self) -> List[OnChainConsensusScore]:
         """
         Fill in a way to get scores on each node
 
         These scores must be deterministic
         """
-        if self.validator_scores is None:
+        # Get all nodes
+        nodes = get_node_infos_rsa(
+            self.dht,
+            uid="node",
+            latest=True
+        )
+
+        node_peer_ids = {n.peer_id for n in nodes}
+
+        # Get all included nodes
+        if self.hypertensor is None:
+            logger.warning("Hypertensor RPC node required to get node scores")
             return []
 
-        # Step 2: Convert to List[ConsensusScores], rounding or casting score to int
+        included_nodes = self.hypertensor.get_subnet_included_nodes(self.subnet_id)
+        subnet_node_ids = [n.id for n in included_nodes if n.peer_id in node_peer_ids]
+
         consensus_score_list = [
-            ConsensusScores(peer_id=peer_id, score=int(score * 1e18))
-            for peer_id, score in self.validator_scores.items()
+            OnChainConsensusScore(node_id=node_id, score=int(score * 1e18))
+            for node_id, score in subnet_node_ids
         ]
 
         # Reset scores for node roles

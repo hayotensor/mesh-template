@@ -4,7 +4,7 @@ from mesh import DHT
 from mesh.dht.validation import RecordValidatorBase
 from mesh.subnet.data_structures import ServerClass
 from mesh.subnet.utils.consensus import (
-    ConsensusScores,
+    OnChainConsensusScore,
 )
 from mesh.substrate.chain_functions import Hypertensor
 from mesh.utils.logging import get_logger
@@ -25,7 +25,7 @@ class MockValidator:
         self.latest_commit = None
         self.hypertensor = hypertensor
 
-    async def score_nodes(self, current_epoch: int) -> List[ConsensusScores]:
+    async def score_nodes(self, current_epoch: int) -> List[OnChainConsensusScore]:
         """
         Score nodes
 
@@ -37,8 +37,8 @@ class MockValidator:
         scores = self.dht.get(f"scores_{current_epoch}") or {}
 
         consensus_score_list = [
-            ConsensusScores(peer_id=peer_id, score=int(score * 1e18))
-            for peer_id, score in scores.items()
+            OnChainConsensusScore(node_id=node_id, score=int(score * 1e18))
+            for node_id, score in scores.items()
         ]
 
         return consensus_score_list
@@ -55,7 +55,7 @@ class MockValidator:
             for peer_id, score in scores.items()
         }
 
-    def filter_merged_scores(self, scores: Dict[str, float]) -> List[ConsensusScores]:
+    def filter_merged_scores(self, scores: Dict[str, float]) -> List[OnChainConsensusScore]:
         """
         Filter scores against the blockchain activated subnet nodes
         """

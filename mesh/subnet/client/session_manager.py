@@ -2,9 +2,9 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator, Optional
 
 from mesh import get_logger
-from mesh.subnet.client.session import Session
 from mesh.subnet.client.routing.routing_manager import RemoteManager
-from mesh.utils.auth import AuthorizerBase
+from mesh.subnet.client.session import Session
+from mesh.utils.authorizers.auth import AuthorizerBase
 
 logger = get_logger(__name__)
 

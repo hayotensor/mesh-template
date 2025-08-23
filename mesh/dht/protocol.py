@@ -12,7 +12,7 @@ from mesh.dht.validation import DHTRecordRequestType
 from mesh.p2p import P2P, P2PContext, PeerID, ServicerBase
 from mesh.proto import dht_pb2
 from mesh.utils import MSGPackSerializer, get_logger
-from mesh.utils.auth import AuthorizerBase, AuthRole, AuthRPCWrapper
+from mesh.utils.authorizers.auth import AuthorizerBase, AuthRole, AuthRPCWrapper
 from mesh.utils.timed_storage import (
     MAX_DHT_TIME_DISCREPANCY_SECONDS,
     DHTExpiration,
@@ -145,7 +145,6 @@ class DHTProtocol(ServicerBase):
 
     async def rpc_ping(self, request: dht_pb2.PingRequest, context: P2PContext) -> dht_pb2.PingResponse:
         """Some node wants us to add it to our routing table."""
-        print("rpc_ping", request)
 
         response = dht_pb2.PingResponse(peer=self.node_info, dht_time=get_dht_time(), available=False)
 
@@ -312,9 +311,6 @@ class DHTProtocol(ServicerBase):
                 if result.type == dht_pb2.NOT_FOUND:
                     output[key] = None, nearest
                 elif result.type == dht_pb2.FOUND_REGULAR:
-                    # if not self._validate_record(
-                    #     key_bytes, self.IS_REGULAR_VALUE, result.value, result.expiration_time
-                    # ):
                     if not self._validate_record(
                         key_bytes, self.IS_REGULAR_VALUE, result.value, result.expiration_time, DHTRecordRequestType.GET
                     ):
@@ -324,7 +320,6 @@ class DHTProtocol(ServicerBase):
                     output[key] = ValueWithExpiration(result.value, result.expiration_time), nearest
                 elif result.type == dht_pb2.FOUND_DICTIONARY:
                     value_dictionary = self.serializer.loads(result.value)
-                    # if not self._validate_dictionary(key_bytes, value_dictionary):
                     if not self._validate_dictionary(key_bytes, value_dictionary, DHTRecordRequestType.GET):
                         output[key] = None, nearest
                         continue

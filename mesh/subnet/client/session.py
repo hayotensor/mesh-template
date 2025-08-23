@@ -11,7 +11,7 @@ from mesh import deserialize_torch_tensor, get_logger, serialize_torch_tensor
 from mesh.proto import inference_protocol_pb2
 from mesh.subnet.client.routing.routing_manager import RemoteManager
 from mesh.subnet.protocols.mock_protocol import MockProtocol
-from mesh.utils.auth import AuthorizerBase
+from mesh.utils.authorizers.auth import AuthorizerBase
 
 logger = get_logger(__name__)
 

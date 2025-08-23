@@ -4,7 +4,7 @@ import pytest
 
 from mesh.proto import auth_pb2
 from mesh.proto.auth_pb2 import ResponseAuthInfo
-from mesh.utils.auth import (
+from mesh.utils.authorizers.auth import (
     AuthorizedRequestBase,
     AuthorizedResponseBase,
     AuthRole,

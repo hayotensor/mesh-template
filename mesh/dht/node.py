@@ -33,7 +33,7 @@ from mesh.dht.traverse import traverse_dht
 from mesh.dht.validation import DHTRecordRequestType
 from mesh.p2p import P2P, PeerID
 from mesh.utils import MSGPackSerializer, SerializerBase, get_logger
-from mesh.utils.auth import AuthorizerBase
+from mesh.utils.authorizers.auth import AuthorizerBase
 from mesh.utils.multiaddr import Multiaddr
 from mesh.utils.timed_storage import DHTExpiration, TimedStorage, ValueWithExpiration
 

@@ -1,10 +1,6 @@
-import asyncio
-import functools
 import inspect
 import secrets
-from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
-from enum import Enum
 from typing import Dict, Optional
 
 from mesh.p2p.p2p_daemon_bindings.datastructures import PeerID
@@ -14,12 +10,10 @@ from mesh.substrate.chain_functions import Hypertensor
 from mesh.utils.asyncio import (
     anext,
 )
-from mesh.utils.auth import AuthorizedRequestBase, AuthorizedResponseBase, AuthorizerBase
+from mesh.utils.authorizers.auth import AuthorizedRequestBase, AuthorizedResponseBase, AuthorizerBase
 from mesh.utils.crypto import Ed25519PrivateKey, Ed25519PublicKey, RSAPrivateKey, RSAPublicKey
 from mesh.utils.logging import get_logger
 from mesh.utils.timed_storage import get_dht_time
-
-# from substrateinterface import SubstrateInterface
 
 logger = get_logger(__name__)
 
@@ -35,7 +29,8 @@ class Ed25519ProofOfStakeAuthorizer(AuthorizerBase):
         self,
         local_private_key: Ed25519PrivateKey,
         subnet_id: int,
-        hypertensor: Hypertensor
+        hypertensor: Hypertensor,
+        min_class: int
     ):
         super().__init__()
         self._local_private_key = local_private_key
@@ -46,6 +41,7 @@ class Ed25519ProofOfStakeAuthorizer(AuthorizerBase):
         self.pos_success_cooldown = 300
         self.peer_id_to_last_failed_pos: Dict[PeerID, float] = {}
         self.pos_fail_cooldown: float = 300  # 5 minutes default cooldown
+        self.min_class = min_class
 
     async def get_token(self) -> AccessToken:
         token = AccessToken(
@@ -206,7 +202,7 @@ class Ed25519ProofOfStakeAuthorizer(AuthorizerBase):
         Uses the Hypertensor `proof_of_stake` RPC method that checks
         for a subnet nodes peer_id and bootstrap_peer_id being staked
         """
-        result = self.hypertensor.proof_of_stake(self.subnet_id, peer_id_vector)
+        result = self.hypertensor.proof_of_stake(self.subnet_id, peer_id_vector, self.min_class)
 
         if "result" not in result:
             return False
@@ -233,7 +229,8 @@ class RSAProofOfStakeAuthorizer(AuthorizerBase):
         self,
         local_private_key: RSAPrivateKey,
         subnet_id: int,
-        hypertensor: Hypertensor
+        hypertensor: Hypertensor,
+        min_class: int
     ):
         super().__init__()
         self._local_private_key = local_private_key
@@ -241,9 +238,10 @@ class RSAProofOfStakeAuthorizer(AuthorizerBase):
         self.subnet_id = subnet_id
         self.hypertensor = hypertensor
         self.peer_id_to_last_successful_pos: Dict[PeerID, float] = {}
-        self.pos_success_cooldown = 300
+        self.pos_success_cooldown = 300 # should be about the length of an epoch
         self.peer_id_to_last_failed_pos: Dict[PeerID, float] = {}
         self.pos_fail_cooldown: float = 300  # 5 minutes default cooldown
+        self.min_class = min_class
 
     async def get_token(self) -> AccessToken:
         token = AccessToken(
@@ -404,7 +402,7 @@ class RSAProofOfStakeAuthorizer(AuthorizerBase):
         Uses the Hypertensor `proof_of_stake` RPC method that checks
         for a subnet nodes peer_id and bootstrap_peer_id being staked
         """
-        result = self.hypertensor.proof_of_stake(self.subnet_id, peer_id_vector)
+        result = self.hypertensor.proof_of_stake(self.subnet_id, peer_id_vector, self.min_class)
 
         if "result" not in result:
             return False

@@ -15,7 +15,7 @@ from mesh.subnet.utils.key import extract_rsa_peer_id_from_ssh
 from mesh.substrate.chain_functions import Hypertensor
 from mesh.utils import get_logger
 from mesh.utils.asyncio import switch_to_uvloop
-from mesh.utils.auth import AuthorizerBase, AuthRole, AuthRPCWrapperStreamer
+from mesh.utils.authorizers.auth import AuthorizerBase, AuthRole, AuthRPCWrapperStreamer
 from mesh.utils.mpfuture import MPFuture
 from mesh.utils.serializer import MSGPackSerializer
 

@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from typing import Any, List, Optional
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
-from substrateinterface import ExtrinsicReceipt, Keypair, SubstrateInterface
+from substrateinterface import ExtrinsicReceipt, Keypair, KeypairType, SubstrateInterface
 from substrateinterface.exceptions import SubstrateRequestException
 from tenacity import retry, stop_after_attempt, wait_fixed
 
@@ -35,13 +36,24 @@ class EpochData:
       seconds_remaining=epoch_length * BLOCK_SECS
     )
 
+class KeypairFrom(Enum):
+  MNEMONIC = 1
+  PRIVATE_KEY = 2
 
 class Hypertensor:
-  def __init__(self, url: str, phrase: str):
+  def __init__(self, url: str, phrase: str, keypair_from: Optional[KeypairFrom] = None):
     self.url = url
     self.interface: SubstrateInterface = SubstrateInterface(url=url)
-    self.keypair = Keypair.create_from_uri(phrase)
-    self.hotkey = Keypair.create_from_uri(phrase).ss58_address
+    if keypair_from is None:
+      self.keypair = Keypair.create_from_mnemonic(phrase, crypto_type=KeypairType.ECDSA)
+      self.hotkey = self.keypair.ss58_address
+    elif keypair_from is KeypairFrom.MNEMONIC:
+      self.keypair = Keypair.create_from_mnemonic(phrase, crypto_type=KeypairType.ECDSA)
+      self.hotkey = self.keypair.ss58_address
+    elif keypair_from is KeypairFrom.PRIVATE_KEY:
+      self.keypair = Keypair.create_from_private_key(phrase, crypto_type=KeypairType.ECDSA)
+      self.hotkey = self.keypair.ss58_address
+
 
   def get_block_number(self):
     @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
@@ -82,7 +94,6 @@ class Hypertensor:
 
     It is up to prior functions to decide whether to call this function
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
     :param subnet_id: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
     :param data: an array of data containing all AccountIds, PeerIds, and scores per subnet hoster
     :param args: arbitrary data the validator can send in with consensus data
@@ -132,7 +143,6 @@ class Hypertensor:
     """
     Attest validator submission on current epoch
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
     :param subnet_id: Subnet ID
 
     Note: It's important before calling this to ensure the entrinsic will be successful.
@@ -174,19 +184,26 @@ class Hypertensor:
 
   def register_subnet(
     self,
-    path: str,
-    memory_mb: int,
-    registration_blocks: int,
-    entry_interval: int,
+    hotkey: str,
+    name: str,
+    repo: str,
+    description: str,
+    misc: str,
+    churn_limit: int,
+    min_stake: int,
+    max_stake: int,
+    delegate_stake_percentage: int,
+    registration_queue_epochs: int,
+    activation_grace_epochs: int,
+    queue_classification_epochs: int,
+    included_classification_epochs: int,
+    max_node_penalties: int,
+    initial_coldkeys: list,
+    max_registered_nodes: int,
+    key_types: list,
   ) -> ExtrinsicReceipt:
     """
     Register subnet node and stake
-
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
-    :param path: path to download the model
-    :param memory_mb: memory requirements to host entire model one time
-    :param registration_blocks: blocks to keep subnet in registration period
-    :param entry_interval: blocks required between each subnet node entry
     """
 
     # compose call
@@ -194,11 +211,24 @@ class Hypertensor:
       call_module='Network',
       call_function='register_subnet',
       call_params={
+        'hotkey': hotkey,
         'subnet_data': {
-          'path': path,
-          'memory_mb': memory_mb,
-          'registration_blocks': registration_blocks,
-          'entry_interval': entry_interval,
+          'name': name.encode(),
+          'repo': repo.encode(),
+          'description': description.encode(),
+          'misc': misc.encode(),
+          'churn_limit': churn_limit,
+          'min_stake': min_stake,
+          'max_stake': max_stake,
+          'delegate_stake_percentage': delegate_stake_percentage,
+          'registration_queue_epochs': registration_queue_epochs,
+          'activation_grace_epochs': activation_grace_epochs,
+          'queue_classification_epochs': queue_classification_epochs,
+          'included_classification_epochs': included_classification_epochs,
+          'max_node_penalties': max_node_penalties,
+          'initial_coldkeys': sorted(set(initial_coldkeys)),
+          'max_registered_nodes': max_registered_nodes,
+          'key_types': sorted(set(key_types)),
         }
       }
     )
@@ -224,7 +254,7 @@ class Hypertensor:
     """
     Activate a registered subnet node
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
+    :param subnet_id: subnet ID
     """
 
     # compose call
@@ -261,7 +291,6 @@ class Hypertensor:
     """
     Remove a subnet
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
     :param subnet_id: subnet ID
     """
 
@@ -421,6 +450,54 @@ class Hypertensor:
 
     return make_rpc_request()
 
+  def proof_of_stake(
+    self,
+    subnet_id: int,
+    peer_id: str,
+    min_class: int
+  ):
+    """
+    Function to return all account_ids and subnet_node_ids from the substrate Hypertensor Blockchain by peer ID
+
+    :param subnet_id: subnet ID
+    :param peer_id: peer ID
+    :param min_class: SubnetNodeClass enum
+
+    Deactivated = 0
+    Registered = 1
+    Idle = 2
+    Included = 3
+    Validator = 4
+
+    ```rust
+    pub enum SubnetNodeClass {
+      Deactivated,
+      #[default] Registered,
+      Idle,
+      Included,
+      Validator,
+    }
+    ```
+    :returns: subnet_nodes_data
+    """
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          is_subnet_node = _interface.rpc_request(
+            method='network_proofOfStake',
+            params=[
+              subnet_id,
+              peer_id,
+              min_class
+            ]
+          )
+          return is_subnet_node
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
   def get_minimum_delegate_stake(
     self,
     subnet_id: int,
@@ -482,24 +559,23 @@ class Hypertensor:
     subnet_id: int,
     hotkey: str,
     peer_id: str,
+    bootnode_peer_id: str,
     delegate_reward_rate: int,
     stake_to_be_added: int,
-    a: Optional[str] = None,
-    b: Optional[str] = None,
-    c: Optional[str] = None,
+    bootnode: Optional[str] = None,
+    unique: Optional[str] = None,
+    non_unique: Optional[str] = None,
   ) -> ExtrinsicReceipt:
     """
     Add subnet validator as subnet subnet_node and stake
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
     :param subnet_id: subnet ID
     :param hotkey: Hotkey of subnet node
     :param peer_id: peer Id of subnet node
     :param delegate_reward_rate: reward rate to delegate stakers (1e18)
     :param stake_to_be_added: amount to stake
-    :param a: unique optional parameter
-    :param b: optional parametr
-    :param c: optional parametr
+    :param unique: unique optional parameter
+    :param non_unique: optional parametr
     """
 
     # compose call
@@ -510,11 +586,12 @@ class Hypertensor:
         'subnet_id': subnet_id,
         'hotkey': hotkey,
         'peer_id': peer_id,
+        'bootnode_peer_id': bootnode_peer_id,
+        'bootnode': bootnode,
         'delegate_reward_rate': delegate_reward_rate,
         'stake_to_be_added': stake_to_be_added,
-        'a': a,
-        'b': b,
-        'c': c,
+        'unique': unique,
+        'non_unique': non_unique,
       }
     )
 
@@ -540,16 +617,16 @@ class Hypertensor:
     subnet_id: int,
     hotkey: str,
     peer_id: str,
+    bootnode_peer_id: str,
     delegate_reward_rate: int,
     stake_to_be_added: int,
-    a: Optional[str] = None,
-    b: Optional[str] = None,
-    c: Optional[str] = None,
+    bootnode: Optional[str] = None,
+    unique: Optional[str] = None,
+    non_unique: Optional[str] = None,
   ) -> ExtrinsicReceipt:
     """
     Register subnet node and stake
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
     :param subnet_id: subnet ID
     :param hotkey: Hotkey of subnet node
     :param peer_id: peer Id of subnet node
@@ -568,11 +645,12 @@ class Hypertensor:
         'subnet_id': subnet_id,
         'hotkey': hotkey,
         'peer_id': peer_id,
+        'bootnode_peer_id': bootnode_peer_id,
+        'bootnode': bootnode,
         'delegate_reward_rate': delegate_reward_rate,
         'stake_to_be_added': stake_to_be_added,
-        'a': a,
-        'b': b,
-        'c': c,
+        'unique': unique,
+        'non_unique': non_unique,
       }
     )
 
@@ -601,7 +679,6 @@ class Hypertensor:
     """
     Activate registered subnet node
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
     :param subnet_id: subnet ID
     :param subnet_node_id: subnet node ID
     """
@@ -641,7 +718,6 @@ class Hypertensor:
     """
     Temporarily deactivate subnet node
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
     :param subnet_id: subnet ID
     :param subnet_node_id: subnet node ID
     """
@@ -681,7 +757,6 @@ class Hypertensor:
     """
     Remove subnet node
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
     :param subnet_id: subnet ID
     :param subnet_node_id: subnet node ID
     """
@@ -722,7 +797,6 @@ class Hypertensor:
     """
     Increase stake balance of a subnet node
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
     :param subnet_id: subnet ID
     :param subnet_node_id: subnet node ID
     :param stake_to_be_added: stake to be added towards subnet
@@ -767,7 +841,7 @@ class Hypertensor:
 
     Amount must be less than minimum required balance if an activate subnet node.
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
+    :param subnet_id: Subnet ID
     :param stake_to_be_removed: stake to be removed from subnet
     """
 
@@ -802,9 +876,6 @@ class Hypertensor:
   def claim_stake_unbondings(self):
     """
     Remove balance from unbondings ledger
-
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
-    :param subnet_id: Subnet ID
     """
 
     # compose call
@@ -838,7 +909,6 @@ class Hypertensor:
     """
     Add delegate stake balance to subnet
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
     :param subnet_id: subnet ID
     :param stake_to_be_added: stake to be added towards subnet
     """
@@ -879,8 +949,7 @@ class Hypertensor:
     """
     Transfer delegate stake from one subnet to another subnet
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
-    :param from_subnet_id: from subnet ID 
+    :param from_subnet_id: from subnet ID
     :param to_subnet_id: to subnet ID
     :param stake_to_be_added: stake to be added towards subnet
     """
@@ -921,7 +990,6 @@ class Hypertensor:
     """
     Remove delegate stake balance from subnet by shares
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
     :param subnet_id: to subnet ID
     :param shares_to_be_removed: sahares to be removed
     """
@@ -963,7 +1031,6 @@ class Hypertensor:
 
     Note: This does ''NOT'' increase the balance of a user
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
     :param subnet_id: to subnet ID
     :param amount: TENSOR to be added
     """
@@ -1003,7 +1070,6 @@ class Hypertensor:
     """
     Update coldkey using current coldkey as self.keypair
 
-    :param self.keypair: coldkey self.keypair
     :param hotkey: Hotkey
     :param new_coldkey: New coldkey
     """
@@ -1043,7 +1109,6 @@ class Hypertensor:
     """
     Updates hotkey using coldkey
 
-    :param self.keypair: coldkey self.keypair
     :param old_hotkey: Old hotkey
     :param new_hotkey: New hotkey
     """
@@ -1083,9 +1148,8 @@ class Hypertensor:
     """
     Query a subnet node ID by its hotkey
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
     :param subnet_id: to subnet ID
-    :param hotkey: Hotkey of subnet node
+    :param subnet_node_id: Subnet Node ID
     """
 
     @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
@@ -1107,7 +1171,6 @@ class Hypertensor:
     """
     Query a subnet node ID by its hotkey
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
     :param subnet_id: to subnet ID
     :param hotkey: Hotkey of subnet node
     """
@@ -1130,7 +1193,7 @@ class Hypertensor:
     """
     Get coldkey of hotkey
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
+    :param hotkey: Hotkey of subnet node
     """
 
     @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
@@ -1152,7 +1215,6 @@ class Hypertensor:
     """
     Query hotkey by subnet node ID
 
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
     :param hotkey: Hotkey of subnet node
     """
 

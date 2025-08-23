@@ -12,14 +12,14 @@ from mesh.subnet.consensus.consensus import Consensus
 from mesh.subnet.data_structures import ServerClass, ServerInfo, ServerState
 from mesh.subnet.protocols.mock_protocol import MockProtocol
 from mesh.subnet.reachability import ReachabilityProtocol, check_direct_reachability
-from mesh.subnet.utils.dht import declare_node, get_node_infos
+from mesh.subnet.utils.dht import declare_node_rsa, get_node_infos_rsa
 from mesh.subnet.utils.key import get_rsa_private_key
 from mesh.subnet.utils.ping import PingAggregator
 from mesh.subnet.utils.random import sample_up_to
 from mesh.substrate.chain_functions import Hypertensor
-from mesh.utils.auth import TokenRSAAuthorizerBase
+from mesh.utils.authorizers.auth import TokenRSAAuthorizerBase
+from mesh.utils.authorizers.proof_of_stake import RSAProofOfStakeAuthorizer
 from mesh.utils.logging import get_logger
-from mesh.utils.proof_of_stake import RSAProofOfStakeAuthorizer
 from mesh.utils.timed_storage import MAX_DHT_TIME_DISCREPANCY_SECONDS
 
 logger = get_logger(__name__)
@@ -87,7 +87,8 @@ class Server:
             self.pos_authorizer = RSAProofOfStakeAuthorizer(
                 pk,
                 self.subnet_id,
-                self.hypertensor
+                self.hypertensor,
+                1 # min class is Registered
             )
         else:
             # For testing purposes, at minimum require signatures
@@ -338,7 +339,7 @@ class ModuleHeartbeatThread(threading.Thread):
 
             See https://docs.hypertensor.org/build-a-subnet/requirements#node-key-public-key-subkey
             """
-            declare_node(
+            declare_node_rsa(
                 dht=self.dht,
                 key="node",
                 server_info=self.server_info,
@@ -379,11 +380,12 @@ class ModuleHeartbeatThread(threading.Thread):
             self.join()
 
     def _ping_next_servers(self) -> Dict[mesh.PeerID, float]:
-        module_infos = get_node_infos(
+        module_infos = get_node_infos_rsa(
             self.dht,
             uid="node",
             latest=True
         )
+
         print("module_infos", module_infos)
         if len(module_infos) == 0:
             return

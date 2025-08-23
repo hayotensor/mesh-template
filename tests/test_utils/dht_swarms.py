@@ -9,7 +9,7 @@ from mesh.dht import DHT
 from mesh.dht.node import DHTID, DHTNode
 from mesh.dht.validation import RecordValidatorBase
 from mesh.p2p import PeerID
-from mesh.utils.auth import AuthorizerBase
+from mesh.utils.authorizers.auth import AuthorizerBase
 from mesh.utils.multiaddr import Multiaddr
 
 

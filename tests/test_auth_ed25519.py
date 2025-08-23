@@ -5,7 +5,7 @@ import pytest
 
 from mesh.proto import dht_pb2
 from mesh.proto.auth_pb2 import AccessToken
-from mesh.utils.auth import AuthRole, AuthRPCWrapper, TokenEd25519AuthorizerBase
+from mesh.utils.authorizers.auth import AuthRole, AuthRPCWrapper, TokenEd25519AuthorizerBase
 from mesh.utils.crypto import Ed25519PrivateKey
 from mesh.utils.logging import get_logger
 

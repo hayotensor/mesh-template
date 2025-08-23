@@ -150,6 +150,7 @@ mesh-server-mock \
 - Explore alternative tensor/AI parameter compression options
 - DHT Record uniqueness options
 - Runtime upgrades
+- In-subnet epochs (synced to blockchain clock), plus ledger integration
 - Etc.
 ---
 

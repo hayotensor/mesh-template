@@ -14,7 +14,7 @@ from mesh.p2p import P2P, P2PContext, PeerID, ServicerBase
 from mesh.proto import dht_pb2
 from mesh.subnet.constants import REACHABILITY_API_URL
 from mesh.utils import get_logger
-from mesh.utils.auth import AuthorizerBase
+from mesh.utils.authorizers.auth import AuthorizerBase
 from mesh.utils.remote_worker import RemoteWorker
 
 logger = get_logger(__name__)
