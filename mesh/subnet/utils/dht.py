@@ -8,13 +8,19 @@ from functools import partial
 from typing import Any, Dict, List, Optional, Union
 
 from mesh.dht import DHT, DHTNode, DHTValue
-from mesh.dht.crypto import Ed25519SignatureValidator, RSASignatureValidator
+from mesh.dht.crypto import Ed25519SignatureValidator, RSASignatureValidator, SignatureValidator
 from mesh.dht.routing import DHTKey
 from mesh.dht.validation import RecordValidatorBase
 from mesh.p2p import PeerID
 from mesh.subnet.data_structures import RemoteInfo, RemoteModuleInfo, ServerInfo, ServerState
-from mesh.subnet.utils.key import extract_rsa_peer_id_from_ssh, extract_rsa_peer_id_from_record_validator
+from mesh.subnet.utils.key import (
+    extract_peer_id_from_record_validator,
+    extract_peer_id_from_record_validator_v2,
+    extract_rsa_peer_id_from_record_validator,
+    extract_rsa_peer_id_from_ssh,
+)
 from mesh.utils import DHTExpiration, MPFuture, get_dht_time, get_logger
+from mesh.utils.crypto import KeyType
 
 logger = get_logger(__name__)
 
@@ -179,6 +185,9 @@ async def _get_data(
 Validated entries
 """
 
+"""
+RSA
+"""
 def declare_node_rsa(
     dht: DHT,
     key: DHTKey,
@@ -187,7 +196,6 @@ def declare_node_rsa(
     wait: bool = True,
     record_validator: Optional[RSASignatureValidator] = None,
 ):
-    print("declaring rsa nodes")
     """
     Declare your node; update timestamps if declared previously
 
@@ -268,7 +276,7 @@ async def _get_node_infos_rsa(
 
     modules: List[RemoteModuleInfo] = []
     for subkey, values in inner_dict.items():
-        caller_peer_id = extract_rsa_peer_id_from_record_validator(subkey)
+        caller_peer_id = extract_peer_id_from_record_validator(subkey, KeyType.RSA)
         peers.append(caller_peer_id)
         server_info = ServerInfo.from_tuple(values.value)
 
@@ -281,7 +289,144 @@ async def _get_node_infos_rsa(
 
     return modules
 
+def declare_node_sig(
+    dht: DHT,
+    key: DHTKey,
+    server_info: ServerInfo,
+    expiration_time: DHTExpiration,
+    wait: bool = True,
+    record_validator: Optional[SignatureValidator] = None,
+):
+    """
+    Declare your node; update timestamps if declared previously
 
+    :param key: key to store under
+    :param wait: if True, awaits for declaration to finish, otherwise runs in background
+    :param throughput: specify your performance in terms of compute throughput
+    :param expiration_time: declared modules will be visible for this many seconds
+    :returns: if wait, returns store status for every key (True = store succeeded, False = store rejected)
+    """
+    return dht.run_coroutine(
+        partial(
+            _declare_declare_node_sig,
+            key=key,
+            server_info=server_info,
+            expiration_time=expiration_time,
+            record_validator=record_validator
+        ),
+        return_future=not wait,
+    )
+
+async def _declare_declare_node_sig(
+    dht: DHT,
+    node: DHTNode,
+    key: DHTKey,
+    server_info: ServerInfo,
+    expiration_time: DHTExpiration,
+    record_validator: Optional[SignatureValidator] = None,
+) -> Dict[Any, bool]:
+    subkey = dht.peer_id.to_base58() if record_validator is None else dht.peer_id.to_base58().encode() + record_validator.local_public_key
+
+    return await node.store(
+        key=key,
+        subkey=subkey,
+        value=server_info.to_tuple(),
+        expiration_time=expiration_time,
+        num_workers=32,
+    )
+
+def get_node_infos_sig(
+    dht: DHT,
+    uid: Any,
+    expiration_time: Optional[DHTExpiration] = None,
+    *,
+    latest: bool = False,
+    return_future: bool = False,
+    record_validator: Optional[SignatureValidator] = None,
+) -> Union[List[RemoteModuleInfo], MPFuture]:
+    return dht.run_coroutine(
+        partial(
+            _get_node_infos_sig,
+            uid=uid,
+            expiration_time=expiration_time,
+            latest=latest,
+        ),
+        return_future=return_future,
+    )
+
+async def _get_node_infos_sig(
+    dht: DHT,
+    node: DHTNode,
+    uid: Any,
+    expiration_time: Optional[DHTExpiration],
+    latest: bool,
+    record_validator: Optional[SignatureValidator] = None,
+) -> List[RemoteModuleInfo]:
+    if latest:
+        assert expiration_time is None, "You should define either `expiration_time` or `latest`, not both"
+        expiration_time = math.inf
+    elif expiration_time is None:
+        expiration_time = get_dht_time()
+    num_workers = 1 if dht.num_workers is None else 1
+    found: Dict[Any, DHTValue] = await node.get_many([uid], expiration_time, num_workers=num_workers)
+
+    if found[uid] is None:
+        return []
+    peers = []
+    inner_dict = found[uid].value
+
+    modules: List[RemoteModuleInfo] = []
+    for subkey, values in inner_dict.items():
+        # caller_peer_id = extract_peer_id_from_record_validator(subkey, KeyType.RSA)
+        caller_peer_id = extract_peer_id_from_record_validator_v2(subkey)
+        peers.append(caller_peer_id)
+        server_info = ServerInfo.from_tuple(values.value)
+
+        modules.append(
+            RemoteModuleInfo(
+                peer_id=caller_peer_id,
+                server=server_info
+            )
+        )
+
+    return modules
+
+def store_data_rsa(
+    dht: DHT,
+    key: DHTKey,
+    data: Any, # fill in the data type here
+    expiration_time: DHTExpiration,
+    wait: bool = True,
+    subkey: Optional[Any] = None,
+    record_validator: Optional[RSASignatureValidator] = None,
+):
+    dht.run_coroutine(
+        partial(_store_data_rsa, key=key, value=data, expiration_time=expiration_time, subkey=subkey, record_validator=record_validator),
+        return_future=False,
+    )
+
+async def _store_data_rsa(
+    dht: DHT,
+    node: DHTNode,
+    key: Any,
+    value: Any,
+    expiration_time: DHTExpiration,
+    subkey: Optional[Any] = None,
+    record_validator: Optional[RSASignatureValidator] = None,
+) -> Dict[DHTKey, bool]:
+    subkey = dht.peer_id.to_base58() if record_validator is None else dht.peer_id.to_base58().encode() + record_validator.local_public_key
+
+    return await node.store(
+        key=key,
+        subkey=subkey,
+        value=value,
+        expiration_time=expiration_time,
+        num_workers=32,
+    )
+
+"""
+Ed25519
+"""
 
 def declare_node_ed25519(
     dht: DHT,
@@ -329,40 +474,6 @@ async def _declare_declare_node_ed25519(
         expiration_time=expiration_time,
         num_workers=32,
     )
-
-def store_data_rsa(
-    dht: DHT,
-    key: DHTKey,
-    data: Any, # fill in the data type here
-    expiration_time: DHTExpiration,
-    wait: bool = True,
-    subkey: Optional[Any] = None,
-    record_validator: Optional[RSASignatureValidator] = None,
-):
-    dht.run_coroutine(
-        partial(_store_data_rsa, key=key, value=data, expiration_time=expiration_time, subkey=subkey, record_validator=record_validator),
-        return_future=False,
-    )
-
-async def _store_data_rsa(
-    dht: DHT,
-    node: DHTNode,
-    key: Any,
-    value: Any,
-    expiration_time: DHTExpiration,
-    subkey: Optional[Any] = None,
-    record_validator: Optional[RSASignatureValidator] = None,
-) -> Dict[DHTKey, bool]:
-    subkey = dht.peer_id.to_base58() if record_validator is None else dht.peer_id.to_base58().encode() + record_validator.local_public_key
-
-    return await node.store(
-        key=key,
-        subkey=subkey,
-        value=value,
-        expiration_time=expiration_time,
-        num_workers=32,
-    )
-
 
 def store_data_ed25519(
     dht: DHT,

@@ -183,6 +183,10 @@ class P2P:
                 process_kwargs[param] = self._maddrs_to_str(value)
         if no_listen:
             process_kwargs["noListenAddrs"] = 1
+
+        if identity_path is None and dht_mode == "server":
+            logger.warning("Identity path not provided, see `identity_path`")
+
         if identity_path is not None:
             if os.path.isfile(identity_path):
                 if check_if_identity_free and need_bootstrap:
@@ -200,6 +204,7 @@ class P2P:
                 logger.info(f"Generating new identity to be saved in `{identity_path}`")
                 self.generate_rsa_identity(identity_path)
                 # A newly generated identity is not taken with ~100% probability
+
             process_kwargs["id"] = identity_path
 
         proc_args = self._make_process_args(
@@ -257,7 +262,7 @@ class P2P:
         use_relay: bool,
     ) -> bool:
         with open(identity_path, "rb") as f:
-            peer_id = PeerID.from_identity_rsa(f.read())
+            peer_id = PeerID.from_identity(f.read())
 
         anonymous_p2p = await cls.create(
             initial_peers=initial_peers,

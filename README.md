@@ -1,6 +1,9 @@
-## A decentralized subnet base for Hypertensor.
+## Hypertensor subnet framework
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
+A framework for building open & decentralized AI projects
 
-The Hypertensor Subnet Base includes all the core components required to launch a decentralized AI application, including:
+---
+This includes all the core components required to launch a decentralized AI application, including:
 - **[Kademlia DHT (KAD-DHT)][bittorrent]** – for scalable, decentralized storage and routing
 - **Asyncio-based DHT Node** – designed for fast, concurrent communications
 - **DHT Protocol** – allows DHT nodes to request keys/neighbors from other DHT nodes, and manages routing tables
@@ -58,44 +61,76 @@ of [Go toolchain](https://golang.org/doc/install) (1.15 or 1.16 are supported).
 
 ---
 
-# Subnet Documentation
+# Documentation
 
-##### Generate coldkey (if needed)
+## Keys
 
-##### Generate hotkey
+The template currently allows RSA and Ed25519 key types and is interoperable between the two.
+
+#### Generate coldkey (if needed)
+
+#### Generate hotkey
 - This is the hotkey of the node. It is used for validating and attesting only. Each hotkey is unique to each subnet node and no hotkey can be used twice.
 
-##### Generate peer private keys
+#### Generate peer private keys
 
   - This will create 3 private key files for your peer
       - `peer_id`: Main peer ID for communication and signing
       - `bootstrap_peer_id`: (Optional usage) Peer ID to be used as a bootstrap node.
       - `client_peer_id`: (Optional usage) Peer ID to be used as a client. This is for those who want to build frontends to interact with the subnet.
 
-##### Register & Stake on Hypertensor
+Example Private Key Generation
+```bash
+keygen \
+--path rsa-pk.key \
+--bootstrap_path rsa-bootstrap-pk.key \
+--client_path rsa-client-pk.key  \
+--key_type rsa
+```
+
+## Register and Activate Subnet Node (on-chain)
+
+#### Register & Stake on Hypertensor
   - Call `register_subnet_node`
   - Retrieve your `start_epoch` by querying your SubnetNodesData storage element on polkadot.js with your subnet node ID. This is the epoch you must activate your node on + the grace period
 
-##### Run subnet node
-<i>(fill in docs here, examples are alow below)</i>
+##### Example Register & Stake CLI
+```bash
+register-node \
+--subnet_id 1 \
+--hotkey 0x773539d4Ac0e786233D90A233654ccEE26a613D9 \
+--peer_id QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9 \
+--bootnode_peer_id QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
+--bootnode /ip4/127.00.1/tcp/31330/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
+--client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
+--delegate_reward_rate 0.125 \
+--stake_to_be_added 100.00
+```
 
-##### Activate node
+#### Activate node
   - Call `activate_subnet_node` in Hypertensor on your start epoch up to the grace period.
 
+##### Example Register & Stake CLI
+```bash
+activate-node --subnet_id 1
+```
 ---
 ## Running Nodes
-Fill in the following with your subnets documentation on how to join the subnet, requirements, etc.
 
-### Run bootnode 
-A bootnode is an entry point into a decentralized network. 
-
-Each subnet must have at least one public and running bootnode at all times available for Overwatch Nodes to validate a subnet is running.
 
 - Replace port 31330 with your port of choice.
 - Replace `{your_ip}` with your IP.
+### Bootnode
+<b>Note</b>: To be verified to have a proof-of-stake in-subnet, use the bootnode private key generated during the <b>Generate peer private keys</b> step that the subnet node was registered with under the `bootnode_peer_id`.
 
-##### Start Bootnode and Start Subnet
-###### This starts an entirely new subnet and runs a bootnode
+<b>Note</b>: Bootnodes are not required by subnet nodes and are expected to be managed by the subnet owner entity.
+
+A bootnode is an entry point into a decentralized network and should be ran on its own server.
+
+Each subnet must have at least one public and running bootnode at all times for nodes to enter and for for Overwatch Nodes to validate a subnet. See documentation for more information.
+
+#### Start Bootnode and Start Subnet
+##### This starts an entirely new subnet and runs a bootnode
 ```bash
 mesh-dht \
 --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
@@ -103,8 +138,8 @@ mesh-dht \
 --identity_path server2.id
 ```
 
-##### Start Bootnode and Join Subnet
-###### This joins an existing subnets and runs a bootnode.
+#### Start Bootnode and Join Subnet
+##### This joins an existing subnets and runs a bootnode.
 - Get the bootnode multiaddresses from the subnets team or blockchain and add them to the `initial_peers` argument.
 ```bash
 mesh-dht \
@@ -113,11 +148,13 @@ mesh-dht \
 --initial_peers /ip4/{ip}/p2p/{peer_id} /ip4/{ip}/p2p/{peer_id}
 ```
 
-### Run node 
-*Fill in how to start and run a node for your subnet!*
+### Node 
+#### *Fill in how to start and run a node for your subnet!*
 
-##### Start DHT / Start Node
-NOT SUGGESTED
+*The following is example only for deploying a subnet with no use-case.*
+
+#### Start DHT / Start Node
+
 This will start a new subnet (fresh swarm as initial node)
 ```bash
 mesh-server-mock \
@@ -128,7 +165,7 @@ mesh-server-mock \
 --subnet_id 1 --subnet_node_id 1
 ```
 
-##### Join DHT / Start Node
+#### Join DHT / Start Node
 ```bash
 mesh-server-mock \
 --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
@@ -136,7 +173,6 @@ mesh-server-mock \
 --identity_path server2.id \
 --subnet_id 1 --subnet_node_id 1
 ```
-
 ---
 
 ## Future
@@ -150,7 +186,8 @@ mesh-server-mock \
 - Explore alternative tensor/AI parameter compression options
 - DHT Record uniqueness options
 - Runtime upgrades
-- In-subnet epochs (synced to blockchain clock), plus ledger integration
+- In-subnet epochs (synced to blockchain clock)
+- Ledger integration
 - Etc.
 ---
 
@@ -161,6 +198,11 @@ This is currently at the active development stage, and we welcome all contributi
 If you want to contribute to this mesh template but don't know where to start, take a look at the unresolved [issues](https://github.com/hypertensor-blockchain/mesh/issues). 
 
 Open a new issue or join [our chat room](https://discord.gg/bY7NUEweQp) in case you want to discuss new functionality or report a possible bug. Bug fixes are always welcome, but new features should be preferably discussed with maintainers beforehand.
+
+
+[![Discord](https://img.shields.io/badge/Join-Discord-blue?logo=discord&logoColor=white)](https://discord.gg/bY7NUEweQp)
+[![X](https://img.shields.io/badge/Follow-On_X-black?logo=x&logoColor=white)](https://x.com/hyper_tensor)
+[![Telegram](https://img.shields.io/badge/Join-Telegram-blue?logo=telegram&logoColor=white)](https://t.me/hypertensorblockchain)
 
 ## References
 

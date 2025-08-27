@@ -28,6 +28,9 @@ def main():
     # fmt:off
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--subnet_id", type=int, required=True, help="Subnet name (unique)")
+    parser.add_argument("--local", action="store_true", help="[Testing] Run in local mode, uses LOCAL_RPC")
+    parser.add_argument("--phrase", type=str, required=False, help="[Testing] Coldkey phrase that controls actions which include funds, such as registering, and staking")
+    parser.add_argument("--private_key", type=str, required=False, help="[Testing] Hypertensor blockchain private key")
 
     args = parser.parse_args()
     local = args.local

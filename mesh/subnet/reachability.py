@@ -99,6 +99,7 @@ class ReachabilityProtocol(ServicerBase):
             return response.available
         except Exception as e:
             logger.debug(f"Requested {remote_peer} to check {check_peer}, but got:", exc_info=True)
+            logger.warning(f"Requested {remote_peer} to check {check_peer}, but got:", exc_info=True)
             return None
 
     async def rpc_check(self, request: dht_pb2.PingRequest, context: P2PContext) -> dht_pb2.PingResponse:
@@ -122,7 +123,9 @@ class ReachabilityProtocol(ServicerBase):
             await self.remove_p2p_handlers(p2p)
 
     @classmethod
-    def attach_to_dht(cls, dht: DHT, await_ready: bool = False, **kwargs) -> Optional["ReachabilityProtocol"]:
+    def attach_to_dht(cls, dht: DHT, identity_path: str, await_ready: bool = False, **kwargs) -> Optional["ReachabilityProtocol"]:
+        print("attach_to_dht")
+
         protocol = cls(**kwargs)
         ready = Future()
 

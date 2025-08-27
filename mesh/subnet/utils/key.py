@@ -5,11 +5,18 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519, rsa
 
 from mesh import PeerID
-from mesh.dht.crypto import Ed25519SignatureValidator, RSASignatureValidator
+from mesh.dht.crypto import Ed25519SignatureValidator, RSASignatureValidator, SignatureValidator
 from mesh.dht.validation import RecordValidatorBase
 from mesh.proto import crypto_pb2
 from mesh.utils import get_logger, multihash
-from mesh.utils.crypto import Ed25519PrivateKey, Ed25519PublicKey, RSAPrivateKey
+from mesh.utils.crypto import (
+    Ed25519PrivateKey,
+    Ed25519PublicKey,
+    KeyType,
+    RSAPrivateKey,
+    RSAPublicKey,
+    load_public_key_from_bytes,
+)
 
 logger = get_logger(__name__)
 
@@ -115,6 +122,45 @@ def get_rsa_private_key(identity_path: str) -> RSAPrivateKey:
     private_key = serialization.load_der_private_key(key_data, password=None)
     private_key = RSAPrivateKey(private_key=private_key)
     return private_key
+
+# def get_private_key(identity_path: str) -> RSAPrivateKey | Ed25519PrivateKey:
+#   with open(f"{identity_path}", "rb") as f:
+#       data = f.read()
+#       key_data = crypto_pb2.PrivateKey.FromString(data).data
+#       private_key = ed25519.Ed25519PrivateKey.from_private_bytes(key_data[:32])
+
+#       if isinstance(private_key, ed25519.Ed25519PrivateKey):
+#         private_key = Ed25519PrivateKey(private_key=private_key)
+#         return private_key
+#       else:
+#         private_key = serialization.load_der_private_key(key_data, password=None)
+#         private_key = RSAPrivateKey(private_key=private_key)
+#         return private_key
+
+def get_private_key(identity_path: str):
+  with open(f"{identity_path}", "rb") as f:
+    data = f.read()
+    private_key = crypto_pb2.PrivateKey.FromString(data)
+    key_type = private_key.key_type
+    key_data = private_key.data
+
+    if key_type == 0:
+      # RSA
+      private_key = serialization.load_der_private_key(key_data, password=None)
+      private_key = RSAPrivateKey(private_key=private_key)
+      return private_key
+    elif key_type == 1:
+      # Ed25519
+      private_key = ed25519.Ed25519PrivateKey.from_private_bytes(key_data[:32])
+      private_key = Ed25519PrivateKey(private_key=private_key)
+      return private_key
+    elif key_type == 2:
+      # Secp256k1
+      raise ValueError("Secp256k1 is an unsupported public key type")
+
+    elif key_type == 3:
+      # ECDSA
+      raise ValueError("ECDSA is an unsupported public key type")
 
 """
 Peer IDs
@@ -258,3 +304,72 @@ def extract_rsa_peer_id_from_record_validator(key)-> Optional[PeerID]:
   )
 
   return PeerID(encoded_digest)
+
+def extract_peer_id_from_record_validator(key, key_type: KeyType)-> Optional[PeerID]:
+  public_keys = SignatureValidator._PUBLIC_KEY_RE.findall(key)
+
+  if key_type is KeyType.RSA:
+    rsa_public_key = serialization.load_ssh_public_key(public_keys[0])
+
+    public_bytes = rsa_public_key.public_bytes(
+      encoding=serialization.Encoding.DER,
+      format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+
+    encoded_public_key = crypto_pb2.PublicKey(
+      key_type=crypto_pb2.RSA,
+      data=public_bytes,
+    ).SerializeToString()
+
+    encoded_digest = multihash.encode(
+      hashlib.sha256(encoded_public_key).digest(),
+      multihash.coerce_code("sha2-256"),
+    )
+
+    peer_id = PeerID(encoded_digest)
+  elif key_type is KeyType.Ed25519:
+    pubkey = Ed25519PublicKey.from_bytes(public_keys[0])
+
+    encoded_public_key = crypto_pb2.PublicKey(
+      key_type=crypto_pb2.Ed25519,
+      data=pubkey.to_raw_bytes(),
+    ).SerializeToString()
+
+    encoded_public_key = b"\x00$" + encoded_public_key
+
+    peer_id = PeerID(encoded_public_key)
+
+  return peer_id
+
+def extract_peer_id_from_record_validator_v2(key)-> Optional[PeerID]:
+  public_keys = SignatureValidator._PUBLIC_KEY_RE.findall(key)
+  key = load_public_key_from_bytes(public_keys[0])
+
+  if isinstance(key, RSAPublicKey):
+    public_bytes = key._public_key.public_bytes(
+      encoding=serialization.Encoding.DER,
+      format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+
+    encoded_public_key = crypto_pb2.PublicKey(
+      key_type=crypto_pb2.RSA,
+      data=public_bytes,
+    ).SerializeToString()
+
+    encoded_digest = multihash.encode(
+      hashlib.sha256(encoded_public_key).digest(),
+      multihash.coerce_code("sha2-256"),
+    )
+
+    return PeerID(encoded_digest)
+  elif isinstance(key, Ed25519PublicKey):
+    encoded_public_key = crypto_pb2.PublicKey(
+      key_type=crypto_pb2.Ed25519,
+      data=key.to_raw_bytes(),
+    ).SerializeToString()
+
+    encoded_public_key = b"\x00$" + encoded_public_key
+
+    return PeerID(encoded_public_key)
+  else:
+    return None

@@ -372,6 +372,7 @@ class DHTProtocol(ServicerBase):
         return response
 
     async def update_routing_table(self, node_id: Optional[DHTID], peer_id: PeerID, responded=True):
+        print("update_routing_table")
         """
         This method is called on every incoming AND outgoing request to update the routing table
 

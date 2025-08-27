@@ -6,20 +6,21 @@ from typing import Dict, List, Optional
 
 import mesh
 from mesh import DHT, get_dht_time
-from mesh.dht.crypto import RSASignatureValidator
+from mesh.dht.crypto import RSASignatureValidator, SignatureValidator
 from mesh.dht.validation import RecordValidatorBase
 from mesh.subnet.consensus.consensus import Consensus
 from mesh.subnet.data_structures import ServerClass, ServerInfo, ServerState
 from mesh.subnet.protocols.mock_protocol import MockProtocol
 from mesh.subnet.reachability import ReachabilityProtocol, check_direct_reachability
-from mesh.subnet.utils.dht import declare_node_rsa, get_node_infos_rsa
-from mesh.subnet.utils.key import get_rsa_private_key
+from mesh.subnet.utils.dht import declare_node_rsa, declare_node_sig, get_node_infos_rsa, get_node_infos_sig
+from mesh.subnet.utils.key import get_private_key, get_rsa_private_key
 from mesh.subnet.utils.ping import PingAggregator
 from mesh.subnet.utils.random import sample_up_to
 from mesh.substrate.chain_functions import Hypertensor
-from mesh.utils.authorizers.auth import TokenRSAAuthorizerBase
-from mesh.utils.authorizers.proof_of_stake import RSAProofOfStakeAuthorizer
+from mesh.utils.authorizers.auth import SignatureAuthorizer, TokenRSAAuthorizerBase
+from mesh.utils.authorizers.pos_auth import ProofOfStakeAuthorizer
 from mesh.utils.logging import get_logger
+from mesh.utils.proof_of_stake import ProofOfStake
 from mesh.utils.timed_storage import MAX_DHT_TIME_DISCREPANCY_SECONDS
 
 logger = get_logger(__name__)
@@ -60,7 +61,8 @@ class Server:
         self.hypertensor = hypertensor
 
         identity_path = kwargs.get('identity_path', None)
-        pk = get_rsa_private_key(identity_path)
+        pk = get_private_key(identity_path)
+        # pk = get_rsa_private_key(identity_path)
 
         """
         Initialize record validators
@@ -68,8 +70,9 @@ class Server:
         See https://docs.hypertensor.org/mesh-template/dht-records/record-validator
         """
         # Initialize standard RSA signature record validator. See https://docs.hypertensor.org/mesh-template/dht-records/record-validator/signature-validators
-        self.rsa_signature_validator = RSASignatureValidator(pk)
-        self.record_validators=[self.rsa_signature_validator]
+        # self.signature_validator = RSASignatureValidator(pk)
+        self.signature_validator = SignatureValidator(pk)
+        self.record_validators=[self.signature_validator]
 
         # Initialize predicate validator here. See https://docs.hypertensor.org/mesh-template/dht-records/record-validator/predicate-validators
         ...
@@ -80,26 +83,30 @@ class Server:
         See https://docs.hypertensor.org/mesh-template/authorizers
         """
         # Initialize RSA signature authorizer. See https://docs.hypertensor.org/mesh-template/authorizers/signature-authorizer
-        self.rsa_authorizer = TokenRSAAuthorizerBase(pk)
+        # self.signature_authorizer = TokenRSAAuthorizerBase(pk)
+        self.signature_authorizer = SignatureAuthorizer(pk)
 
         # Initialize PoS authorizer. See https://docs.hypertensor.org/mesh-template/authorizers/pos
         if self.hypertensor is not None:
-            self.pos_authorizer = RSAProofOfStakeAuthorizer(
-                pk,
+            pos = ProofOfStake(
                 self.subnet_id,
                 self.hypertensor,
-                1 # min class is Registered
+                min_class=1,
             )
+            # self.pos_authorizer = ProofOfStakeAuthorizer(pk)
+            self.pos_authorizer = self.signature_authorizer
         else:
             # For testing purposes, at minimum require signatures
-            self.pos_authorizer = self.rsa_authorizer
+            self.pos_authorizer = self.signature_authorizer
 
 
         # Test connecting to the DHT as a direct peer
         if reachable_via_relay is None:
-            is_reachable = check_direct_reachability(initial_peers=initial_peers, authorizer=self.rsa_authorizer, use_relay=False, **kwargs)
+            is_reachable = check_direct_reachability(initial_peers=initial_peers, authorizer=self.pos_authorizer, use_relay=False, **kwargs)
             reachable_via_relay = is_reachable is False  # if can't check reachability (returns None), run a full peer
             logger.info(f"This server is accessible {'via relays' if reachable_via_relay else 'directly'}")
+
+        logger.info("About to run DHT")
 
         self.dht = DHT(
             initial_peers=initial_peers,
@@ -109,10 +116,9 @@ class Server:
             use_auto_relay=use_auto_relay,
             client_mode=reachable_via_relay,
             record_validators=self.record_validators,
-            # **kwargs,
             **dict(kwargs, authorizer=self.pos_authorizer)
         )
-        self.reachability_protocol = ReachabilityProtocol.attach_to_dht(self.dht) if not reachable_via_relay else None
+        self.reachability_protocol = ReachabilityProtocol.attach_to_dht(self.dht, identity_path) if not reachable_via_relay else None
 
         visible_maddrs_str = [str(a) for a in self.dht.get_visible_maddrs()]
 
@@ -143,14 +149,14 @@ class Server:
             dht=self.dht,
             subnet_id=self.subnet_id,
             hypertensor=self.hypertensor,
-            authorizer=self.rsa_authorizer,
+            authorizer=self.signature_authorizer,
             start=True
         )
 
         self.module_container = ModuleAnnouncerThread(
             dht=self.dht,
             server_info=self.server_info,
-            record_validator=self.rsa_signature_validator,
+            record_validator=self.signature_validator,
             update_period=self.update_period,
             expiration=self.expiration,
             start=True
@@ -161,7 +167,7 @@ class Server:
         #     server_info=self.server_info,
         #     subnet_id=self.subnet_id,
         #     subnet_node_id=self.subnet_node_id,
-        #     record_validator=self.rsa_signature_validator,
+        #     record_validator=self.signature_validator,
         #     hypertensor=self.hypertensor,
         #     start=True
         # )
@@ -246,7 +252,7 @@ class ConsensusThread(threading.Thread):
         self.server_info = server_info
         self.subnet_id = subnet_id
         self.subnet_node_id = subnet_node_id
-        self.rsa_signature_validator = record_validator
+        self.signature_validator = record_validator
         self.hypertensor = hypertensor
         self.consensus = None
         self.validator = None
@@ -262,7 +268,7 @@ class ConsensusThread(threading.Thread):
         self.validator = Validator(
             role=self.server_info.role,
             dht=self.dht,
-            record_validator=self.rsa_signature_validator,
+            record_validator=self.signature_validator,
             hypertensor=self.hypertensor,
         )
 
@@ -274,7 +280,7 @@ class ConsensusThread(threading.Thread):
             subnet_id=self.subnet_id,
             subnet_node_id=self.subnet_node_id,
             role=self.server_info.role,
-            record_validator=self.rsa_signature_validator,
+            record_validator=self.signature_validator,
             hypertensor=self.hypertensor,
             start=True,
         )
@@ -339,13 +345,20 @@ class ModuleHeartbeatThread(threading.Thread):
 
             See https://docs.hypertensor.org/build-a-subnet/requirements#node-key-public-key-subkey
             """
-            declare_node_rsa(
+            declare_node_sig(
                 dht=self.dht,
                 key="node",
                 server_info=self.server_info,
                 expiration_time=get_dht_time() + self.expiration,
                 record_validator=self.record_validator
             )
+            # declare_node_rsa(
+            #     dht=self.dht,
+            #     key="node",
+            #     server_info=self.server_info,
+            #     expiration_time=get_dht_time() + self.expiration,
+            #     record_validator=self.record_validator
+            # )
 
             if self.server_info.state == ServerState.OFFLINE:
                 break
@@ -380,11 +393,16 @@ class ModuleHeartbeatThread(threading.Thread):
             self.join()
 
     def _ping_next_servers(self) -> Dict[mesh.PeerID, float]:
-        module_infos = get_node_infos_rsa(
+        module_infos = get_node_infos_sig(
             self.dht,
             uid="node",
             latest=True
         )
+        # module_infos = get_node_infos_rsa(
+        #     self.dht,
+        #     uid="node",
+        #     latest=True
+        # )
 
         print("module_infos", module_infos)
         if len(module_infos) == 0:

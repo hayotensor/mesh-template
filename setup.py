@@ -221,7 +221,10 @@ setup(
             "mesh-dht = mesh.mesh_cli.run_dht:main",
             "mesh-server = mesh.mesh_cli.run_server:main",
             "mesh-server-mock = mesh.mesh_cli.run_server_mock:main",
+            # generate in-subnet private key for peer identity
             "keygen = mesh.mesh_cli.crypto.keygen:main",
+            # generate coldkey or hotkey
+            "generate-key = mesh.mesh_cli.hypertensor.keys.generate_key:main",
             # hypertensor subnet
             "register-subnet = mesh.mesh_cli.hypertensor.subnet.register:main",
             "activate-subnet = mesh.mesh_cli.hypertensor.subnet.activate:main",

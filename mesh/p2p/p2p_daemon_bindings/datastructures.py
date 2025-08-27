@@ -8,7 +8,7 @@ import hashlib
 from typing import Any, Sequence, Union
 
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import ed25519
+from cryptography.hazmat.primitives.asymmetric import ed25519, rsa
 
 from mesh.proto import crypto_pb2, p2pd_pb2
 from mesh.utils import base58, multihash
@@ -61,6 +61,54 @@ class PeerID:
     def from_base58(cls, base58_id: str) -> "PeerID":
         peer_id_bytes = base58.b58decode(base58_id)
         return cls(peer_id_bytes)
+
+    @classmethod
+    def from_identity(cls, data: bytes) -> "PeerID":
+        private_key = crypto_pb2.PrivateKey.FromString(data)
+        key_type = private_key.key_type
+        key_data = private_key.data
+
+        if key_type == 0:
+            # RSA
+            private_key = serialization.load_der_private_key(key_data, password=None)
+
+            encoded_public_key = private_key.public_key().public_bytes(
+                encoding=serialization.Encoding.DER,
+                format=serialization.PublicFormat.SubjectPublicKeyInfo,
+            )
+            encoded_public_key = crypto_pb2.PublicKey(
+                key_type=crypto_pb2.RSA,
+                data=encoded_public_key,
+            ).SerializeToString()
+
+            encoded_digest = multihash.encode(
+                hashlib.sha256(encoded_public_key).digest(),
+                multihash.coerce_code("sha2-256"),
+            )
+            return cls(encoded_digest)
+        elif key_type == 1:
+            # Ed25519
+            private_key = ed25519.Ed25519PrivateKey.from_private_bytes(key_data[:32])
+
+            public_key_bytes = private_key.public_key().public_bytes(
+                encoding=serialization.Encoding.Raw,
+                format=serialization.PublicFormat.Raw,
+            )
+
+            encoded_public_key = crypto_pb2.PublicKey(
+                key_type=crypto_pb2.Ed25519,
+                data=public_key_bytes,
+            ).SerializeToString()
+
+            encoded_digest = b"\x00$" + encoded_public_key
+
+            return cls(encoded_digest)
+        elif key_type == 2:
+            # Secp256k1
+            raise ValueError("Secp256k1 is an unsupported public key type")
+        elif key_type == 3:
+            # ECDSA
+            raise ValueError("ECDSA is an unsupported public key type")
 
     @classmethod
     def from_identity_rsa(cls, data: bytes) -> "PeerID":

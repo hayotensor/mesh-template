@@ -3,11 +3,19 @@ from __future__ import annotations
 import base64
 import threading
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import Optional
 
 from cryptography import exceptions
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519, padding, rsa
+
+
+class KeyType(Enum):
+    RSA = 0
+    Ed25519 = 1
+    Secp256k1 = 2
+    ECDSA = 3
 
 
 class PrivateKey(ABC):
@@ -178,3 +186,12 @@ class Ed25519PublicKey(PublicKey):
         if not isinstance(key, ed25519.Ed25519PublicKey):
             raise ValueError(f"Expected an Ed25519 public key, got {key}")
         return cls(key)
+
+
+def load_public_key_from_bytes(key_bytes: bytes):
+    for KeyClass in (RSAPublicKey, Ed25519PublicKey):
+        try:
+            return KeyClass.from_bytes(key_bytes)
+        except (ValueError, TypeError):
+            continue
+    raise ValueError("Unsupported public key type")
