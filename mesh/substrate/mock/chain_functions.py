@@ -1,9 +1,9 @@
 import glob
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from mesh.subnet.utils.key import generate_rsa_private_key_file
-from mesh.substrate.chain_data import SubnetNode, SubnetNodeInfo
-from mesh.substrate.chain_functions import EpochData
+from mesh.substrate.chain_data import SubnetInfo, SubnetNode, SubnetNodeInfo
+from mesh.substrate.chain_functions import EpochData, SubnetNodeClass
 from mesh.substrate.config import BLOCK_SECS
 
 
@@ -19,10 +19,21 @@ class MockHypertensor:
     def get_block_number(self):
         return 100
 
+    def proof_of_stake(
+        self,
+        subnet_id: int,
+        peer_id: str,
+        min_class: int
+    ):
+        return True
+
     def get_epoch(self):
         current_block = self.get_block_number()
         epoch_length = self.get_epoch_length()
         return current_block // epoch_length
+
+    def get_subnet_slot(self, subnet_id: int):
+        return 3
 
     def get_epoch_data(self) -> EpochData:
         current_block = self.get_block_number()
@@ -46,36 +57,115 @@ class MockHypertensor:
             seconds_remaining=seconds_remaining
         )
 
+    def get_subnet_epoch_data(self, slot: int) -> EpochData:
+        current_block = self.get_block_number()
+        epoch_length = self.get_epoch_length()
+
+        blocks_since_start = current_block - slot
+        epoch = blocks_since_start // epoch_length
+        blocks_elapsed = blocks_since_start % epoch_length
+        percent_complete = blocks_elapsed / epoch_length
+        blocks_remaining = epoch_length - blocks_elapsed
+        seconds_elapsed = blocks_elapsed * BLOCK_SECS
+        seconds_remaining = blocks_remaining * BLOCK_SECS
+
+        return EpochData(
+        block=current_block,
+        epoch=epoch,
+        block_per_epoch=epoch_length,
+        seconds_per_epoch=epoch_length * BLOCK_SECS,
+        percent_complete=percent_complete,
+        blocks_elapsed=blocks_elapsed,
+        blocks_remaining=blocks_remaining,
+        seconds_elapsed=seconds_elapsed,
+        seconds_remaining=seconds_remaining
+        )
+
     def get_rewards_validator(self, subnet_id: int, epoch: int):
         1
 
-    def validate(
+    def propose_attestation(
         self,
         subnet_id: int,
         data,
         args: Optional[Any] = None,
+        attest_data: Optional[Any] = None,
     ):
         return
 
     def attest(
         self,
-        subnet_id: int
+        subnet_id: int,
+        data: Optional[List[Any]] = None
     ):
         return
+
+    def get_subnet_included_nodes(self, subnet_id: int) -> List:
+        return [
+            SubnetNode(
+                id=1,
+                hotkey="0x1234567890abcdef1234567890abcdef12345678",
+                peer_id="QmNV5G3hq2UmAck2htEgsqrmPFBff5goFZAdmKDcZLBZLX",
+                bootnode_peer_id="QmNV5G3hq2UmAck2htEgsqrmPFBff5goFZAdmKDcZLBZLX",
+                bootnode="",
+                client_peer_id="QmNV5G3hq2UmAck2htEgsqrmPFBff5goFZAdmKDcZLBZLX",
+                classification="Validator",
+                delegate_reward_rate=0,
+                last_delegate_reward_rate_update=0,
+                unique=None,
+                non_unique=None,
+            )
+        ]
+
+    def get_formatted_subnet_info(self, subnet_id: int) -> Optional["SubnetInfo"]:
+        return SubnetInfo(
+            id=subnet_id,
+            name=f"subnet-{subnet_id}",
+            repo=f"github.com/subnet-{subnet_id}",
+            description="artificial intelligence",
+            misc="artificial intelligence misc",
+            state="Active",
+            start_epoch=0,
+            churn_limit=0,
+            min_stake=0,
+            max_stake=0,
+            delegate_stake_percentage=0.1e18,
+            registration_queue_epochs=10,
+            activation_grace_epochs=10,
+            queue_classification_epochs=10,
+            included_classification_epochs=10,
+            max_node_penalties=10,
+            initial_coldkeys=sorted(set([
+                "0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac",
+                "0x3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0",
+                "0x798d4Ba9baf0064Ec19eB4F0a1a45785ae9D6DFc",
+                "0x773539d4Ac0e786233D90A233654ccEE26a613D9"
+            ])),
+            max_registered_nodes=10,
+            owner="0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac",
+            registration_epoch=0,
+            # node_removal_system=None,
+            key_types=sorted(set("Rsa")),
+            slot_index=3,
+            penalty_count=0,
+            total_nodes=4,
+            total_active_nodes=4,
+            total_electable_nodes=4,
+        )
 
     def get_formatted_elected_validator_node(self, subnet_id: int, epoch: int) -> Optional["SubnetNode"]:
         return SubnetNode(
             id=1,
             hotkey="0x1234567890abcdef1234567890abcdef12345678",
             peer_id="QmNV5G3hq2UmAck2htEgsqrmPFBff5goFZAdmKDcZLBZLX",
-            bootstrap_peer_id="QmNV5G3hq2UmAck2htEgsqrmPFBff5goFZAdmKDcZLBZLX",
+            bootnode_peer_id="QmNV5G3hq2UmAck2htEgsqrmPFBff5goFZAdmKDcZLBZLX",
+            bootnode="",
             client_peer_id="QmNV5G3hq2UmAck2htEgsqrmPFBff5goFZAdmKDcZLBZLX",
             classification="Validator",
             delegate_reward_rate=0,
             last_delegate_reward_rate_update=0,
-            a=None,
-            b=None,
-            c=None,
+            unique=None,
+            non_unique=None,
         )
 
     def get_formatted_rewards_validator_info(self, subnet_id, epoch: int) -> Optional["SubnetNodeInfo"]:
@@ -84,16 +174,33 @@ class MockHypertensor:
             coldkey="0x1234567890abcdef1234567890abcdef12345678",
             hotkey="0x1234567890abcdef1234567890abcdef12345678",
             peer_id="QmNV5G3hq2UmAck2htEgsqrmPFBff5goFZAdmKDcZLBZLX",
-            bootstrap_peer_id="QmNV5G3hq2UmAck2htEgsqrmPFBff5goFZAdmKDcZLBZLX",
+            bootnode_peer_id="QmNV5G3hq2UmAck2htEgsqrmPFBff5goFZAdmKDcZLBZLX",
+            bootnode="",
             client_peer_id="QmNV5G3hq2UmAck2htEgsqrmPFBff5goFZAdmKDcZLBZLX",
             classification="Validator",
             delegate_reward_rate=0,
             last_delegate_reward_rate_update=0,
-            a=None,
-            b=None,
-            c=None,
+            unique=None,
+            non_unique=None,
             stake_balance=10000000000000
         )
+
+    def get_min_class_subnet_nodes_formatted(self, subnet_id: int, subnet_epoch: int, min_class: SubnetNodeClass) -> List:
+        return [
+            SubnetNode(
+                id=1,
+                hotkey="0x1234567890abcdef1234567890abcdef12345678",
+                peer_id="QmNV5G3hq2UmAck2htEgsqrmPFBff5goFZAdmKDcZLBZLX",
+                bootnode_peer_id="QmNV5G3hq2UmAck2htEgsqrmPFBff5goFZAdmKDcZLBZLX",
+                bootnode="",
+                client_peer_id="QmNV5G3hq2UmAck2htEgsqrmPFBff5goFZAdmKDcZLBZLX",
+                classification="Validator",
+                delegate_reward_rate=0,
+                last_delegate_reward_rate_update=0,
+                unique=None,
+                non_unique=None,
+            )
+        ]
 
     def get_consensus_data(self, subnet_id: int, epoch: int):
         consensus_data = []
@@ -108,3 +215,10 @@ class MockHypertensor:
 
     def get_subnet_registration_epochs(self, subnet_id: int):
         return 10
+
+    def get_reward_result_event(
+        self,
+        target_subnet_id: int,
+        epoch: int
+    ):
+        return target_subnet_id, 1e18

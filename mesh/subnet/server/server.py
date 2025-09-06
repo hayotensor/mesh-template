@@ -7,16 +7,18 @@ from typing import Dict, List, Optional
 import mesh
 from mesh import DHT, get_dht_time
 from mesh.dht.crypto import RSASignatureValidator, SignatureValidator
-from mesh.dht.validation import RecordValidatorBase
-from mesh.subnet.consensus.consensus import Consensus
+from mesh.dht.validation import HypertensorSlotPredicateValidator, RecordValidatorBase
+from mesh.subnet.consensus.consensus_slots import Consensus
 from mesh.subnet.data_structures import ServerClass, ServerInfo, ServerState
 from mesh.subnet.protocols.mock_protocol import MockProtocol
 from mesh.subnet.reachability import ReachabilityProtocol, check_direct_reachability
 from mesh.subnet.utils.dht import declare_node_rsa, declare_node_sig, get_node_infos_rsa, get_node_infos_sig
 from mesh.subnet.utils.key import get_private_key, get_rsa_private_key
+from mesh.subnet.utils.mock_commit_reveal import mock_hypertensor_consensus_predicate
 from mesh.subnet.utils.ping import PingAggregator
 from mesh.subnet.utils.random import sample_up_to
 from mesh.substrate.chain_functions import Hypertensor
+from mesh.substrate.mock.chain_functions import MockHypertensor
 from mesh.utils.authorizers.auth import SignatureAuthorizer, TokenRSAAuthorizerBase
 from mesh.utils.authorizers.pos_auth import ProofOfStakeAuthorizer
 from mesh.utils.logging import get_logger
@@ -75,7 +77,21 @@ class Server:
         self.record_validators=[self.signature_validator]
 
         # Initialize predicate validator here. See https://docs.hypertensor.org/mesh-template/dht-records/record-validator/predicate-validators
-        ...
+        predicate = mock_hypertensor_consensus_predicate()
+        if self.hypertensor is not None:
+            consensus_predicate = HypertensorSlotPredicateValidator(
+                record_predicate=predicate,
+                subnet_id=subnet_id,
+                hypertensor=self.hypertensor
+            )
+        else:
+            consensus_predicate = HypertensorSlotPredicateValidator(
+                record_predicate=predicate,
+                subnet_id=subnet_id,
+                hypertensor=MockHypertensor()
+            )
+
+        self.record_validators.append(consensus_predicate)
 
         """
         Initialize authorizers
@@ -145,13 +161,13 @@ class Server:
 
         self.protocol = MockProtocol(dht=self.dht)
         """
-        self.mock_protocol = MockProtocol(
-            dht=self.dht,
-            subnet_id=self.subnet_id,
-            hypertensor=self.hypertensor,
-            authorizer=self.signature_authorizer,
-            start=True
-        )
+        # self.mock_protocol = MockProtocol(
+        #     dht=self.dht,
+        #     subnet_id=self.subnet_id,
+        #     hypertensor=self.hypertensor,
+        #     authorizer=self.signature_authorizer,
+        #     start=True
+        # )
 
         self.module_container = ModuleAnnouncerThread(
             dht=self.dht,
@@ -162,15 +178,15 @@ class Server:
             start=True
         )
 
-        # self.consensus = ConsensusThread(
-        #     dht=self.dht,
-        #     server_info=self.server_info,
-        #     subnet_id=self.subnet_id,
-        #     subnet_node_id=self.subnet_node_id,
-        #     record_validator=self.signature_validator,
-        #     hypertensor=self.hypertensor,
-        #     start=True
-        # )
+        self.consensus = ConsensusThread(
+            dht=self.dht,
+            server_info=self.server_info,
+            subnet_id=self.subnet_id,
+            subnet_node_id=self.subnet_node_id,
+            record_validator=self.signature_validator,
+            hypertensor=self.hypertensor,
+            start=True
+        )
 
         """
         Keep server running forever
@@ -279,9 +295,9 @@ class ConsensusThread(threading.Thread):
             dht=self.dht,
             subnet_id=self.subnet_id,
             subnet_node_id=self.subnet_node_id,
-            role=self.server_info.role,
             record_validator=self.signature_validator,
             hypertensor=self.hypertensor,
+            skip_activate_subnet=False,
             start=True,
         )
 

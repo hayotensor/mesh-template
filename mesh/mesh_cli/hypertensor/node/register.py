@@ -26,9 +26,11 @@ register-node \
 
 # Local
 
+[Alith]
+
 register-node \
 --subnet_id 1 \
---hotkey 0x773539d4Ac0e786233D90A233654ccEE26a613D9 \
+--hotkey 0x317D7a5a2ba5787A99BE4693Eb340a10C71d680b \
 --peer_id QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9 \
 --bootnode_peer_id QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
 --bootnode /ip4/127.00.1/tcp/31330/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
@@ -36,7 +38,50 @@ register-node \
 --delegate_reward_rate 0.125 \
 --stake_to_be_added 100.00 \
 --private_key "0x5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133" \
---local
+--local_rpc
+
+[Baltathar]
+
+register-node \
+--subnet_id 1 \
+--hotkey 0xc30fE91DE91a3FA79E42Dfe7a01917d0D92D99D7 \
+--peer_id QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9 \
+--bootnode_peer_id QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
+--bootnode /ip4/127.00.1/tcp/31330/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
+--client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
+--delegate_reward_rate 0.125 \
+--stake_to_be_added 100.00 \
+--private_key "0x8075991ce870b93a8870eca0c0f91913d12f47948ca0fd25b49c6fa7cdbeee8b" \
+--local_rpc
+
+[Charleth]
+
+register-node \
+--subnet_id 1 \
+--hotkey 0x2f7703Ba9953d422294079A1CB32f5d2B60E38EB \
+--peer_id QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9 \
+--bootnode_peer_id QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
+--bootnode /ip4/127.00.1/tcp/31330/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
+--client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
+--delegate_reward_rate 0.125 \
+--stake_to_be_added 100.00 \
+--private_key "0x0b6e18cafb6ed99687ec547bd28139cafdd2bffe70e6b688025de6b445aa5c5b" \
+--local_rpc
+
+[Dorothy]
+
+register-node \
+--subnet_id 1 \
+--hotkey 0x294BFfC18b5321264f55c517Aca2963bEF9D29EA \
+--peer_id QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9 \
+--bootnode_peer_id QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
+--bootnode /ip4/127.00.1/tcp/31330/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
+--client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
+--delegate_reward_rate 0.125 \
+--stake_to_be_added 100.00 \
+--private_key "0x39539ab1876910bbf3a223d84a29e28f1cb4e2e456503e7e91ed39b2e7223d68" \
+--local_rpc
+
 """
 
 def main():
@@ -52,19 +97,19 @@ def main():
     parser.add_argument("--stake_to_be_added", type=float, required=True, help="Amount of stake to be added as float")
     parser.add_argument("--unique", type=str, required=False, default=None, help="Non-unique value for subnet node")
     parser.add_argument("--non_unique", type=str, required=False, default=None, help="Non-unique value for subnet node")
-    parser.add_argument("--local", action="store_true", help="[Testing] Run in local mode, uses LOCAL_RPC")
+    parser.add_argument("--local_rpc", action="store_true", help="[Testing] Run in local RPC mode, uses LOCAL_RPC")
     parser.add_argument("--phrase", type=str, required=False, help="[Testing] Coldkey phrase that controls actions which include funds, such as registering, and staking")
     parser.add_argument("--private_key", type=str, required=False, help="[Testing] Hypertensor blockchain private key")
 
     args = parser.parse_args()
-    local = args.local
+    local_rpc = args.local_rpc
     phrase = args.phrase
     private_key = args.private_key
 
     hotkey = args.hotkey
     bootnode = args.bootnode
 
-    if local:
+    if local_rpc:
         rpc = os.getenv('LOCAL_RPC')
     else:
         rpc = os.getenv('DEV_RPC')
@@ -75,12 +120,14 @@ def main():
         hypertensor = Hypertensor(rpc, private_key, KeypairFrom.PRIVATE_KEY)
     else:
         hypertensor = Hypertensor(rpc, PHRASE)
+
     if hotkey is None:
         hotkey = hypertensor.keypair.ss58_address
 
     subnet_id = args.subnet_id
     peer_id = args.peer_id
     bootnode_peer_id = args.bootnode_peer_id
+    client_peer_id = args.client_peer_id
     delegate_reward_rate = int(args.delegate_reward_rate * 1e18)
     stake_to_be_added = int(args.stake_to_be_added * 1e18)
     unique = args.unique
@@ -92,6 +139,7 @@ def main():
             hotkey,
             peer_id,
             bootnode_peer_id,
+            client_peer_id,
             delegate_reward_rate,
             stake_to_be_added,
             bootnode=bootnode,

@@ -253,12 +253,13 @@ class HypertensorSlotPredicateValidator(RecordValidatorBase):
         self,
         hypertensor: Hypertensor,
         subnet_id: int,
-        record_predicate: Callable[[DHTRecord, DHTRecordRequestType], bool] = lambda r: True
+        record_predicate: Callable[[DHTRecord, DHTRecordRequestType], bool] = lambda r: True,
+        slot: Optional[int] = None
     ):
         self.record_predicate = record_predicate
         self.hypertensor = hypertensor
         self.subnet_id = subnet_id
-        self.slot = None
+        self.slot: int | None = slot
 
     def validate(self, record: DHTRecord, type: DHTRecordRequestType) -> bool:
         return self.record_predicate(record, type, self._epoch_data())
@@ -272,7 +273,12 @@ class HypertensorSlotPredicateValidator(RecordValidatorBase):
     def _epoch_data(self):
         # Get epoch data from the blockchain and calulate the remaining
         if self.slot is None:
-            self.slot = self.hypertensor.get_subnet_slot(self.subnet_id)
+            # slot = self.hypertensor.get_subnet_slot(self.subnet_id)
+            # self.slot = int(str(slot))
+            subnet_info = self.hypertensor.get_formatted_subnet_info(
+                self.subnet_id
+            )
+            self.slot = subnet_info.slot_index
         return self.hypertensor.get_subnet_epoch_data(self.slot)
 
     def merge_with(self, other: RecordValidatorBase) -> bool:

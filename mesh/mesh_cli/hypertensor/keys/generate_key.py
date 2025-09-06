@@ -4,6 +4,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from substrateinterface import Keypair, KeypairType
+from substrateinterface.utils.ecdsa_helpers import mnemonic_to_ecdsa_private_key
 
 from mesh.substrate.chain_functions import Hypertensor, KeypairFrom
 from mesh.utils.logging import get_logger
@@ -36,12 +37,18 @@ def main():
     try:
       mnemonic = Keypair.generate_mnemonic(words)
       keypair = Keypair.create_from_mnemonic(mnemonic, crypto_type=KeypairType.ECDSA)
+      private_key = mnemonic_to_ecdsa_private_key(mnemonic).hex()
       hotkey = keypair.ss58_address
 
       print("\n")
       print(
         "Store the following mnemonic phrase in a safe place: \n \n"
         f"{mnemonic}"
+      )
+      print("\n\n")
+      print(
+        "Private key: \n \n"
+        f"0x{private_key}"
       )
       print("\n\n")
       print(

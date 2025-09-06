@@ -86,7 +86,6 @@ class SignatureAuthorizer(AuthorizerBase):
         return self._local_public_key
 
     async def sign_request(self, request: AuthorizedRequestBase, service_public_key: Optional[Ed25519PrivateKey | RSAPrivateKey]) -> None:
-        print("SignatureAuthorizer sign_request")
         auth = request.auth
 
         local_access_token = await self.get_token()
@@ -105,7 +104,6 @@ class SignatureAuthorizer(AuthorizerBase):
     _MAX_CLIENT_SERVICER_TIME_DIFF = timedelta(minutes=1)
 
     async def validate_request(self, request: AuthorizedRequestBase) -> bool:
-        print("SignatureAuthorizer validate_request")
         auth = request.auth
 
         client_public_key = load_public_key_from_bytes(auth.client_access_token.public_key)
@@ -144,7 +142,6 @@ class SignatureAuthorizer(AuthorizerBase):
         return True
 
     async def sign_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> None:
-        print("SignatureAuthorizer sign_response")
         auth = response.auth
 
         # auth.service_access_token.CopyFrom(self._local_access_token)
@@ -156,7 +153,6 @@ class SignatureAuthorizer(AuthorizerBase):
         auth.signature = self._local_private_key.sign(response.SerializeToString())
 
     async def validate_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> bool:
-        print("SignatureAuthorizer validate_response")
         if inspect.isasyncgen(response):
             # asyncgenerator block for inference protocol
             response = await anext(response)

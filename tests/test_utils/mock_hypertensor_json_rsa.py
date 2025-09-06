@@ -159,17 +159,19 @@ class MockHypertensor:
     def get_rewards_validator(self, subnet_id: int, epoch: int):
         1
 
-    def validate(
+    def attest_data(
         self,
         subnet_id: int,
         data,
         args: Optional[Any] = None,
+        attest_data: Optional[Any] = None,
     ):
         return
 
     def attest(
         self,
-        subnet_id: int
+        subnet_id: int,
+        data: Optional[List[Any]] = None
     ):
         return
 

@@ -24,7 +24,7 @@ activate-node \
 --subnet_id 1 \
 --subnet_node_id 23 \
 --private_key "0x5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133" \
---local
+--local_rpc
 """
 
 def main():
@@ -32,16 +32,16 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--subnet_id", type=str, required=True, help="Subnet ID stored on blockchain. ")
     parser.add_argument("--subnet_node_id", type=str, required=False, help="Hotkey responsible for subnet features. ")
-    parser.add_argument("--local", action="store_true", help="[Testing] Run in local mode, uses LOCAL_RPC")
+    parser.add_argument("--local_rpc", action="store_true", help="[Testing] Run in local RPC mode, uses LOCAL_RPC")
     parser.add_argument("--phrase", type=str, required=False, help="[Testing] Coldkey phrase that controls actions which include funds, such as registering, and staking")
     parser.add_argument("--private_key", type=str, required=False, help="[Testing] Hypertensor blockchain private key")
 
     args = parser.parse_args()
-    local = args.local
+    local_rpc = args.local_rpc
     phrase = args.phrase
     private_key = args.private_key
 
-    if local:
+    if local_rpc:
         rpc = os.getenv('LOCAL_RPC')
     else:
         rpc = os.getenv('DEV_RPC')

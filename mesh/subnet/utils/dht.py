@@ -377,7 +377,6 @@ async def _get_node_infos_sig(
 
     modules: List[RemoteModuleInfo] = []
     for subkey, values in inner_dict.items():
-        # caller_peer_id = extract_peer_id_from_record_validator(subkey, KeyType.RSA)
         caller_peer_id = extract_peer_id_from_record_validator_v2(subkey)
         peers.append(caller_peer_id)
         server_info = ServerInfo.from_tuple(values.value)

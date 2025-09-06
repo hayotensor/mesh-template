@@ -17,7 +17,7 @@ class ConsensusScores:
 # On-chain format
 @dataclass
 class OnChainConsensusScore:
-  node_id: int
+  subnet_node_id: int
   score: int
 
 """

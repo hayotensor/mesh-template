@@ -136,7 +136,7 @@ class MockHypertensor:
             if current_block < slot:
                 return EpochData.zero(current_block=current_block, epoch_length=epoch_length)
 
-            print("get_subnet_epoch_data current_block", current_block)
+            print("mock get_subnet_epoch_data current_block", current_block)
 
             blocks_since_start = current_block - slot
             epoch = blocks_since_start // epoch_length
@@ -146,9 +146,9 @@ class MockHypertensor:
             seconds_elapsed = blocks_elapsed * BLOCK_SECS
             seconds_remaining = blocks_remaining * BLOCK_SECS
 
-            print("get_subnet_epoch_data blocks_elapsed", blocks_elapsed)
-            print("get_subnet_epoch_data epoch", epoch)
-            print("get_subnet_epoch_data percent_complete", percent_complete)
+            print("mock get_subnet_epoch_data blocks_elapsed", blocks_elapsed)
+            print("mock get_subnet_epoch_data epoch", epoch)
+            print("mock get_subnet_epoch_data percent_complete", percent_complete)
 
         return EpochData(
             block=current_block,
@@ -165,17 +165,19 @@ class MockHypertensor:
     def get_rewards_validator(self, subnet_id: int, epoch: int):
         1
 
-    def validate(
+    def attest_data(
         self,
         subnet_id: int,
         data,
         args: Optional[Any] = None,
+        attest_data: Optional[Any] = None,
     ):
         return
 
     def attest(
         self,
-        subnet_id: int
+        subnet_id: int,
+        data: Optional[List[Any]] = None
     ):
         return
 

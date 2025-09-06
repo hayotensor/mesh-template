@@ -101,6 +101,7 @@ register-node \
 --hotkey 0x773539d4Ac0e786233D90A233654ccEE26a613D9 \
 --peer_id QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9 \
 --bootnode_peer_id QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
+--client_peer_id QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj71 \
 --bootnode /ip4/127.00.1/tcp/31330/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
 --client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
 --delegate_reward_rate 0.125 \
@@ -186,8 +187,12 @@ mesh-server-mock \
 - Explore alternative tensor/AI parameter compression options
 - DHT Record uniqueness options
 - Runtime upgrades
-- In-subnet epochs (synced to blockchain clock)
+- In-subnet epochs (synced to blockchain clock) standard with ledger
 - Ledger integration
+- Runtime upgrade
+  - Versioned protocols
+  - Orchestration tooling
+  - Blue-green deployment standardizations
 - Etc.
 ---
 

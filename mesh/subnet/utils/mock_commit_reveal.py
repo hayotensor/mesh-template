@@ -3,6 +3,7 @@ from typing import Callable
 from mesh import get_dht_time, get_logger
 from mesh.dht.routing import DHTID
 from mesh.dht.validation import DHTRecord, DHTRecordRequestType
+from mesh.subnet.utils.key import extract_peer_id_from_record_validator_v2
 from mesh.substrate.chain_functions import EpochData
 from mesh.substrate.config import BLOCK_SECS, EPOCH_LENGTH
 
@@ -42,16 +43,29 @@ MAX_COMMIT_TIME = BLOCK_SECS * EPOCH_LENGTH
 MAX_REVEAL_TIME = BLOCK_SECS * EPOCH_LENGTH
 
 """
-This is a mock predicate validator (see dht/validator.py) for the HypertensorPredicateValidator
+This is a mock predicate validator (see dht/validator.py) for the HypertensorSlotPredicateValidator
 
 You can add pydantic validation on the values, tie keys to epochs, and more.
+
+The following is an example predicate validator.
+
+This predicate validator ensures:
+
+- consensus can only be stored within the 0-15% progress span of the epoch, with a maximum expiration
+- commits can only be stored within the 15-50% progress span of the epoch, with a maximum expiration
+- reveals can only be stored within the 50-60% progress span on the epoch, with a maximum expiration
 """
 def mock_hypertensor_consensus_predicate() -> Callable[[DHTRecord, DHTRecordRequestType], bool]:
     def predicate(record: DHTRecord, type: DHTRecordRequestType, epoch_data: EpochData) -> bool:
         try:
+            caller_peer_id = extract_peer_id_from_record_validator_v2(record.subkey)
+
             # Enable GET data at any time
             if type is DHTRecordRequestType.GET:
+                logger.debug(f"{caller_peer_id} is asking us to get records")
                 return True
+
+            logger.debug(f"{caller_peer_id} is asking us to store records")
 
             current_epoch = epoch_data.epoch
             percent_complete = epoch_data.percent_complete
@@ -59,7 +73,7 @@ def mock_hypertensor_consensus_predicate() -> Callable[[DHTRecord, DHTRecordRequ
             # Ensure the keys are valid for the current allowable keys or epoch allowable keys
             valid_keys = {
                 # Heartbeat
-                DHTID.generate(source="role_name").to_bytes(): "role_name",
+                DHTID.generate(source="node").to_bytes(): "node",
                 # ⸺ 0-15%
                 DHTID.generate(source=f"consensus_epoch_{current_epoch}").to_bytes(): "consensus",
                 # ⸺ 15-50%
@@ -75,12 +89,17 @@ def mock_hypertensor_consensus_predicate() -> Callable[[DHTRecord, DHTRecordRequ
 
             dht_time = get_dht_time()
 
+            """
+            Logic here can be extended to account for any conditions, such as requiring only specific
+            on-chain node classifications to allow to store data into the DHT outside of the "node"
+            heartbeat, etc.
+            """
+
             # ⸺ 0-100% (any time)
-            if key_type == "role_name":
+            if key_type == "node":
                 max_expiration = dht_time + MAX_HEART_BEAT_TIME
                 if record.expiration_time > max_expiration:
                     return False
-                # TODO: validate proof-of-stake on each heartbeat (redundant)
                 return True
 
             # ⸺ 0-15%

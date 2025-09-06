@@ -36,7 +36,6 @@ class SignatureValidator(RecordValidatorBase):
         return self._local_public_key
 
     def validate(self, record: DHTRecord, type: DHTRecordRequestType) -> bool:
-        print("SignatureValidator validate")
         public_keys = self._PUBLIC_KEY_RE.findall(record.key)
         if record.subkey is not None:
             public_keys += self._PUBLIC_KEY_RE.findall(record.subkey)

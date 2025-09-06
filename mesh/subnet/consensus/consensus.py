@@ -347,9 +347,9 @@ class Consensus(threading.Thread):
 
                 Any successful epoch following will remove these penalties on the subnet
                 """
-                self.hypertensor.validate(self.subnet_id, data=scores)
+                self.hypertensor.propose_attestation(self.subnet_id, data=scores)
             else:
-                self.hypertensor.validate(self.subnet_id, data=scores)
+                self.hypertensor.propose_attestation(self.subnet_id, data=scores)
 
         elif validator is not None:
             print(f"Acting as attestor for epoch {current_epoch}")

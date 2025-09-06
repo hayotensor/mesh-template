@@ -1,15 +1,24 @@
 import argparse
 import logging
+import os
+from pathlib import Path
 
 import configargparse
 import torch
+from dotenv import load_dotenv
 
 from mesh.subnet.constants import PUBLIC_INITIAL_PEERS
 from mesh.subnet.data_structures import ServerClass
 from mesh.subnet.server.server import Server
+from mesh.substrate.chain_functions import Hypertensor, KeypairFrom
 from mesh.substrate.mock.chain_functions import MockHypertensor
 from mesh.utils import limits
 from mesh.utils.logging import get_logger, use_mesh_log_handler
+from substrateinterface import Keypair, KeypairType
+
+load_dotenv(os.path.join(Path.cwd(), '.env'))
+
+PHRASE = os.getenv('PHRASE')
 
 use_mesh_log_handler("in_root_logger")
 
@@ -71,6 +80,10 @@ def main():
     parser.add_argument('--identity_path', type=str, required=False, help='Path to identity file to be used in P2P')
     parser.add_argument('--subnet_id', type=int, required=False, default=None, help='Subnet ID running a node for ')
     parser.add_argument('--subnet_node_id', type=int, required=False, default=None, help='Subnet ID running a node for ')
+    parser.add_argument("--no_blockchain_rpc", action="store_true", help="[Testing] Run with no RPC")
+    parser.add_argument("--local_rpc", action="store_true", help="[Testing] Run in local RPC mode, uses LOCAL_RPC")
+    parser.add_argument("--phrase", type=str, required=False, help="[Testing] Coldkey phrase that controls actions which include funds, such as registering, and staking")
+    parser.add_argument("--private_key", type=str, required=False, help="[Testing] Hypertensor blockchain private key")
 
     # fmt:on
     args = vars(parser.parse_args())
@@ -78,6 +91,10 @@ def main():
 
     subnet_id = args.pop("subnet_id", False)
     subnet_node_id = args.pop("subnet_node_id", False)
+    no_blockchain_rpc = args.pop("no_blockchain_rpc", False)
+    local_rpc = args.pop("local_rpc", False)
+    phrase = args.pop("phrase", None)
+    private_key = args.pop("private_key", None)
     role = ServerClass.VALIDATOR
 
     host_maddrs = args.pop("host_maddrs")
@@ -110,7 +127,24 @@ def main():
         # Necessary to prevent the server from freezing after forks
         torch.set_num_threads(1)
 
-    hypertensor = MockHypertensor()
+    if no_blockchain_rpc is False:
+        if local_rpc:
+            rpc = os.getenv('LOCAL_RPC')
+        else:
+            rpc = os.getenv('DEV_RPC')
+
+        if phrase is not None:
+            hypertensor = Hypertensor(rpc, phrase)
+        elif private_key is not None:
+            hypertensor = Hypertensor(rpc, private_key, KeypairFrom.PRIVATE_KEY)
+        else:
+            hypertensor = Hypertensor(rpc, PHRASE)
+    else:
+        hypertensor = MockHypertensor()
+
+    keypair = Keypair.create_from_private_key(private_key, crypto_type=KeypairType.ECDSA)
+    hotkey = keypair.ss58_address
+    print("hotkey", hotkey)
 
     server = Server(
         **args,
@@ -119,7 +153,7 @@ def main():
         role=role,
         subnet_id=subnet_id,
         subnet_node_id=subnet_node_id,
-        hypertensor=None
+        hypertensor=hypertensor
     )
 
     try:

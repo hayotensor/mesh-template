@@ -32,7 +32,9 @@ register-subnet \
 --max_registered_nodes 10 \
 --key_types ["Rsa"] \
 --phrase "craft squirrel soap letter garment unfair meat slide swift miss forest wide" \
---local
+--local_rpc
+
+[Local]
 
 register-subnet \
 --name subnet-1 \
@@ -41,7 +43,7 @@ register-subnet \
 --misc "cool subnet" \
 --churn_limit 64 \
 --min_stake 100.00 \
---max_stake  10000.00 \
+--max_stake  1000.00 \
 --delegate_stake_percentage 0.1 \
 --registration_queue_epochs 10 \
 --activation_grace_epochs 10 \
@@ -51,8 +53,9 @@ register-subnet \
 --initial_coldkeys "0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac" "0x3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0" "0x798d4Ba9baf0064Ec19eB4F0a1a45785ae9D6DFc" "0x773539d4Ac0e786233D90A233654ccEE26a613D9" \
 --max_registered_nodes 10 \
 --key_types "Rsa" \
+--bootnodes "p2p/12.0.1/tpc" \
 --private_key "0x5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133" \
---local
+--local_rpc
 
 """
 
@@ -75,16 +78,17 @@ def main():
     parser.add_argument("--initial_coldkeys", type=str, nargs='+', required=True, help="List of initial coldkeys that can register while subnet is in registration")
     parser.add_argument("--max_registered_nodes", type=int, required=True, help="Maximum number of nodes that can be registered at any time")
     parser.add_argument("--key_types", type=str, nargs='+', required=True, help="Key type of subnet signature system")
-    parser.add_argument("--local", action="store_true", help="[Testing] Run in local mode, uses LOCAL_RPC")
+    parser.add_argument("--bootnodes", type=str, nargs='+', required=True, help="Key type of subnet signature system")
+    parser.add_argument("--local_rpc", action="store_true", help="[Testing] Run in local RPC mode, uses LOCAL_RPC")
     parser.add_argument("--phrase", type=str, required=False, help="[Testing] Coldkey phrase that controls actions which include funds, such as registering, and staking")
     parser.add_argument("--private_key", type=str, required=False, help="[Testing] Hypertensor blockchain private key")
 
     args = parser.parse_args()
-    local = args.local
+    local_rpc = args.local_rpc
     phrase = args.phrase
     private_key = args.private_key
 
-    if local:
+    if local_rpc:
         rpc = os.getenv('LOCAL_RPC')
     else:
         rpc = os.getenv('DEV_RPC')
@@ -113,6 +117,7 @@ def main():
     initial_coldkeys = args.initial_coldkeys
     max_registered_nodes = args.max_registered_nodes
     key_types = args.key_types
+    bootnodes = args.bootnodes
 
     try:
         receipt = hypertensor.register_subnet(
@@ -133,6 +138,7 @@ def main():
             initial_coldkeys,
             max_registered_nodes,
             key_types,
+            bootnodes,
         )
         if receipt.is_success:
             print('✅ Success, triggered events:')
