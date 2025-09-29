@@ -10,7 +10,7 @@ By default, each combination of API key and IP is limited to 5 requests per minu
 
 ## API Keys
 
-Each request requires a valid API key. API keys are managed locally and stored in keys.json.
+Each request requires a valid API key. API keys are managed locally and stored in bootnode_rest_keys.json.
 
 #### Parameters
 
@@ -38,24 +38,17 @@ Generates a new key for the given owner (unless one already exists):
 ```bash
 mesh-add-api-key --owner <owner_name>
 ```
-
-#### Update / Replace an existing API key
-
-If the owner already has a key, running the same command will update it with a new key:
-```bash
-mesh-add-api-key --owner <owner_name>
-```
 #### Deactivate an API key
 
-Mark an owner’s key as inactive without removing it:
+Mark an owner's key as inactive without removing it:
 ```bash
 mesh-add-api-key --owner <owner_name> --inactive
 ```
 #### Reactivate an API key
 
-Restore access for an owner’s key:
+Restore access for an owner's key:
 ```bash
-mesh-add-api-key --owner <owner_name> --active
+mesh-add-api-key --owner <owner_name>
 ```
 
 ## Notes

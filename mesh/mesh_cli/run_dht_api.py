@@ -27,6 +27,14 @@ Bootnode API
 
 Example:
     curl -H "X-API-Key: key-party1-abc123" http://localhost:8000/get_bootnodes
+        returns:
+            {
+                "value":[
+                    "/ip4/127.0.0.1/tcp/31330/p2p/123D",
+                    "/ip4/127.0.0.1/udp/31330/quic/p2p/123D"
+                ]
+            }
+    curl -H "X-API-Key: key-party1-abc123" http://localhost:8000/get_heartbeat
 
 Create endpoint with NGINX for HTTPS encryption
 
