@@ -2,17 +2,16 @@ import os
 from typing import List
 
 import pytest
-from transformers import AutoTokenizer
 
 from mesh import get_dht_time
 from mesh.dht.crypto import RSASignatureValidator
 from mesh.subnet.client.config import ClientConfig
-from mesh.subnet.client.inference_session_v2 import Session
 from mesh.subnet.client.routing.routing_manager import RemoteManager
-from mesh.subnet.data_structures import QuantType, ServerClass, ServerInfo, ServerState
+from mesh.subnet.client.session import Session
 from mesh.subnet.protocols.mock_protocol import MockProtocol
-from mesh.subnet.utils.dht import declare_node
-from mesh.subnet.utils.key import (
+from mesh.utils.data_structures import QuantType, ServerClass, ServerInfo, ServerState
+from mesh.utils.dht import declare_node
+from mesh.utils.key import (
     generate_rsa_private_key_file,
     get_rsa_peer_id,
     get_rsa_private_key,

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from mesh import get_logger
-from mesh.dht.crypto import Ed25519SignatureValidator, RSASignatureValidator, SignatureValidator
+from mesh.dht.crypto import SignatureValidator
 
 logger = get_logger(__name__)
 
@@ -35,9 +35,9 @@ def get_consensus_subkey(record_validator: SignatureValidator) -> bytes:
   return record_validator.local_public_key
 
 # RSA subkey for records (protected records requiring signing/validating)
-def get_consensus_subkey_rsa(record_validator: RSASignatureValidator) -> bytes:
+def get_consensus_subkey_rsa(record_validator: SignatureValidator) -> bytes:
   return record_validator.local_public_key
 
 # Ed25519 subkey for records (protected records requiring signing/validating)
-def get_consensus_subkey_ed25519(record_validator: Ed25519SignatureValidator) -> bytes:
+def get_consensus_subkey_ed25519(record_validator: SignatureValidator) -> bytes:
   return record_validator.local_public_key

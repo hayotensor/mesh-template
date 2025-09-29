@@ -37,27 +37,6 @@ def sha256(path):
     with open(path, "rb") as f:
         return hashlib.sha256(f.read()).hexdigest()
 
-
-# def proto_compile(output_path):
-#     import grpc_tools.protoc
-
-#     cli_args = [
-#         "grpc_tools.protoc",
-#         "--proto_path=mesh/proto",
-#         f"--python_out={output_path}",
-#     ] + glob.glob("mesh/proto/*.proto")
-
-#     code = grpc_tools.protoc.main(cli_args)
-#     if code:  # hint: if you get this error in jupyter, run in console for richer error message
-#         raise ValueError(f"{' '.join(cli_args)} finished with exit code {code}")
-#     # Make pb2 imports in generated scripts relative
-#     for script in glob.iglob(f"{output_path}/*.py"):
-#         with open(script, "r+") as file:
-#             code = file.read()
-#             file.seek(0)
-#             file.write(re.sub(r"\n(import .+_pb2.*)", "from . \\1", code))
-#             file.truncate()
-
 def proto_compile(output_path):
     from grpc_tools import protoc
 
@@ -79,6 +58,7 @@ def proto_compile(output_path):
             f.seek(0)
             f.write(code)
             f.truncate()
+
 
 def build_p2p_daemon():
     result = subprocess.run("go version", capture_output=True, shell=True).stdout.decode("ascii", "replace")
@@ -186,14 +166,13 @@ setup(
     name="mesh",
     version=version_string,
     cmdclass={"build_py": BuildPy, "develop": Develop},
-    description="Decentralized deep learning in PyTorch",
-    long_description="Decentralized deep learning in PyTorch. Built to train models on thousands of volunteers "
-    "across the world.",
+    description="Decentralized Artificial Intelligence App Template",
+    long_description="Decentralized Artificial Intelligence App Template for building on top of Hypertensor.",
     author="Learning@home & contributors",
     author_email="mesh-team@hotmail.com",
     url="https://github.com/hypertensor-protocol/mesh",
     packages=find_packages(exclude=["tests"]),
-    package_data={"mesh": ["proto/*", "mesh_cli/*"]},
+    package_data={"mesh": ["proto/*", "mesh_cli/*", "bootnode_utils/*.json"]},
     include_package_data=True,
     license="MIT",
     setup_requires=["grpcio-tools"],
@@ -219,8 +198,11 @@ setup(
     entry_points={
         "console_scripts": [
             "mesh-dht = mesh.mesh_cli.run_dht:main",
+            "mesh-dht-api = mesh.mesh_cli.run_dht_api:main",
             "mesh-server = mesh.mesh_cli.run_server:main",
             "mesh-server-mock = mesh.mesh_cli.run_server_mock:main",
+            # DHT Bootnode API
+            "mesh-add-api-key = mesh.mesh_cli.api.add_key:main",
             # generate in-subnet private key for peer identity
             "keygen = mesh.mesh_cli.crypto.keygen:main",
             # generate coldkey or hotkey

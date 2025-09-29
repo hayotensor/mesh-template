@@ -6,15 +6,15 @@ from pathlib import Path
 import configargparse
 import torch
 from dotenv import load_dotenv
+from substrateinterface import Keypair, KeypairType
 
-from mesh.subnet.constants import PUBLIC_INITIAL_PEERS
-from mesh.subnet.data_structures import ServerClass
 from mesh.subnet.server.server import Server
 from mesh.substrate.chain_functions import Hypertensor, KeypairFrom
 from mesh.substrate.mock.chain_functions import MockHypertensor
 from mesh.utils import limits
+from mesh.utils.constants import PUBLIC_INITIAL_PEERS
+from mesh.utils.data_structures import ServerClass
 from mesh.utils.logging import get_logger, use_mesh_log_handler
-from substrateinterface import Keypair, KeypairType
 
 load_dotenv(os.path.join(Path.cwd(), '.env'))
 
@@ -120,13 +120,6 @@ def main():
         limits.logger.setLevel(logging.WARNING)
         limits.increase_file_limit(file_limit, file_limit)
 
-    if args.pop("new_swarm"):
-        args["initial_peers"] = []
-
-    if not torch.backends.openmp.is_available():
-        # Necessary to prevent the server from freezing after forks
-        torch.set_num_threads(1)
-
     if no_blockchain_rpc is False:
         if local_rpc:
             rpc = os.getenv('LOCAL_RPC')
@@ -142,9 +135,22 @@ def main():
     else:
         hypertensor = MockHypertensor()
 
+    # Auto get the onchain bootnodes
+    if isinstance(hypertensor, Hypertensor):
+        bootnodes = hypertensor.get_bootnodes_formatted(subnet_id)
+        if bootnodes is not None:
+            args["initial_peers"] = bootnodes
+
     keypair = Keypair.create_from_private_key(private_key, crypto_type=KeypairType.ECDSA)
     hotkey = keypair.ss58_address
     print("hotkey", hotkey)
+
+    if args.pop("new_swarm"):
+        args["initial_peers"] = []
+
+    if not torch.backends.openmp.is_available():
+        # Necessary to prevent the server from freezing after forks
+        torch.set_num_threads(1)
 
     server = Server(
         **args,

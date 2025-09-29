@@ -6,23 +6,23 @@ from typing import Dict, List, Optional
 
 import mesh
 from mesh import DHT, get_dht_time
-from mesh.dht.crypto import RSASignatureValidator, SignatureValidator
+from mesh.dht.crypto import SignatureValidator
 from mesh.dht.validation import HypertensorSlotPredicateValidator, RecordValidatorBase
 from mesh.subnet.consensus.consensus_slots import Consensus
-from mesh.subnet.data_structures import ServerClass, ServerInfo, ServerState
 from mesh.subnet.protocols.mock_protocol import MockProtocol
-from mesh.subnet.reachability import ReachabilityProtocol, check_direct_reachability
-from mesh.subnet.utils.dht import declare_node_rsa, declare_node_sig, get_node_infos_rsa, get_node_infos_sig
-from mesh.subnet.utils.key import get_private_key, get_rsa_private_key
 from mesh.subnet.utils.mock_commit_reveal import mock_hypertensor_consensus_predicate
-from mesh.subnet.utils.ping import PingAggregator
-from mesh.subnet.utils.random import sample_up_to
 from mesh.substrate.chain_functions import Hypertensor
 from mesh.substrate.mock.chain_functions import MockHypertensor
-from mesh.utils.authorizers.auth import SignatureAuthorizer, TokenRSAAuthorizerBase
+from mesh.utils.authorizers.auth import SignatureAuthorizer
 from mesh.utils.authorizers.pos_auth import ProofOfStakeAuthorizer
+from mesh.utils.data_structures import ServerClass, ServerInfo, ServerState
+from mesh.utils.dht import declare_node_sig, get_node_infos_sig
+from mesh.utils.key import get_private_key
 from mesh.utils.logging import get_logger
+from mesh.utils.ping import PingAggregator
 from mesh.utils.proof_of_stake import ProofOfStake
+from mesh.utils.random import sample_up_to
+from mesh.utils.reachability import ReachabilityProtocol, check_direct_reachability
 from mesh.utils.timed_storage import MAX_DHT_TIME_DISCREPANCY_SECONDS
 
 logger = get_logger(__name__)
@@ -104,13 +104,14 @@ class Server:
 
         # Initialize PoS authorizer. See https://docs.hypertensor.org/mesh-template/authorizers/pos
         if self.hypertensor is not None:
+            logger.info("Initializing PoS - proof-of-stake")
             pos = ProofOfStake(
                 self.subnet_id,
                 self.hypertensor,
                 min_class=1,
             )
-            # self.pos_authorizer = ProofOfStakeAuthorizer(pk)
-            self.pos_authorizer = self.signature_authorizer
+            self.pos_authorizer = ProofOfStakeAuthorizer(pk, pos)
+            # self.pos_authorizer = self.signature_authorizer
         else:
             # For testing purposes, at minimum require signatures
             self.pos_authorizer = self.signature_authorizer
@@ -414,11 +415,6 @@ class ModuleHeartbeatThread(threading.Thread):
             uid="node",
             latest=True
         )
-        # module_infos = get_node_infos_rsa(
-        #     self.dht,
-        #     uid="node",
-        #     latest=True
-        # )
 
         print("module_infos", module_infos)
         if len(module_infos) == 0:

@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519, rsa
 
 from mesh import PeerID
-from mesh.dht.crypto import Ed25519SignatureValidator, RSASignatureValidator, SignatureValidator
+from mesh.dht.crypto import SignatureValidator
 from mesh.dht.validation import RecordValidatorBase
 from mesh.proto import crypto_pb2
 from mesh.utils import get_logger, multihash
@@ -170,7 +170,7 @@ Peer IDs
 Extract Ed25519 peer ID from public key
 """
 def extract_ed25519_peer_id_from_subkey(record_validator: RecordValidatorBase, key)-> Optional[PeerID]:
-  public_keys = Ed25519SignatureValidator._PUBLIC_KEY_RE.findall(key)
+  public_keys = SignatureValidator._PUBLIC_KEY_RE.findall(key)
   # public_keys = record_validator._PUBLIC_KEY_RE.findall(key)
   pubkey = Ed25519PublicKey.from_bytes(public_keys[0])
 
@@ -203,7 +203,7 @@ def get_ed25519_peer_id(public_key: Ed25519PublicKey) -> Optional[PeerID]:
 Extract RSA peer ID from ssh public key
 """
 def extract_rsa_peer_id(key)-> Optional[PeerID]:
-  public_keys = RSASignatureValidator._PUBLIC_KEY_RE.findall(key)
+  public_keys = SignatureValidator._PUBLIC_KEY_RE.findall(key)
 
   rsa_public_key = serialization.load_ssh_public_key(public_keys[0])
 
@@ -225,7 +225,7 @@ def extract_rsa_peer_id(key)-> Optional[PeerID]:
   return PeerID(encoded_digest)
 
 def extract_rsa_peer_id_from_subkey(key)-> Optional[PeerID]:
-  public_keys = RSASignatureValidator._PUBLIC_KEY_RE.findall(key)
+  public_keys = SignatureValidator._PUBLIC_KEY_RE.findall(key)
 
   rsa_public_key = serialization.load_ssh_public_key(public_keys[0])
 
@@ -284,7 +284,7 @@ def get_rsa_peer_id(public_bytes: bytes) -> Optional[PeerID]:
     return PeerID(encoded_digest)
 
 def extract_rsa_peer_id_from_record_validator(key)-> Optional[PeerID]:
-  public_keys = RSASignatureValidator._PUBLIC_KEY_RE.findall(key)
+  public_keys = SignatureValidator._PUBLIC_KEY_RE.findall(key)
 
   rsa_public_key = serialization.load_ssh_public_key(public_keys[0])
 

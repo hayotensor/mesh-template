@@ -3,9 +3,9 @@ from typing import Callable
 from mesh import get_dht_time, get_logger
 from mesh.dht.routing import DHTID
 from mesh.dht.validation import DHTRecord, DHTRecordRequestType
-from mesh.subnet.utils.key import extract_peer_id_from_record_validator_v2
 from mesh.substrate.chain_functions import EpochData
 from mesh.substrate.config import BLOCK_SECS, EPOCH_LENGTH
+from mesh.utils.key import extract_peer_id_from_record_validator_v2
 
 logger = get_logger(__name__)
 

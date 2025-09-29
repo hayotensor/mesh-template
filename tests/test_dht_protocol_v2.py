@@ -13,7 +13,7 @@ from mesh.dht import DHTID
 from mesh.dht.crypto import RSASignatureValidator
 from mesh.dht.protocol import DHTProtocol
 from mesh.dht.validation import DHTRecord, RecordValidatorBase
-from mesh.subnet.utils.key import generate_rsa_private_key_file, get_rsa_private_key
+from mesh.utils.key import generate_rsa_private_key_file, get_rsa_private_key
 from mesh.utils.multiaddr import Multiaddr
 
 logger = get_logger(__name__)

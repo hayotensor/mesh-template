@@ -7,10 +7,10 @@ from scalecodec.base import RuntimeConfiguration, ScaleBytes
 from scalecodec.type_registry import load_type_registry_preset
 from scalecodec.utils.ss58 import ss58_encode
 
-from mesh.substrate.chain_data import ConsensusData, SubnetInfo
-from mesh.substrate.chain_functions import Hypertensor, KeypairFrom, SubnetNodeClass
+# from mesh.substrate.chain_data import ConsensusData, SubnetBootnodes, SubnetInfo
+from mesh.substrate.chain_functions import Hypertensor, KeypairFrom
 
-custom_types = {
+custom_rpc_type_registry = {
   "types": {
     "SubnetData": {
       "type": "struct",
@@ -37,19 +37,24 @@ custom_types = {
         ["churn_limit", "u32"],
         ["min_stake", "u128"],
         ["max_stake", "u128"],
-        ["delegate_stake_percentage", "u128"],
-        ["registration_queue_epochs", "u32"],
-        ["activation_grace_epochs", "u32"],
-        ["queue_classification_epochs", "u32"],
+        ["queue_immunity_epochs", "u32"],
+        ["target_node_registrations_per_epoch", "u32"],
+        ["subnet_node_queue_epochs", "u32"],
+        ["idle_classification_epochs", "u32"],
         ["included_classification_epochs", "u32"],
+        ["delegate_stake_percentage", "u128"],
+        ["node_burn_rate_alpha", "u128"],
         ["max_node_penalties", "u32"],
         ["initial_coldkeys", "Option<Vec<[u8; 20]>>"],
         ["max_registered_nodes", "u32"],
         ["owner", "Option<[u8; 20]>"],
+        ["pending_owner", "Option<[u8; 20]>"],
         ["registration_epoch", "Option<u32>"],
-        ["key_types", "Vec<KeyType>"],
+        ["key_types", "BTreeSet<KeyType>"],
         ["slot_index", "Option<u32>"],
         ["penalty_count", "u32"],
+        ["bootnode_access", "BTreeSet<AccountId>"],
+        ["bootnodes", "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>"],
         ["total_nodes", "u32"],
         ["total_active_nodes", "u32"],
         ["total_electable_nodes", "u32"],
@@ -63,35 +68,6 @@ custom_types = {
         "Paused",
       ],
     },
-    # "NodeRemovalPolicy": {
-    #   "type": "struct",
-    #   "type_mapping": [
-    #     ["logic", "LogicExpr"],
-    #   ],
-    # },
-    # "LogicExpr": {
-    #   "type": "enum",
-    #   "value_list": [
-    #     "And(Box<LogicExpr>, Box<LogicExpr>)",
-    #     "Or(Box<LogicExpr>, Box<LogicExpr>)",
-    #     "Xor(Box<LogicExpr>, Box<LogicExpr>)",
-    #     "Not(Box<LogicExpr>)",
-    #     "Condition(NodeRemovalConditionType)"
-    #   ],
-    # },
-    # "NodeRemovalConditionType": {
-    #   "type": "enum",
-    #   "value_list": [
-    #     "HardBelowScore(u128)",
-    #     "HardBelowAverageAttestation(u128)",
-    #     "HardBelowNodeDelegateStakeRate(u128)",
-    #     "DeltaBelowScore(u128)",
-    #     "DeltaBelowAverageAttestation(u128)",
-    #     "DeltaBelowNodeDelegateStakeRate(u128)",
-    #     "DeltaBelowNodeDelegateStakeBalance(u128)",
-    #     "DeltaBelowStakeBalance(u128)",
-    #   ],
-    # },
     "KeyType": {
       "type": "enum",
       "value_list": [
@@ -127,7 +103,6 @@ custom_types = {
     "SubnetNodeClass": {
       "type": "enum",
       "value_list": [
-        "Deactivated",
         "Registered",
         "Idle",
         "Included",
@@ -154,13 +129,14 @@ custom_types = {
     "SubnetNodeInfo": {
       "type": "struct",
       "type_mapping": [
+        ["subnet_id", "u32"],
         ["subnet_node_id", "u32"],
         ["coldkey", "[u8; 20]"],
         ["hotkey", "[u8; 20]"],
-        ["peer_id", "Vec<u8>"],
-        ["bootnode_peer_id", "Vec<u8>"],
-        ["client_peer_id", "Vec<u8>"],
-        ["bootnode", "Vec<u8>"],
+        ["peer_id", "PeerId"],
+        ["bootnode_peer_id", "PeerId"],
+        ["client_peer_id", "PeerId"],
+        ["bootnode", "Option<BoundedVec<u8, DefaultMaxVectorLength>>"],
         ["identity", "ColdkeyIdentityData"],
         ["classification", "SubnetNodeClassification"],
         ["delegate_reward_rate", "u128"],
@@ -184,7 +160,7 @@ custom_types = {
         ["total_decreases", "u32"],
         ["average_attestation", "u128"],
         ["last_validator_epoch", "u32"],
-        ["ow_score", "u32"],
+        ["ow_score", "u128"],
       ],
     },
     "ColdkeyIdentityData": {
@@ -215,6 +191,8 @@ custom_types = {
         ["validator_id", "u32"],
         ["attests", "BTreeMap<u32, AttestEntry>"],
         ["subnet_nodes", "Vec<SubnetNode<AccountId>>"],
+        ["prioritize_queue_node_id", "Option<u32>"],
+        ["remove_queue_node_id", "Option<u32>"],
         ["data", "Vec<SubnetNodeConsensusData>"],
         ["args", "Option<BoundedVec<u8, DefaultValidatorArgsLimit>>"],
       ],
@@ -227,9 +205,46 @@ custom_types = {
         ["weight_sum", "u128"],
         ["data_length", "u32"],
         ["data", "Vec<SubnetNodeConsensusData>"],
+        ["attests", "BTreeMap<u32, AttestEntry>"],
         ["subnet_nodes", "Vec<SubnetNode<[u8; 20]>>"],
+        ["prioritize_queue_node_id", "Option<u32>"],
+        ["remove_queue_node_id", "Option<u32>"],
       ],
     },
+    "AllSubnetBootnodes": {
+      "type": "struct",
+      "type_mapping": [
+        ["bootnodes", "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>"],
+        ["node_bootnodes", "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>"],
+      ],
+    },
+    "SubnetNodeStakeInfo": {
+      "type": "struct",
+      "type_mapping": [
+        ["subnet_id", "Option<u32>"],
+        ["subnet_node_id", "Option<u32>"],
+        ["hotkey", "[u8; 20]"],
+        ["balance", "u128"],
+      ],
+    },
+    "DelegateStakeInfo": {
+      "type": "struct",
+      "type_mapping": [
+        ["subnet_id", "u32"],
+        ["shares", "u128"],
+        ["balance", "u128"],
+      ],
+    },
+    "NodeDelegateStakeInfo": {
+      "type": "struct",
+      "type_mapping": [
+        ["subnet_id", "u32"],
+        ["subnet_node_id", "u32"],
+        ["shares", "u128"],
+        ["balance", "u128"],
+      ],
+    },
+    "PeerId": "Vec<u8>",
     "BoundedVec<u8, DefaultMaxVectorLength>": "Vec<u8>",
     "BoundedVec<u8, DefaultMaxUrlLength>": "Vec<u8>",
     "BoundedVec<u8, DefaultMaxSocialIdLength>": "Vec<u8>",
@@ -238,24 +253,9 @@ custom_types = {
     "Option<BoundedVec<u8, DefaultMaxUrlLength>>": "Option<Vec<u8>>",
     "Option<BoundedVec<u8, DefaultMaxSocialIdLength>>": "Option<Vec<u8>>",
     "Option<BoundedVec<u8, DefaultValidatorArgsLimit>>": "Option<Vec<u8>>",
+    "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>": "Vec<u8>",
   }
 }
-
-
-# custom_types = {
-#     "types": {
-#         "SubnetNodeTest": {
-#             "type": "struct",
-#             "type_mapping": [
-#                 ["id", "u32"],
-#                 ["hotkey", "[u8; 20]"],
-#                 ["peer_id", "OpaquePeerId"],
-#                 ["bootnode_peer_id", "OpaquePeerId"],
-#             ]
-#         },
-#     }
-# }
-
 
 LOCAL_RPC="ws://127.0.0.1:9944"
 
@@ -268,17 +268,13 @@ hypertensor = Hypertensor(LOCAL_RPC, "0x5fb92d6e98884f76de468fa3f6278f8807c48beb
 def test_get_subnet_info():
     rpc_runtime_config = RuntimeConfiguration()
     rpc_runtime_config.update_type_registry(load_type_registry_preset("legacy"))
-    rpc_runtime_config.update_type_registry(custom_types)
+    rpc_runtime_config.update_type_registry(custom_rpc_type_registry)
 
     with hypertensor.interface as _interface:
         result = _interface.rpc_request(
             method='network_getSubnetInfo',
             params=[1]
         )
-        print("Raw result:", result)
-        scale_obj = rpc_runtime_config.create_scale_object("Option<SubnetInfo>")
-        type_info = scale_obj.generate_type_decomposition()
-        print("type_info", type_info)
 
         if 'result' in result and result['result']:
             try:
@@ -306,33 +302,73 @@ def test_get_subnet_info():
 # pytest tests/substrate/test_rpc.py::test_get_subnet_info_formatted -rP
 
 def test_get_subnet_info_formatted():
-    subnet_info = hypertensor.get_formatted_subnet_info(1)
-    print("subnet_info", subnet_info)
-    assert subnet_info is not None
+  subnet_info = hypertensor.get_formatted_subnet_info(1)
+  print(subnet_info)
+
+# pytest tests/substrate/test_rpc.py::test_get_all_subnet_info -rP
+
+def test_get_all_subnet_info():
+    rpc_runtime_config = RuntimeConfiguration()
+    rpc_runtime_config.update_type_registry(load_type_registry_preset("legacy"))
+    rpc_runtime_config.update_type_registry(custom_rpc_type_registry)
+
+    with hypertensor.interface as _interface:
+        result = _interface.rpc_request(
+            method='network_getAllSubnetsInfo',
+            params=[]
+        )
+
+        if 'result' in result and result['result']:
+            try:
+                # Create scale object for decoding
+                obj = rpc_runtime_config.create_scale_object('Vec<SubnetInfo>')
+
+                # Decode the hex-encoded SCALE data (don't encode!)
+                decoded_data = obj.decode(ScaleBytes(bytes(result['result'])))
+                print("Decoded data:", decoded_data)
+
+            except Exception as e:
+                print("Decode error:", str(e))
+
+            try:
+                # Create scale object for decoding
+                obj = rpc_runtime_config.create_scale_object('Vec<SubnetInfo>', data=ScaleBytes(bytes(result['result'])))
+
+                # Decode the hex-encoded SCALE data (don't encode!)
+                decoded_data = obj.decode()
+                print("Decoded data:", decoded_data)
+
+            except Exception as e:
+                print("Decode error:", str(e))
+
+# pytest tests/substrate/test_rpc.py::test_get_all_subnet_info_formatted -rP
+
+def test_get_all_subnet_info_formatted():
+  subnet_info = hypertensor.get_formatted_all_subnet_info()
+  print(subnet_info)
+
 
 # pytest tests/substrate/test_rpc.py::test_get_subnet_node_info -rP
 
 def test_get_subnet_node_info():
     rpc_runtime_config = RuntimeConfiguration()
     rpc_runtime_config.update_type_registry(load_type_registry_preset("legacy"))
-    rpc_runtime_config.update_type_registry(custom_types)
-
-    print("SubnetNodeClass", SubnetNodeClass.Idle.value)
+    rpc_runtime_config.update_type_registry(custom_rpc_type_registry)
 
     with hypertensor.interface as _interface:
         result = _interface.rpc_request(
-            method='network_getMinClassSubnetNodes',
-            params=[1, 0, SubnetNodeClass.Idle.value]
+            method='network_getSubnetNodeInfo',
+            params=[1,1]
         )
-        print("Raw result:", result)
-        scale_obj = rpc_runtime_config.create_scale_object("Vec<SubnetNode>")
+        # print("Raw result:", result)
+        scale_obj = rpc_runtime_config.create_scale_object("Option<SubnetNodeInfo>")
         type_info = scale_obj.generate_type_decomposition()
         print("type_info", type_info)
 
         if 'result' in result and result['result']:
             try:
                 # Create scale object for decoding
-                obj = rpc_runtime_config.create_scale_object('Vec<SubnetNode>')
+                obj = rpc_runtime_config.create_scale_object('Option<SubnetNodeInfo>')
 
                 # Decode the hex-encoded SCALE data (don't encode!)
                 decoded_data = obj.decode(ScaleBytes(bytes(result['result'])))
@@ -343,7 +379,7 @@ def test_get_subnet_node_info():
 
             try:
                 # Create scale object for decoding
-                obj = rpc_runtime_config.create_scale_object('Vec<SubnetNode>', data=ScaleBytes(bytes(result['result'])))
+                obj = rpc_runtime_config.create_scale_object('Option<SubnetNodeInfo>', data=ScaleBytes(bytes(result['result'])))
 
                 # Decode the hex-encoded SCALE data (don't encode!)
                 decoded_data = obj.decode()
@@ -352,29 +388,39 @@ def test_get_subnet_node_info():
             except Exception as e:
                 print("Decode error:", str(e))
 
-# pytest tests/substrate/test_rpc.py::test_get_subnet_node_info_hypertensor -rP
+# pytest tests/substrate/test_rpc.py::test_get_subnet_node_info_formatted -rP
 
-def test_get_subnet_node_info_hypertensor():
-    nodes = hypertensor.get_min_class_subnet_nodes_formatted(1, 0, SubnetNodeClass.Idle)
-    print("nodes", nodes)
+def test_get_subnet_node_info_formatted():
+  subnet_node_info = hypertensor.get_formatted_get_subnet_node_info(1, 1)
+  print(subnet_node_info)
 
-# pytest tests/substrate/test_rpc.py::test_get_subnet_data -rP
+# pytest tests/substrate/test_rpc.py::test_get_min_class_subnet_nodes_formatted -rP
 
-def test_get_subnet_data():
+def test_get_min_class_subnet_nodes_formatted():
+  subnet_node_info = hypertensor.get_min_class_subnet_nodes_formatted(1, 0, 1)
+  print(subnet_node_info)
+
+# pytest tests/substrate/test_rpc.py::test_get_subnet_nodes_info -rP
+
+def test_get_subnet_nodes_info():
     rpc_runtime_config = RuntimeConfiguration()
     rpc_runtime_config.update_type_registry(load_type_registry_preset("legacy"))
-    rpc_runtime_config.update_type_registry(custom_types)
+    rpc_runtime_config.update_type_registry(custom_rpc_type_registry)
 
     with hypertensor.interface as _interface:
         result = _interface.rpc_request(
-            method='network_getSubnetData',
+            method='network_getSubnetNodesInfo',
             params=[1]
         )
-        print("Raw result:", result)
+        # print("Raw result:", result)
+        scale_obj = rpc_runtime_config.create_scale_object("Vec<SubnetNodeInfo>")
+        type_info = scale_obj.generate_type_decomposition()
+        print("type_info", type_info)
+
         if 'result' in result and result['result']:
             try:
                 # Create scale object for decoding
-                obj = rpc_runtime_config.create_scale_object('Option<SubnetData>')
+                obj = rpc_runtime_config.create_scale_object('Vec<SubnetNodeInfo>')
 
                 # Decode the hex-encoded SCALE data (don't encode!)
                 decoded_data = obj.decode(ScaleBytes(bytes(result['result'])))
@@ -385,7 +431,7 @@ def test_get_subnet_data():
 
             try:
                 # Create scale object for decoding
-                obj = rpc_runtime_config.create_scale_object('Option<SubnetData>', data=ScaleBytes(bytes(result['result'])))
+                obj = rpc_runtime_config.create_scale_object('Vec<SubnetNodeInfo>', data=ScaleBytes(bytes(result['result'])))
 
                 # Decode the hex-encoded SCALE data (don't encode!)
                 decoded_data = obj.decode()
@@ -394,50 +440,313 @@ def test_get_subnet_data():
             except Exception as e:
                 print("Decode error:", str(e))
 
-consensus_result = [1, 3, 0, 0, 0, 4, 3, 0, 0, 0, 84, 0, 0, 0, 0, 12, 1, 0, 0, 0, 49, 125, 122, 90, 43, 165, 120, 122, 153, 190, 70, 147, 235, 52, 10, 16, 199, 29, 104, 11, 184, 81, 109, 83, 104, 74, 89, 103, 120, 78, 111, 75, 110, 55, 120, 113, 100, 82, 81, 106, 53, 80, 66, 99, 78, 102, 80, 83, 115, 98, 87, 107, 103, 70, 66, 80, 65, 52, 109, 75, 53, 80, 72, 55, 51, 74, 66, 184, 81, 109, 83, 104, 74, 89, 103, 120, 78, 111, 75, 110, 55, 120, 113, 100, 82, 81, 106, 53, 80, 66, 99, 78, 102, 80, 83, 115, 98, 87, 107, 103, 70, 66, 80, 65, 52, 109, 75, 53, 80, 72, 55, 51, 74, 67, 1, 41, 1, 47, 105, 112, 52, 47, 49, 50, 55, 46, 48, 48, 46, 49, 47, 116, 99, 112, 47, 51, 49, 51, 51, 48, 47, 112, 50, 112, 47, 81, 109, 83, 104, 74, 89, 103, 120, 78, 111, 75, 110, 55, 120, 113, 100, 82, 81, 106, 53, 80, 66, 99, 78, 102, 80, 83, 115, 98, 87, 107, 103, 70, 66, 80, 65, 52, 109, 75, 53, 80, 72, 55, 51, 74, 66, 184, 81, 109, 83, 104, 74, 89, 103, 120, 78, 111, 75, 110, 55, 120, 113, 100, 82, 81, 106, 53, 80, 66, 99, 78, 102, 80, 83, 115, 98, 87, 107, 103, 70, 66, 80, 65, 52, 109, 75, 53, 80, 72, 55, 51, 74, 68, 4, 0, 0, 0, 0, 0, 128, 236, 116, 214, 22, 188, 1, 0, 0, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 2, 0, 0, 0, 195, 15, 233, 29, 233, 26, 63, 167, 158, 66, 223, 231, 160, 25, 23, 208, 217, 45, 153, 215, 184, 81, 109, 98, 82, 122, 56, 66, 116, 49, 112, 77, 99, 86, 110, 85, 122, 86, 81, 112, 76, 50, 105, 99, 118, 101, 90, 122, 50, 77, 70, 55, 86, 116, 69, 76, 67, 52, 52, 118, 56, 107, 86, 78, 119, 105, 71, 184, 81, 109, 98, 82, 122, 56, 66, 116, 49, 112, 77, 99, 86, 110, 85, 122, 86, 81, 112, 76, 50, 105, 99, 118, 101, 90, 122, 50, 77, 70, 55, 86, 116, 69, 76, 67, 52, 52, 118, 56, 107, 86, 78, 119, 105, 72, 1, 41, 1, 47, 105, 112, 52, 47, 49, 50, 55, 46, 48, 48, 46, 49, 47, 116, 99, 112, 47, 51, 49, 51, 51, 48, 47, 112, 50, 112, 47, 81, 109, 98, 82, 122, 56, 66, 116, 49, 112, 77, 99, 86, 110, 85, 122, 86, 81, 112, 76, 50, 105, 99, 118, 101, 90, 122, 50, 77, 70, 55, 86, 116, 69, 76, 67, 52, 52, 118, 56, 107, 86, 78, 119, 105, 71, 184, 81, 109, 98, 82, 122, 56, 66, 116, 49, 112, 77, 99, 86, 110, 85, 122, 86, 81, 112, 76, 50, 105, 99, 118, 101, 90, 122, 50, 77, 70, 55, 86, 116, 69, 76, 67, 52, 52, 118, 56, 107, 86, 78, 119, 105, 73, 4, 0, 0, 0, 0, 0, 128, 236, 116, 214, 22, 188, 1, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 3, 0, 0, 0, 47, 119, 3, 186, 153, 83, 212, 34, 41, 64, 121, 161, 203, 50, 245, 210, 182, 14, 56, 235, 184, 81, 109, 84, 74, 56, 117, 121, 76, 74, 66, 119, 86, 112, 114, 101, 106, 85, 81, 102, 89, 70, 65, 121, 119, 100, 88, 87, 102, 100, 110, 85, 81, 98, 67, 49, 88, 105, 102, 54, 81, 105, 84, 78, 116, 97, 57, 184, 81, 109, 84, 74, 56, 117, 121, 76, 74, 66, 119, 86, 112, 114, 101, 106, 85, 81, 102, 89, 70, 65, 121, 119, 100, 88, 87, 102, 100, 110, 85, 81, 98, 67, 49, 88, 105, 102, 54, 81, 105, 84, 78, 116, 97, 48, 1, 41, 1, 47, 105, 112, 52, 47, 49, 50, 55, 46, 48, 48, 46, 49, 47, 116, 99, 112, 47, 51, 49, 51, 51, 48, 47, 112, 50, 112, 47, 81, 109, 84, 74, 56, 117, 121, 76, 74, 66, 119, 86, 112, 114, 101, 106, 85, 81, 102, 89, 70, 65, 121, 119, 100, 88, 87, 102, 100, 110, 85, 81, 98, 67, 49, 88, 105, 102, 54, 81, 105, 84, 78, 116, 97, 57, 188, 81, 109, 84, 74, 56, 117, 121, 76, 74, 66, 119, 86, 112, 114, 101, 106, 85, 81, 102, 89, 70, 65, 121, 119, 100, 88, 87, 102, 100, 110, 85, 81, 98, 67, 49, 88, 105, 102, 54, 81, 105, 84, 78, 116, 97, 57, 49, 4, 0, 0, 0, 0, 0, 128, 236, 116, 214, 22, 188, 1, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 12, 1, 0, 0, 0, 0, 0, 100, 167, 179, 182, 224, 13, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 100, 167, 179, 182, 224, 13, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 100, 167, 179, 182, 224, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+# pytest tests/substrate/test_rpc.py::test_get_subnet_nodes_info_formatted -rP
 
-# pytest tests/substrate/test_rpc.py::test_get_consensus_data -rP
+def test_get_subnet_nodes_info_formatted():
+  subnet_node_info = hypertensor.get_subnet_nodes_info_formatted(1)
+  print(subnet_node_info)
 
-def test_get_consensus_data():
-    consensus_data = ConsensusData.from_vec_u8(consensus_result)
-    print("consensus_data: ", consensus_data)
+# pytest tests/substrate/test_rpc.py::test_get_all_subnet_nodes_info -rP
 
-    # attestation ratio
-    attestation_ratio = len(consensus_data.attests) / len(consensus_data.subnet_nodes)
-    print("attestation_ratio: ", attestation_ratio)
+def test_get_all_subnet_nodes_info():
+    rpc_runtime_config = RuntimeConfiguration()
+    rpc_runtime_config.update_type_registry(load_type_registry_preset("legacy"))
+    rpc_runtime_config.update_type_registry(custom_rpc_type_registry)
 
-    # rpc_runtime_config = RuntimeConfiguration()
-    # rpc_runtime_config.update_type_registry(load_type_registry_preset("legacy"))
-    # rpc_runtime_config.update_type_registry(custom_types)
+    with hypertensor.interface as _interface:
+        result = _interface.rpc_request(
+            method='network_getAllSubnetNodesInfo',
+            params=[]
+        )
+        # print("Raw result:", result)
+        scale_obj = rpc_runtime_config.create_scale_object("Vec<SubnetNodeInfo>")
+        type_info = scale_obj.generate_type_decomposition()
+        print("type_info", type_info)
 
-    # with hypertensor.interface as _interface:
-    #   result = _interface.rpc_request(
-    #     method='network_getConsensusData',
-    #     params=[
-    #       1,
-    #       4
-    #     ]
-    #   )
-    #   # print("Raw result:", result)
-    #   if 'result' in result and result['result']:
-    #       try:
-    #           # Create scale object for decoding
-    #           obj = rpc_runtime_config.create_scale_object('Option<ConsensusData>')
+        if 'result' in result and result['result']:
+            try:
+                # Create scale object for decoding
+                obj = rpc_runtime_config.create_scale_object('Vec<SubnetNodeInfo>')
 
-    #           # Decode the hex-encoded SCALE data (don't encode!)
-    #           decoded_data = obj.decode(ScaleBytes(bytes(result['result'])))
-    #           print("Decoded data:", decoded_data)
+                # Decode the hex-encoded SCALE data (don't encode!)
+                decoded_data = obj.decode(ScaleBytes(bytes(result['result'])))
+                print("Decoded data:", decoded_data)
 
-    #       except Exception as e:
-    #           print("Decode error:", str(e))
+            except Exception as e:
+                print("Decode error:", str(e))
 
-    #       try:
-    #           # Create scale object for decoding
-    #           obj = rpc_runtime_config.create_scale_object('Option<ConsensusData>', data=ScaleBytes(bytes(result['result'])))
+            try:
+                # Create scale object for decoding
+                obj = rpc_runtime_config.create_scale_object('Vec<SubnetNodeInfo>', data=ScaleBytes(bytes(result['result'])))
 
-    #           # Decode the hex-encoded SCALE data (don't encode!)
-    #           decoded_data = obj.decode()
-    #           print("Decoded data:", decoded_data)
+                # Decode the hex-encoded SCALE data (don't encode!)
+                decoded_data = obj.decode()
+                print("Decoded data:", decoded_data)
 
-    #       except Exception as e:
-    #           print("Decode error:", str(e))
+            except Exception as e:
+                print("Decode error:", str(e))
+
+# pytest tests/substrate/test_rpc.py::test_get_all_subnet_nodes_info_formatted -rP
+
+def test_get_all_subnet_nodes_info_formatted():
+  subnet_node_info = hypertensor.get_all_subnet_nodes_info_formatted()
+  print(subnet_node_info)
+
+# pytest tests/substrate/test_rpc.py::test_proof_of_stake -rP
+
+def test_proof_of_stake():
+    rpc_runtime_config = RuntimeConfiguration()
+    rpc_runtime_config.update_type_registry(load_type_registry_preset("legacy"))
+    rpc_runtime_config.update_type_registry(custom_rpc_type_registry)
+
+    peer_id_to_vec = [ord(char) for char in "12D1KooWGFuUunX1AzAzjs3CgyqTXtPWX3AqRhJFbesGPGYHJQTP"]
+
+    with hypertensor.interface as _interface:
+        result = _interface.rpc_request(
+            method='network_proofOfStake',
+            params=[
+              1,
+              peer_id_to_vec,
+              1,
+            ]
+        )
+        print("result['result']", result['result'])
+
+# pytest tests/substrate/test_rpc.py::test_get_bootnodes -rP
+
+def test_get_bootnodes():
+    rpc_runtime_config = RuntimeConfiguration()
+    rpc_runtime_config.update_type_registry(load_type_registry_preset("legacy"))
+    rpc_runtime_config.update_type_registry(custom_rpc_type_registry)
+
+    with hypertensor.interface as _interface:
+        result = _interface.rpc_request(
+            method='network_getBootnodes',
+            params=[1]
+        )
+        # print("Raw result:", result)
+        scale_obj = rpc_runtime_config.create_scale_object("AllSubnetBootnodes")
+        type_info = scale_obj.generate_type_decomposition()
+        print("type_info", type_info)
+
+        if 'result' in result and result['result']:
+            try:
+                # Create scale object for decoding
+                obj = rpc_runtime_config.create_scale_object('AllSubnetBootnodes')
+
+                # Decode the hex-encoded SCALE data (don't encode!)
+                decoded_data = obj.decode(ScaleBytes(bytes(result['result'])))
+                print("Decoded data:", decoded_data)
+
+            except Exception as e:
+                print("Decode error:", str(e))
+
+            try:
+                # Create scale object for decoding
+                obj = rpc_runtime_config.create_scale_object('AllSubnetBootnodes', data=ScaleBytes(bytes(result['result'])))
+
+                # Decode the hex-encoded SCALE data (don't encode!)
+                decoded_data = obj.decode()
+                print("Decoded data:", decoded_data)
+
+            except Exception as e:
+                print("Decode error:", str(e))
+
+# pytest tests/substrate/test_rpc.py::test_get_bootnodes_formatted -rP
+
+def test_get_bootnodes_formatted():
+  bootnodes = hypertensor.get_bootnodes_formatted(1)
+  print(bootnodes)
+
+# pytest tests/substrate/test_rpc.py::test_get_coldkey_subnet_nodes_info -rP
+
+def test_get_coldkey_subnet_nodes_info():
+    rpc_runtime_config = RuntimeConfiguration()
+    rpc_runtime_config.update_type_registry(load_type_registry_preset("legacy"))
+    rpc_runtime_config.update_type_registry(custom_rpc_type_registry)
+
+    with hypertensor.interface as _interface:
+        result = _interface.rpc_request(
+            method='network_getColdkeySubnetNodesInfo',
+            params=["0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac"]
+        )
+        # print("Raw result:", result)
+        scale_obj = rpc_runtime_config.create_scale_object("Vec<SubnetNodeInfo>")
+        type_info = scale_obj.generate_type_decomposition()
+        print("type_info", type_info)
+
+        print("result:", result)
+
+        if 'result' in result and result['result']:
+            try:
+                # Create scale object for decoding
+                obj = rpc_runtime_config.create_scale_object('Vec<SubnetNodeInfo>')
+
+                # Decode the hex-encoded SCALE data (don't encode!)
+                decoded_data = obj.decode(ScaleBytes(bytes(result['result'])))
+                print("Decoded data:", decoded_data)
+
+            except Exception as e:
+                print("Decode error:", str(e))
+
+            try:
+                # Create scale object for decoding
+                obj = rpc_runtime_config.create_scale_object('Vec<SubnetNodeInfo>', data=ScaleBytes(bytes(result['result'])))
+
+                # Decode the hex-encoded SCALE data (don't encode!)
+                decoded_data = obj.decode()
+                print("Decoded data:", decoded_data)
+
+            except Exception as e:
+                print("Decode error:", str(e))
+
+# pytest tests/substrate/test_rpc.py::test_get_coldkey_subnet_nodes_info_formatted -rP
+
+def test_get_coldkey_subnet_nodes_info_formatted():
+  data = hypertensor.get_coldkey_subnet_nodes_info_formatted("0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac")
+  print(data)
+
+
+# pytest tests/substrate/test_rpc.py::test_get_coldkey_stakes -rP
+
+def test_get_coldkey_stakes():
+    rpc_runtime_config = RuntimeConfiguration()
+    rpc_runtime_config.update_type_registry(load_type_registry_preset("legacy"))
+    rpc_runtime_config.update_type_registry(custom_rpc_type_registry)
+
+    with hypertensor.interface as _interface:
+        result = _interface.rpc_request(
+            method='network_getColdkeyStakes',
+            params=["0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac"]
+        )
+        # print("Raw result:", result)
+        scale_obj = rpc_runtime_config.create_scale_object("Vec<SubnetNodeStakeInfo>")
+        type_info = scale_obj.generate_type_decomposition()
+        print("type_info", type_info)
+
+        print("result:", result)
+
+        if 'result' in result and result['result']:
+            try:
+                # Create scale object for decoding
+                obj = rpc_runtime_config.create_scale_object('Vec<SubnetNodeStakeInfo>')
+
+                # Decode the hex-encoded SCALE data (don't encode!)
+                decoded_data = obj.decode(ScaleBytes(bytes(result['result'])))
+                print("Decoded data:", decoded_data)
+
+            except Exception as e:
+                print("Decode error:", str(e))
+
+            try:
+                # Create scale object for decoding
+                obj = rpc_runtime_config.create_scale_object('Vec<SubnetNodeStakeInfo>', data=ScaleBytes(bytes(result['result'])))
+
+                # Decode the hex-encoded SCALE data (don't encode!)
+                decoded_data = obj.decode()
+                print("Decoded data:", decoded_data)
+
+            except Exception as e:
+                print("Decode error:", str(e))
+
+# pytest tests/substrate/test_rpc.py::test_get_coldkey_stakes_formatted -rP
+
+def test_get_coldkey_stakes_formatted():
+  data = hypertensor.get_coldkey_stakes_formatted("0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac")
+  print(data)
+
+# pytest tests/substrate/test_rpc.py::test_get_delegate_stakes -rP
+
+def test_get_delegate_stakes():
+    rpc_runtime_config = RuntimeConfiguration()
+    rpc_runtime_config.update_type_registry(load_type_registry_preset("legacy"))
+    rpc_runtime_config.update_type_registry(custom_rpc_type_registry)
+
+    with hypertensor.interface as _interface:
+        result = _interface.rpc_request(
+            method='network_getDelegateStakes',
+            params=["0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac"]
+        )
+        # print("Raw result:", result)
+        scale_obj = rpc_runtime_config.create_scale_object("Vec<DelegateStakeInfo>")
+        type_info = scale_obj.generate_type_decomposition()
+        print("type_info", type_info)
+
+        print("result:", result)
+
+        if 'result' in result and result['result']:
+            try:
+                # Create scale object for decoding
+                obj = rpc_runtime_config.create_scale_object('Vec<DelegateStakeInfo>')
+
+                # Decode the hex-encoded SCALE data (don't encode!)
+                decoded_data = obj.decode(ScaleBytes(bytes(result['result'])))
+                print("Decoded data:", decoded_data)
+
+            except Exception as e:
+                print("Decode error:", str(e))
+
+            try:
+                # Create scale object for decoding
+                obj = rpc_runtime_config.create_scale_object('Vec<DelegateStakeInfo>', data=ScaleBytes(bytes(result['result'])))
+
+                # Decode the hex-encoded SCALE data (don't encode!)
+                decoded_data = obj.decode()
+                print("Decoded data:", decoded_data)
+
+            except Exception as e:
+                print("Decode error:", str(e))
+
+# pytest tests/substrate/test_rpc.py::test_get_delegate_stakes_formatted -rP
+
+def test_get_delegate_stakes_formatted():
+  data = hypertensor.get_delegate_stakes_formatted("0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac")
+  print(data)
+
+# pytest tests/substrate/test_rpc.py::test_get_node_delegate_stakes -rP
+
+def test_get_node_delegate_stakes():
+    rpc_runtime_config = RuntimeConfiguration()
+    rpc_runtime_config.update_type_registry(load_type_registry_preset("legacy"))
+    rpc_runtime_config.update_type_registry(custom_rpc_type_registry)
+
+    with hypertensor.interface as _interface:
+        result = _interface.rpc_request(
+            method='network_getNodeDelegateStakes',
+            params=["0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac"]
+        )
+        # print("Raw result:", result)
+        scale_obj = rpc_runtime_config.create_scale_object("Vec<NodeDelegateStakeInfo>")
+        type_info = scale_obj.generate_type_decomposition()
+        print("type_info", type_info)
+
+        print("result:", result)
+
+        if 'result' in result and result['result']:
+            try:
+                # Create scale object for decoding
+                obj = rpc_runtime_config.create_scale_object('Vec<NodeDelegateStakeInfo>')
+
+                # Decode the hex-encoded SCALE data (don't encode!)
+                decoded_data = obj.decode(ScaleBytes(bytes(result['result'])))
+                print("Decoded data:", decoded_data)
+
+            except Exception as e:
+                print("Decode error:", str(e))
+
+            try:
+                # Create scale object for decoding
+                obj = rpc_runtime_config.create_scale_object('Vec<NodeDelegateStakeInfo>', data=ScaleBytes(bytes(result['result'])))
+
+                # Decode the hex-encoded SCALE data (don't encode!)
+                decoded_data = obj.decode()
+                print("Decoded data:", decoded_data)
+
+            except Exception as e:
+                print("Decode error:", str(e))
+
+# pytest tests/substrate/test_rpc.py::test_get_node_delegate_stakes_formatted -rP
+
+def test_get_node_delegate_stakes_formatted():
+  data = hypertensor.get_node_delegate_stakes_formatted("0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac")
+  print(data)

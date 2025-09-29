@@ -11,11 +11,11 @@ from mesh import DHT, get_dht_time
 from mesh.compression.serialization import deserialize_torch_tensor, serialize_torch_tensor
 from mesh.p2p import P2P, P2PContext, PeerID, ServicerBase
 from mesh.proto import dht_pb2, inference_protocol_pb2, runtime_pb2
-from mesh.subnet.utils.key import extract_rsa_peer_id_from_ssh
 from mesh.substrate.chain_functions import Hypertensor
 from mesh.utils import get_logger
 from mesh.utils.asyncio import switch_to_uvloop
 from mesh.utils.authorizers.auth import AuthorizerBase, AuthRole, AuthRPCWrapperStreamer
+from mesh.utils.key import extract_rsa_peer_id_from_ssh
 from mesh.utils.mpfuture import MPFuture
 from mesh.utils.serializer import MSGPackSerializer
 

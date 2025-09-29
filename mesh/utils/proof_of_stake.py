@@ -1,9 +1,9 @@
 from typing import Dict, Optional
 
 from mesh import PeerID, get_dht_time
-from mesh.subnet.utils.peer_id import get_peer_id_from_pubkey
 from mesh.substrate.chain_functions import Hypertensor
 from mesh.utils.crypto import Ed25519PublicKey, RSAPublicKey
+from mesh.utils.peer_id import get_peer_id_from_pubkey
 
 
 class ProofOfStake():

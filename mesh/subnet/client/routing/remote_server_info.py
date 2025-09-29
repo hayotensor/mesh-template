@@ -3,8 +3,8 @@ import time
 from typing import List, Optional
 
 from mesh import get_logger
-from mesh.subnet.data_structures import RemoteInfo, RemoteModuleInfo, ServerState
-from mesh.subnet.utils.dht import compute_spans
+from mesh.utils.data_structures import RemoteInfo, RemoteModuleInfo, ServerState
+from mesh.utils.dht import sort_peers
 
 logger = get_logger(__name__)
 
@@ -31,7 +31,7 @@ class RemoteServerInfo:
     def __getitem__(self, ix: slice):
         assert isinstance(ix, slice)
         server_infos = self.server_infos[ix]
-        servers_by_priority = self._sort_spans(server_infos)
+        servers_by_priority = self._sort_peers(server_infos)
         return RemoteServerInfo(
             server_infos, servers_by_priority, self.last_updated_time
         )
@@ -45,12 +45,12 @@ class RemoteServerInfo:
             deduped_by_peer[info.peer_id] = info
 
         self.server_infos = list(deduped_by_peer.values())
-        self.servers_by_priority = self._sort_spans(self.server_infos)
+        self.servers_by_priority = self._sort_peers(self.server_infos)
         self.last_updated_time = time.perf_counter()
 
     @staticmethod
-    def _sort_spans(server_infos: List[RemoteModuleInfo]):
-        servers_by_priority = list(compute_spans(server_infos, min_state=ServerState.ONLINE).values())
+    def _sort_peers(server_infos: List[RemoteModuleInfo]):
+        servers_by_priority = list(sort_peers(server_infos, min_state=ServerState.ONLINE).values())
         servers_by_priority.sort(key=lambda span: span.length, reverse=True)
 
         return servers_by_priority

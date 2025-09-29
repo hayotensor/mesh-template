@@ -4,10 +4,20 @@ from typing import Any, List, Optional
 
 from substrateinterface import ExtrinsicReceipt, Keypair, KeypairType, SubstrateInterface
 from substrateinterface.exceptions import SubstrateRequestException
-from tenacity import TryAgain, retry, retry_if_exception_type, stop_after_attempt, wait_fixed, wait_random
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 from websocket import WebSocketConnectionClosedException, WebSocketProtocolException
 
-from mesh.substrate.chain_data import ConsensusData, SubnetData, SubnetInfo, SubnetNode
+from mesh.substrate.chain_data import (
+  AllSubnetBootnodes,
+  ConsensusData,
+  DelegateStakeInfo,
+  NodeDelegateStakeInfo,
+  SubnetData,
+  SubnetInfo,
+  SubnetNode,
+  SubnetNodeInfo,
+  SubnetNodeStakeInfo,
+)
 from mesh.substrate.config import BLOCK_SECS
 from mesh.utils import get_logger
 
@@ -40,16 +50,50 @@ class EpochData:
       seconds_remaining=epoch_length * BLOCK_SECS
     )
 
+@dataclass
+class OverwatchEpochData:
+  block: int
+  epoch: int
+  block_per_epoch: int
+  seconds_per_epoch: int
+  percent_complete: float
+  blocks_elapsed: int
+  blocks_remaining: int
+  seconds_elapsed: int
+  seconds_remaining: int
+  seconds_remaining_until_reveal: int
+
+  @staticmethod
+  def zero(current_block: int, epoch_length: int) -> "OverwatchEpochData":
+    return OverwatchEpochData(
+      block=current_block,
+      epoch=0,
+      block_per_epoch=epoch_length,
+      seconds_per_epoch=epoch_length * BLOCK_SECS,
+      percent_complete=0.0,
+      blocks_elapsed=0,
+      blocks_remaining=epoch_length,
+      seconds_elapsed=0,
+      seconds_remaining=epoch_length * BLOCK_SECS,
+      seconds_remaining_until_reveal=0
+    )
+
 class KeypairFrom(Enum):
   MNEMONIC = 1
   PRIVATE_KEY = 2
 
 class SubnetNodeClass(Enum):
-  Deactivated = 1
-  Registered = 2
-  Idle = 3
-  Included = 4
-  Validator = 5
+  Registered  = 1
+  Idle        = 2
+  Included    = 3
+  Validator   = 4
+
+# lookup from string
+def subnet_node_class_from_string(name: str) -> SubnetNodeClass:
+    return SubnetNodeClass[name]
+
+def subnet_node_class_to_enum(name: str) -> SubnetNodeClass:
+    return SubnetNodeClass[name]
 
 class Hypertensor:
   def __init__(self, url: str, phrase: str, keypair_from: Optional[KeypairFrom] = None):
@@ -211,7 +255,7 @@ class Hypertensor:
     min_stake: int,
     max_stake: int,
     delegate_stake_percentage: int,
-    registration_queue_epochs: int,
+    subnet_node_queue_epochs: int,
     activation_grace_epochs: int,
     queue_classification_epochs: int,
     included_classification_epochs: int,
@@ -240,7 +284,7 @@ class Hypertensor:
           'min_stake': min_stake,
           'max_stake': max_stake,
           'delegate_stake_percentage': delegate_stake_percentage,
-          'registration_queue_epochs': registration_queue_epochs,
+          'subnet_node_queue_epochs': subnet_node_queue_epochs,
           'activation_grace_epochs': activation_grace_epochs,
           'queue_classification_epochs': queue_classification_epochs,
           'included_classification_epochs': included_classification_epochs,
@@ -336,274 +380,6 @@ class Hypertensor:
         print("Failed to send: {}".format(e))
 
     return submit_extrinsic()
-
-  def get_subnet_nodes(
-    self,
-    subnet_id: int,
-  ):
-    """
-    Function to return all account_ids and subnet_node_ids from the substrate Hypertensor Blockchain
-
-    :param subnet_id: subnet ID
-    :returns: subnet_nodes_data
-    """
-    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-    def make_rpc_request():
-      try:
-        with self.interface as _interface:
-          data = _interface.rpc_request(
-            method='network_getSubnetNodes',
-            params=[
-              subnet_id
-            ]
-          )
-          return data
-      except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
-
-    return make_rpc_request()
-
-  def get_subnet_nodes_included(
-    self,
-    subnet_id: int,
-  ):
-    """
-    Function to return Included classified account_ids and subnet_node_ids from the substrate Hypertensor Blockchain
-
-    :param subnet_id: subnet ID
-    :returns: subnet_nodes_data
-    """
-    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-    def make_rpc_request():
-      try:
-        with self.interface as _interface:
-          data = _interface.rpc_request(
-            method='network_getSubnetNodesIncluded',
-            params=[subnet_id]
-          )
-        return data
-      except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
-
-    return make_rpc_request()
-
-  def get_min_class_subnet_nodes(
-    self,
-    subnet_id: int,
-    subnet_epoch: int,
-    min_class: SubnetNodeClass
-  ):
-    """
-    Function to return Included classified account_ids and subnet_node_ids from the substrate Hypertensor Blockchain
-
-    :param subnet_id: subnet ID
-    :returns: subnet_nodes_data
-    """
-    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-    def make_rpc_request():
-      try:
-        with self.interface as _interface:
-          data = _interface.rpc_request(
-            method='network_getMinClassSubnetNodes',
-            params=[
-              subnet_id,
-              subnet_epoch,
-              min_class.value
-            ]
-          )
-          print("get_min_class_subnet_nodes data", data)
-        return data
-      except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
-
-    return make_rpc_request()
-
-  def get_subnet_nodes_validator(
-    self,
-    subnet_id: int,
-  ):
-    """
-    Function to return Validator classified account_ids and subnet_node_ids from the substrate Hypertensor Blockchain
-
-    :param subnet_id: subnet ID
-    :returns: subnet_nodes_data
-    """
-    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-    def make_rpc_request():
-      try:
-        with self.interface as _interface:
-          data = _interface.rpc_request(
-            method='network_getSubnetNodesValidator',
-            params=[
-              subnet_id
-            ]
-          )
-          return data
-      except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
-
-    return make_rpc_request()
-
-  def get_consensus_data(
-    self,
-    subnet_id: int,
-    epoch: int
-  ):
-    """
-    Query an epochs consesnus submission
-
-    :param subnet_id: subnet I
-    :returns: subnet_nodes_data
-    """
-    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-    def make_rpc_request():
-      try:
-        with self.interface as _interface:
-          data = _interface.rpc_request(
-            method='network_getConsensusData',
-            params=[
-              subnet_id,
-              epoch
-            ]
-          )
-          return data
-      except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
-
-    return make_rpc_request()
-
-  def is_subnet_node_by_peer_id(
-    self,
-    subnet_id: int,
-    peer_id: str
-  ):
-    """
-    Function to return all account_ids and subnet_node_ids from the substrate Hypertensor Blockchain by peer ID
-
-    :param subnet_id: subnet ID
-    :param peer_id: peer ID
-    :returns: subnet_nodes_data
-    """
-    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-    def make_rpc_request():
-      try:
-        with self.interface as _interface:
-          data = _interface.rpc_request(
-            method='network_isSubnetNodeByPeerId',
-            params=[
-              subnet_id,
-              peer_id
-            ]
-          )
-          return data
-      except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
-
-    return make_rpc_request()
-
-  def proof_of_stake(
-    self,
-    subnet_id: int,
-    peer_id: str,
-    min_class: int
-  ):
-    """
-    Function to return all account_ids and subnet_node_ids from the substrate Hypertensor Blockchain by peer ID
-
-    :param subnet_id: subnet ID
-    :param peer_id: peer ID
-    :param min_class: SubnetNodeClass enum
-
-    Deactivated = 0
-    Registered = 1
-    Idle = 2
-    Included = 3
-    Validator = 4
-
-    ```rust
-    pub enum SubnetNodeClass {
-      Deactivated,
-      #[default] Registered,
-      Idle,
-      Included,
-      Validator,
-    }
-    ```
-    :returns: subnet_nodes_data
-    """
-    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-    def make_rpc_request():
-      try:
-        with self.interface as _interface:
-          data = _interface.rpc_request(
-            method='network_proofOfStake',
-            params=[
-              subnet_id,
-              peer_id,
-              min_class
-            ]
-          )
-          return data
-      except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
-
-    return make_rpc_request()
-
-  def get_minimum_delegate_stake(
-    self,
-    subnet_id: int,
-  ):
-    """
-    Query required minimum stake balance based on memory
-
-=    :param subnet_id: Subnet ID
-
-    :returns: subnet_nodes_data
-    """
-    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-    def make_rpc_request():
-      try:
-        with self.interface as _interface:
-          data = _interface.rpc_request(
-            method='network_getMinimumDelegateStake',
-            params=[
-              subnet_id
-            ]
-          )
-          return data
-      except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
-
-    return make_rpc_request()
-
-  def get_subnet_node_info(
-    self,
-    subnet_id: int,
-    subnet_node_id: int
-  ):
-    """
-    Function to return all subnet nodes in the SubnetNodeInfo struct format
-
-    :param subnet_id: subnet ID
-
-    :returns: subnet_nodes_data
-    """
-    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-    def make_rpc_request():
-      try:
-        with self.interface as _interface:
-          data = _interface.rpc_request(
-            method='network_getSubnetNodeInfo',
-            params=[
-              subnet_id,
-              subnet_node_id
-            ]
-          )
-          return data
-      except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
-
-    return make_rpc_request()
 
   def add_subnet_node(
     self,
@@ -1394,60 +1170,6 @@ class Hypertensor:
 
     return make_query()
 
-  def get_subnet_info(
-    self,
-    subnet_id: int,
-  ):
-    """
-    Query an epochs chosen subnet validator and return SubnetNode
-
-    :param subnet_id: subnet ID
-    :returns: Struct of subnet info
-    """
-
-    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-    def make_rpc_request():
-      try:
-        with self.interface as _interface:
-          data = _interface.rpc_request(
-            method='network_getSubnetInfo',
-            params=[
-              subnet_id,
-            ]
-          )
-          return data
-      except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
-
-    return make_rpc_request()
-
-  def get_subnet_data(
-    self,
-    subnet_id: int,
-  ):
-    """
-    Query an epochs chosen subnet validator and return SubnetNode
-
-    :param subnet_id: subnet ID
-    :returns: Struct of subnet info
-    """
-
-    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-    def make_rpc_request():
-      try:
-        with self.interface as _interface:
-          data = _interface.rpc_request(
-            method='network_getSubnetData',
-            params=[
-              subnet_id,
-            ]
-          )
-          return data
-      except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
-
-    return make_rpc_request()
-
   def get_max_subnets(self):
     """
     Function to get the maximum number of subnets allowed on the blockchain
@@ -1580,66 +1302,41 @@ class Hypertensor:
 
     return make_query()
 
-
-  def get_rewards_validator_info(
-    self,
-    subnet_id: int,
-    epoch: int
-  ):
+  def get_overwatch_epoch_multiplier(self):
     """
-    Query an epochs chosen subnet validator and return SubnetNodeInfo
+    Function to get the transaction rate limit
 
-    :param subnet_id: subnet ID
-    :param epoch: epoch to query SubnetElectedValidator
-    :returns: epoch_length
+    :returns: tx_rate_limit
     """
 
     @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-    def make_rpc_request():
+    def make_query():
       try:
         with self.interface as _interface:
-          data = _interface.rpc_request(
-            method='network_getRewardsValidatorInfo',
-            params=[
-              subnet_id,
-              epoch
-            ]
-          )
-          return data
+          result = _interface.query('Network', 'OverwatchEpochLengthMultiplier')
+          return result
       except SubstrateRequestException as e:
         print("Failed to get rpc request: {}".format(e))
 
-    return make_rpc_request()
+    return make_query()
 
-  # def get_elected_validator_node(
-  #   self,
-  #   subnet_id: int,
-  #   epoch: int
-  # ):
-  #   """
-  #   Query an epochs chosen subnet validator and return SubnetNode
+  def get_overwatch_commit_cutoff_percent(self):
+    """
+    Function to get the transaction rate limit
 
-  #   :param subnet_id: subnet ID
-  #   :param epoch: epoch to query SubnetElectedValidator
-  #   :returns: epoch_length
-  #   """
+    :returns: tx_rate_limit
+    """
 
-  #   @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-  #   def make_rpc_request():
-  #     try:
-  #       with self.interface as _interface:
-  #         data = _interface.rpc_request(
-  #           method='network_getElectedValidatorNode',
-  #           params=[
-  #             subnet_id,
-  #             epoch
-  #           ]
-  #         )
-  #         return data
-  #     except SubstrateRequestException as e:
-  #       print("Failed to get rpc request: {}".format(e))
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_query():
+      try:
+        with self.interface as _interface:
+          result = _interface.query('Network', 'OverwatchCommitCutoffPercent')
+          return result
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
 
-  #   return make_rpc_request()
+    return make_query()
 
   def get_rewards_submission(
     self,
@@ -1733,25 +1430,6 @@ class Hypertensor:
 
     return make_query()
 
-  # def get_subnet_slot(self, subnet_id: int):
-  #   """
-  #   Query maximum subnet entry interval blocks
-  #   """
-
-  #   @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-  #   def make_query():
-  #     try:
-  #       with self.interface as _interface:
-  #         result = _interface.query('Network', 'SubnetSlot', [subnet_id])
-  #         return result
-  #     except SubstrateRequestException as e:
-  #       print("Failed to get rpc request: {}".format(e))
-
-  #   try:
-  #     return make_query()
-  #   except Exception as e:
-  #     logger.warning(f"get_subnet_slot={e}, {make_query.retry.statistics}", exc_info=True)
-
   def get_subnet_slot(self, subnet_id: int):
     """
     Query maximum subnet entry interval blocks with retry + reconnect
@@ -1774,7 +1452,9 @@ class Hypertensor:
 
             # Query directly (avoid context manager which closes socket)
             with self.interface as interface:
-              return interface.query('Network', 'SubnetSlot', [subnet_id])
+              result = interface.query('Network', 'SubnetSlot', [subnet_id])
+              print("result", result)
+              return result
 
         except Exception as e:
             # Force reconnect + metadata refresh so retry can succeed
@@ -1783,7 +1463,7 @@ class Hypertensor:
             except Exception:
                 pass
             self.interface.connect_websocket()
-            # self.interface.init_runtime()
+            self.interface.init_runtime()
             raise
 
     try:
@@ -1792,8 +1472,394 @@ class Hypertensor:
         logger.warning(f"get_subnet_slot={e}", exc_info=True)
         return None
 
-  # EVENTS
+  """
+  RPC
+  """
+  
+  def get_subnet_info(
+    self,
+    subnet_id: int,
+  ):
+    """
+    Query an epochs chosen subnet validator and return SubnetNode
 
+    :param subnet_id: subnet ID
+    :returns: Struct of subnet info
+    """
+
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          data = _interface.rpc_request(
+            method='network_getSubnetInfo',
+            params=[
+              subnet_id,
+            ]
+          )
+          return data
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  def get_subnet_nodes(
+    self,
+    subnet_id: int,
+  ):
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          data = _interface.rpc_request(
+            method='network_getSubnetNodes',
+            params=[
+              subnet_id
+            ]
+          )
+          return data
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  def get_all_subnet_info(
+    self,
+  ):
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          data = _interface.rpc_request(
+            method='network_getAllSubnetsInfo',
+            params=[]
+          )
+          return data
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  def get_subnet_nodes_info(
+    self,
+    subnet_id: int,
+  ):
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          data = _interface.rpc_request(
+            method='network_getSubnetNodesInfo',
+            params=[
+              subnet_id
+            ]
+          )
+          return data
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  def get_all_subnet_nodes_info(
+    self,
+  ):
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          data = _interface.rpc_request(
+            method='network_getAllSubnetNodesInfo',
+            params=[]
+          )
+          return data
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  def get_bootnodes(
+    self,
+    subnet_id: int,
+  ):
+    """
+    Function to return all bootnodes of a subnet
+
+    :param subnet_id: subnet ID
+    :returns: subnet_nodes_data
+    """
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          subnet_nodes_data = _interface.rpc_request(
+            method='network_getBootnodes',
+            params=[
+              subnet_id
+            ]
+          )
+          return subnet_nodes_data
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  def get_coldkey_subnet_nodes_info(
+    self,
+    coldkey: str
+  ):
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          data = _interface.rpc_request(
+            method='network_getColdkeySubnetNodesInfo',
+            params=[
+              coldkey
+            ]
+          )
+          return data
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  def get_coldkey_stakes(
+    self,
+    coldkey: str
+  ):
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          data = _interface.rpc_request(
+            method='network_getColdkeyStakes',
+            params=[
+              coldkey
+            ]
+          )
+          return data
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  def get_delegate_stakes(
+    self,
+    account_id: str
+  ):
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          data = _interface.rpc_request(
+            method='network_getDelegateStakes',
+            params=[
+              account_id
+            ]
+          )
+          return data
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  def get_node_delegate_stakes(
+    self,
+    account_id: str
+  ):
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          data = _interface.rpc_request(
+            method='network_getNodeDelegateStakes',
+            params=[
+              account_id
+            ]
+          )
+          return data
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  def get_overwatch_commits(
+    self,
+    epoch: int,
+    overwatch_node_id: int
+  ):
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          data = _interface.rpc_request(
+            method='network_getOverwatchCommitsForEpochAndNode',
+            params=[
+              epoch,
+              overwatch_node_id
+            ]
+          )
+          return data
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  def get_overwatch_reveals(
+    self,
+    epoch: int,
+    overwatch_node_id: int
+  ):
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          data = _interface.rpc_request(
+            method='network_getOverwatchRevealsForEpochAndNode',
+            params=[
+              epoch,
+              overwatch_node_id
+            ]
+          )
+          return data
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  def get_consensus_data(
+    self,
+    subnet_id: int,
+    epoch: int
+  ):
+    """
+    Query an epochs consesnus submission
+
+    :param subnet_id: subnet I
+    :returns: subnet_nodes_data
+    """
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          data = _interface.rpc_request(
+            method='network_getConsensusData',
+            params=[
+              subnet_id,
+              epoch
+            ]
+          )
+          return data
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  def proof_of_stake(
+    self,
+    subnet_id: int,
+    peer_id: str,
+    min_class: int
+  ):
+    """
+    Function to return all account_ids and subnet_node_ids from the substrate Hypertensor Blockchain by peer ID
+
+    :param subnet_id: subnet ID
+    :param peer_id: peer ID
+    :param min_class: SubnetNodeClass enum
+
+    Registered = 1
+    Idle = 2
+    Included = 3
+    Validator = 4
+
+    ```rust
+    pub enum SubnetNodeClass {
+      #[default] Registered,
+      Idle,
+      Included,
+      Validator,
+    }
+    ```
+    :returns: subnet_nodes_data
+    """
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          result = _interface.rpc_request(
+            method='network_proofOfStake',
+            params=[
+              subnet_id,
+              peer_id,
+              min_class
+            ]
+          )
+          return result['result']
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  def get_minimum_delegate_stake(
+    self,
+    subnet_id: int,
+  ):
+    """
+    Query required minimum stake balance based on memory
+
+=    :param subnet_id: Subnet ID
+
+    :returns: subnet_nodes_data
+    """
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          data = _interface.rpc_request(
+            method='network_getMinimumDelegateStake',
+            params=[
+              subnet_id
+            ]
+          )
+          return data
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  def get_subnet_node_info(
+    self,
+    subnet_id: int,
+    subnet_node_id: int
+  ):
+    """
+    Function to return all subnet nodes in the SubnetNodeInfo struct format
+
+    :param subnet_id: subnet ID
+
+    :returns: subnet_nodes_data
+    """
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          data = _interface.rpc_request(
+            method='network_getSubnetNodeInfo',
+            params=[
+              subnet_id,
+              subnet_node_id
+            ]
+          )
+          return data
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  """
+  Events
+  """
   def get_reward_result_event(
     self,
     target_subnet_id: int,
@@ -1883,6 +1949,56 @@ class Hypertensor:
       seconds_remaining=seconds_remaining
     )
 
+  def get_overwatch_epoch_data(self) -> EpochData:
+    current_block = self.get_block_number()
+    epoch_length = self.get_epoch_length()
+    current_block = int(str(current_block))
+    epoch_length = int(str(epoch_length))
+    epoch = current_block // epoch_length
+    blocks_elapsed = current_block % epoch_length
+    percent_complete = blocks_elapsed / epoch_length
+    blocks_remaining = epoch_length - blocks_elapsed
+    seconds_elapsed = blocks_elapsed * BLOCK_SECS
+    seconds_remaining = blocks_remaining * BLOCK_SECS
+
+    multiplier = self.get_overwatch_epoch_multiplier()
+    overwatch_epoch_length = epoch_length * multiplier
+    cutoff_percentage = float(self.get_overwatch_commit_cutoff_percent() / 1e18)
+    block_increase_cutoff = overwatch_epoch_length * cutoff_percentage
+    epoch_cutoff_block = overwatch_epoch_length * epoch + block_increase_cutoff
+
+    if current_block > epoch_cutoff_block:
+      seconds_remaining_until_reveal = 0
+    else:
+      seconds_remaining_until_reveal = epoch_cutoff_block - current_block
+
+    return OverwatchEpochData(
+      block=current_block,
+      epoch=epoch,
+      block_per_epoch=epoch_length,
+      seconds_per_epoch=epoch_length * BLOCK_SECS,
+      percent_complete=percent_complete,
+      blocks_elapsed=blocks_elapsed,
+      blocks_remaining=blocks_remaining,
+      seconds_elapsed=seconds_elapsed,
+      seconds_remaining=seconds_remaining,
+      seconds_remaining_until_reveal=seconds_remaining_until_reveal
+    )
+
+  def in_overwatch_commit_period(self) -> bool:
+    epoch_data = self.get_epoch_data()
+    epoch_length = epoch_data.block_per_epoch
+    multiplier = self.get_overwatch_epoch_multiplier()
+    overwatch_epoch_length = epoch_length * multiplier
+    current_epoch = epoch_data.epoch
+    cutoff_percentage = float(self.get_overwatch_commit_cutoff_percent() / 1e18)
+    block_increase_cutoff = overwatch_epoch_length * cutoff_percentage
+    epoch_cutoff_block = overwatch_epoch_length * current_epoch + block_increase_cutoff
+    return epoch_data.block < epoch_cutoff_block
+
+  """
+  Formatted
+  """
   def get_formatted_elected_validator_node(self, subnet_id: int, epoch: int) -> Optional["SubnetNode"]:
     """
     Get formatted list of subnet nodes classified as Validator
@@ -1930,7 +2046,6 @@ class Hypertensor:
 
     :returns: List of subnet node IDs
     """
-    print("get_formatted_subnet_info subnet_id", subnet_id)
     try:
       result = self.get_subnet_info(subnet_id)
 
@@ -1940,7 +2055,7 @@ class Hypertensor:
     except Exception:
       return None
 
-  def get_formatted_subnet_node_data(self, subnet_id: int, subnet_node_id: int) -> Optional["SubnetNode"]:
+  def get_formatted_all_subnet_info(self) -> List["SubnetInfo"]:
     """
     Get formatted list of subnet nodes classified as Validator
 
@@ -1949,15 +2064,17 @@ class Hypertensor:
     :returns: List of subnet node IDs
     """
     try:
-      result = self.get_subnet_node_data(subnet_id, subnet_node_id)
+      result = self.get_all_subnet_info()
+      print("get_formatted_all_subnet_info result", result)
 
-      subnet = SubnetNode.from_vec_u8(result["result"])
+      subnets_info = SubnetInfo.list_from_vec_u8(result["result"])
+      print("get_formatted_all_subnet_info subnets_info", subnets_info)
 
-      return subnet
+      return subnets_info
     except Exception:
       return None
 
-  def get_subnet_validator_nodes(self, subnet_id: int) -> List:
+  def get_formatted_get_subnet_node_info(self, subnet_id: int, subnet_node_id: int) -> Optional["SubnetNodeInfo"]:
     """
     Get formatted list of subnet nodes classified as Validator
 
@@ -1966,17 +2083,17 @@ class Hypertensor:
     :returns: List of subnet node IDs
     """
     try:
-      result = self.get_subnet_nodes_validator(
-        subnet_id,
-      )
+      result = self.get_subnet_node_info(subnet_id, subnet_node_id)
+      print("get_formatted_get_subnet_node_info result", result)
 
-      subnet_nodes = SubnetNode.list_from_vec_u8(result["result"])
+      subnet_node_info = SubnetNodeInfo.from_vec_u8(result["result"])
+      print("get_formatted_get_subnet_node_info subnet_node_info", subnet_node_info)
 
-      return subnet_nodes
+      return subnet_node_info
     except Exception:
-      return []
+      return None
 
-  def get_subnet_included_nodes(self, subnet_id: int) -> List:
+  def get_subnet_nodes_info_formatted(self, subnet_id: int) -> List["SubnetNodeInfo"]:
     """
     Get formatted list of subnet nodes classified as Validator
 
@@ -1985,16 +2102,134 @@ class Hypertensor:
     :returns: List of subnet node IDs
     """
     try:
-      result = self.get_subnet_nodes_included(
-        subnet_id,
-      )
+      result = self.get_subnet_nodes_info(subnet_id)
+      print("get_subnet_nodes_info_formatted result", result)
 
-      subnet_nodes = SubnetNode.list_from_vec_u8(result["result"])
+      subnet_nodes_info = SubnetNodeInfo.list_from_vec_u8(result["result"])
+      print("get_subnet_nodes_info_formatted subnet_nodes_info", subnet_nodes_info)
 
-      return subnet_nodes
+      return subnet_nodes_info
     except Exception:
-      return []
-    
+      return None
+
+
+  def get_all_subnet_nodes_info_formatted(self) -> List["SubnetNodeInfo"]:
+    """
+    Get formatted list of subnet nodes classified as Validator
+
+    :param subnet_id: subnet ID
+
+    :returns: List of subnet node IDs
+    """
+    try:
+      result = self.get_all_subnet_nodes_info()
+      print("get_all_subnet_nodes_info_formatted result", result)
+
+      subnet_nodes_info = SubnetNodeInfo.list_from_vec_u8(result["result"])
+      print("get_all_subnet_nodes_info_formatted subnet_nodes_info", subnet_nodes_info)
+
+      return subnet_nodes_info
+    except Exception:
+      return None
+
+  def get_bootnodes_formatted(self, subnet_id: int) -> List["AllSubnetBootnodes"]:
+    """
+    Get formatted list of subnet nodes classified as Validator
+
+    :param subnet_id: subnet ID
+
+    :returns: List of subnet node IDs
+    """
+    print("get_bootnodes_formatted")
+    try:
+      result = self.get_bootnodes(subnet_id)
+      print("get_all_bootnodes_formatted result", result)
+
+      all_subnet_bootnodes = AllSubnetBootnodes.from_vec_u8(result["result"])
+      print("get_all_bootnodes_formatted subnet_nodes_info", all_subnet_bootnodes)
+
+      return all_subnet_bootnodes
+    except Exception:
+      return None
+
+  def get_coldkey_subnet_nodes_info_formatted(self, coldkey: str) -> List["SubnetNodeInfo"]:
+    """
+    Get formatted list of subnet nodes classified as Validator
+
+    :param subnet_id: subnet ID
+
+    :returns: List of subnet node IDs
+    """
+    print("get_coldkey_subnet_nodes_info")
+    try:
+      result = self.get_coldkey_subnet_nodes_info(coldkey)
+      print("get_coldkey_subnet_nodes_info result", result)
+
+      subnet_nodes_info = SubnetNodeInfo.list_from_vec_u8(result["result"])
+      print("get_coldkey_subnet_nodes_info subnet_nodes_info", subnet_nodes_info)
+
+      return subnet_nodes_info
+    except Exception:
+      return None
+
+  def get_coldkey_stakes_formatted(self, coldkey: str) -> List["SubnetNodeStakeInfo"]:
+    """
+    Get formatted list of subnet nodes classified as Validator
+
+    :param subnet_id: subnet ID
+
+    :returns: List of subnet node IDs
+    """
+    print("get_coldkey_stakes_formatted")
+    try:
+      result = self.get_coldkey_stakes(coldkey)
+      print("get_coldkey_stakes_formatted result", result)
+
+      coldkey_stakes = SubnetNodeStakeInfo.list_from_vec_u8(result["result"])
+      print("get_coldkey_stakes_formatted coldkey_stakes", coldkey_stakes)
+
+      return coldkey_stakes
+    except Exception:
+      return None
+
+  def get_delegate_stakes_formatted(self, account_id: str) -> List["DelegateStakeInfo"]:
+    """
+    Get formatted list of subnet nodes classified as Validator
+
+    :param subnet_id: subnet ID
+
+    :returns: List of subnet node IDs
+    """
+    print("get_coldkey_stakes_formatted")
+    try:
+      result = self.get_delegate_stakes(account_id)
+
+      delegate_stakes = DelegateStakeInfo.list_from_vec_u8(result["result"])
+
+      return delegate_stakes
+    except Exception:
+      return None
+
+  def get_node_delegate_stakes_formatted(self, account_id: str) -> List["NodeDelegateStakeInfo"]:
+    """
+    Get formatted list of subnet nodes classified as Validator
+
+    :param subnet_id: subnet ID
+
+    :returns: List of subnet node IDs
+    """
+    print("get_coldkey_stakes_formatted")
+    try:
+      result = self.get_node_delegate_stakes(account_id)
+      print("get_node_delegate_stakes_formatted result", result)
+
+      node_delegate_stakes = NodeDelegateStakeInfo.list_from_vec_u8(result["result"])
+      print("get_node_delegate_stakes_formatted coldkey_stakes", node_delegate_stakes)
+
+      return node_delegate_stakes
+    except Exception:
+      return None
+
   def get_consensus_data_formatted(self, subnet_id: int, epoch: int) -> Optional[ConsensusData]:
     """
     Get formatted list of subnet nodes classified as Validator
@@ -2005,7 +2240,7 @@ class Hypertensor:
     """
     try:
       result = self.get_consensus_data(subnet_id, epoch)
-      print("get_consensus_data_formatted result", result)
+
       if result is None or result == 'None':
         return None
 
@@ -2014,7 +2249,7 @@ class Hypertensor:
     except Exception:
       return None
 
-  def get_min_class_subnet_nodes_formatted(self, subnet_id: int, subnet_epoch: int, min_class: SubnetNodeClass) -> List:
+  def get_min_class_subnet_nodes_formatted(self, subnet_id: int, subnet_epoch: int, min_class: SubnetNodeClass) -> List["SubnetNodeInfo"]:
     """
     Get formatted list of subnet nodes classified as Validator
 
@@ -2024,56 +2259,19 @@ class Hypertensor:
     """
     print("get_min_class_subnet_nodes_formatted")
     try:
-      result = self.get_min_class_subnet_nodes(
-        subnet_id,
-        subnet_epoch,
-        min_class
-      )
+      result = self.get_subnet_nodes_info(subnet_id)
 
       print("get_min_class_subnet_nodes_formatted result", result)
 
-      subnet_nodes = SubnetNode.list_from_vec_u8(result["result"])
-
+      subnet_nodes = SubnetNodeInfo.list_from_vec_u8(result["result"])
       print("get_min_class_subnet_nodes_formatted subnet_nodes", subnet_nodes)
 
-      return subnet_nodes
+      return [
+          node for node in subnet_nodes
+          if subnet_node_class_to_enum(node.classification).value >= min_class.value and node.classification.start_epoch <= subnet_epoch
+      ]
     except Exception:
       return []
-
-  def get_bootnodes(
-    self,
-    subnet_id: int,
-  ) -> ExtrinsicReceipt:
-    """
-    Remove a subnet
-
-    :param self.keypair: self.keypair of extrinsic caller. Must be a subnet_node in the subnet
-    :param subnet_id: subnet ID
-    """
-
-    # compose call
-    call = self.interface.compose_call(
-      call_module='Network',
-      call_function='get_bootnodes',
-      call_params={
-        'subnet_id': subnet_id,
-      }
-    )
-
-    # create signed extrinsic
-    extrinsic = self.interface.create_signed_extrinsic(call=call, keypair=self.keypair)
-
-    # @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-    @retry(wait=wait_fixed(BLOCK_SECS) + wait_random(BLOCK_SECS, BLOCK_SECS*3))
-    def submit_extrinsic():
-      try:
-        with self.interface as _interface:
-          receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
-          return receipt
-      except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
-
-    return submit_extrinsic()
 
   def update_bootnodes(
     self,

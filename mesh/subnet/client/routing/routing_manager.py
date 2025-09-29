@@ -9,10 +9,10 @@ from mesh import DHT, P2P, PeerID
 from mesh.dht.node import Blacklist
 from mesh.subnet.client.config import ClientConfig
 from mesh.subnet.client.routing.remote_server_info import RemoteServerInfo
-from mesh.subnet.data_structures import RemoteInfo
-from mesh.subnet.utils.dht import get_node_infos
-from mesh.subnet.utils.ping import PingAggregator
+from mesh.utils.data_structures import RemoteInfo
+from mesh.utils.dht import get_node_infos
 from mesh.utils.logging import get_logger
+from mesh.utils.ping import PingAggregator
 from mesh.utils.remote_worker import RemoteWorker
 
 logger = get_logger(__name__)
@@ -173,7 +173,7 @@ class RemoteManager:
         """
         hoster_infos = get_node_infos(
           self.dht,
-          uid="hoster",
+          uid="node",
           latest=True
         )
 

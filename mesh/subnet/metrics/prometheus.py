@@ -8,11 +8,11 @@ from typing import Dict, List
 from prometheus_client import Gauge, start_http_server
 
 from mesh import DHT, PeerID
-from mesh.subnet.data_structures import RemoteModuleInfo, ServerState
 from mesh.subnet.metrics.config import INITIAL_PEERS, UPDATE_PERIOD
 from mesh.subnet.utils.consensus import OnChainConsensusScore
-from mesh.subnet.utils.dht import get_node_infos
 from mesh.substrate.chain_functions import Hypertensor
+from mesh.utils.data_structures import RemoteModuleInfo, ServerState
+from mesh.utils.dht import get_node_infos
 from mesh.utils.multiaddr import Multiaddr
 from mesh.utils.p2p_utils import check_reachability_parallel, extract_peer_ip_info, get_peers_ips
 

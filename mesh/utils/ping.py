@@ -70,6 +70,7 @@ class PingAggregator:
     def ping(self, peer_ids: Sequence[mesh.PeerID], **kwargs) -> None:
         current_rtts = self.dht.run_coroutine(partial(ping_parallel, peer_ids, **kwargs))
         logger.debug(f"Current RTTs: {current_rtts}")
+        print(f"Current RTTs: {current_rtts}")
 
         with self.lock:
             expiration = mesh.get_dht_time() + self.expiration

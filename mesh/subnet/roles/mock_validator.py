@@ -2,11 +2,11 @@ from typing import Dict, List
 
 from mesh import DHT
 from mesh.dht.validation import RecordValidatorBase
-from mesh.subnet.data_structures import ServerClass
 from mesh.subnet.utils.consensus import (
     OnChainConsensusScore,
 )
 from mesh.substrate.chain_functions import Hypertensor
+from mesh.utils.data_structures import ServerClass
 from mesh.utils.logging import get_logger
 
 logger = get_logger(__name__)

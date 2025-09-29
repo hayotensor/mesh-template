@@ -3,7 +3,7 @@ from typing import Any, Dict, Optional, Type
 
 import pydantic.v1 as pydantic
 
-from mesh.dht.crypto import Ed25519SignatureValidator, RSASignatureValidator
+from mesh.dht.crypto import SignatureValidator
 from mesh.dht.protocol import DHTProtocol
 from mesh.dht.routing import DHTID
 from mesh.dht.validation import DHTRecord, DHTRecordRequestType, RecordValidatorBase
@@ -176,5 +176,5 @@ def conbytes(*, regex: bytes = None, **kwargs) -> Type[pydantic.BaseModel]:
     return ConstrainedBytesWithRegex
 
 
-BytesWithRSAPublicKey = conbytes(regex=b".*" + RSASignatureValidator.PUBLIC_KEY_REGEX + b".*")
-BytesWithEd25519PublicKey = conbytes(regex=b".*" + Ed25519SignatureValidator.PUBLIC_KEY_REGEX + b".*")
+BytesWithRSAPublicKey = conbytes(regex=b".*" + SignatureValidator.PUBLIC_KEY_REGEX + b".*")
+BytesWithEd25519PublicKey = conbytes(regex=b".*" + SignatureValidator.PUBLIC_KEY_REGEX + b".*")

@@ -44,7 +44,7 @@ class AuthorizedResponseBase:
 class AuthorizerBase(ABC):
     @abstractmethod
     async def sign_request(
-        self, request: AuthorizedRequestBase, service_public_key: Optional[RSAPublicKey]
+        self, request: AuthorizedRequestBase, service_public_key: Optional[Ed25519PrivateKey | RSAPrivateKey]
     ) -> None: ...
 
     @abstractmethod
@@ -433,7 +433,7 @@ class AuthRPCWrapper:
         stub,
         role: AuthRole,
         authorizer: Optional[AuthorizerBase],
-        service_public_key: Optional[RSAPublicKey] = None,
+        service_public_key: Optional[RSAPublicKey | Ed25519PublicKey] = None,
     ):
         self._stub = stub
         self._role = role
@@ -474,7 +474,7 @@ class AuthRPCWrapperStreamer:
         stub,
         role: AuthRole,
         authorizer: Optional[AuthorizerBase],
-        service_public_key: Optional[RSAPublicKey] = None
+        service_public_key: Optional[RSAPublicKey | Ed25519PublicKey] = None
     ):
         self._stub = stub
         self._role = role

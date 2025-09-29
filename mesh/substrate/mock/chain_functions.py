@@ -1,10 +1,10 @@
 import glob
 from typing import Any, List, Optional
 
-from mesh.subnet.utils.key import generate_rsa_private_key_file
 from mesh.substrate.chain_data import SubnetInfo, SubnetNode, SubnetNodeInfo
 from mesh.substrate.chain_functions import EpochData, SubnetNodeClass
 from mesh.substrate.config import BLOCK_SECS
+from mesh.utils.key import generate_rsa_private_key_file
 
 
 class MockHypertensor:
@@ -130,7 +130,7 @@ class MockHypertensor:
             min_stake=0,
             max_stake=0,
             delegate_stake_percentage=0.1e18,
-            registration_queue_epochs=10,
+            subnet_node_queue_epochs=10,
             activation_grace_epochs=10,
             queue_classification_epochs=10,
             included_classification_epochs=10,

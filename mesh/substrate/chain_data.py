@@ -10,7 +10,7 @@ from scalecodec.type_registry import load_type_registry_preset
 
 custom_rpc_type_registry = {
   "types": {
-    "Option<SubnetData>": {
+    "SubnetData": {
       "type": "struct",
       "type_mapping": [
         ["id", "u32"],
@@ -35,19 +35,24 @@ custom_rpc_type_registry = {
         ["churn_limit", "u32"],
         ["min_stake", "u128"],
         ["max_stake", "u128"],
-        ["delegate_stake_percentage", "u128"],
-        ["registration_queue_epochs", "u32"],
-        ["activation_grace_epochs", "u32"],
-        ["queue_classification_epochs", "u32"],
+        ["queue_immunity_epochs", "u32"],
+        ["target_node_registrations_per_epoch", "u32"],
+        ["subnet_node_queue_epochs", "u32"],
+        ["idle_classification_epochs", "u32"],
         ["included_classification_epochs", "u32"],
+        ["delegate_stake_percentage", "u128"],
+        ["node_burn_rate_alpha", "u128"],
         ["max_node_penalties", "u32"],
         ["initial_coldkeys", "Option<Vec<[u8; 20]>>"],
         ["max_registered_nodes", "u32"],
         ["owner", "Option<[u8; 20]>"],
+        ["pending_owner", "Option<[u8; 20]>"],
         ["registration_epoch", "Option<u32>"],
-        ["key_types", "Vec<KeyType>"],
+        ["key_types", "BTreeSet<KeyType>"],
         ["slot_index", "Option<u32>"],
         ["penalty_count", "u32"],
+        ["bootnode_access", "BTreeSet<AccountId>"],
+        ["bootnodes", "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>"],
         ["total_nodes", "u32"],
         ["total_active_nodes", "u32"],
         ["total_electable_nodes", "u32"],
@@ -59,22 +64,6 @@ custom_rpc_type_registry = {
         "Registered",
         "Active",
         "Paused",
-      ],
-    },
-    "NodeRemovalPolicy": {
-      "type": "struct",
-      "type_mapping": [
-        ["logic", "LogicExpr"],
-      ],
-    },
-    "LogicExpr": {
-      "type": "enum",
-      "value_list": [
-        "And",
-        "Or",
-        "Xor",
-        "Not",
-        "Condition"
       ],
     },
     "KeyType": {
@@ -112,7 +101,6 @@ custom_rpc_type_registry = {
     "SubnetNodeClass": {
       "type": "enum",
       "value_list": [
-        "Deactivated",
         "Registered",
         "Idle",
         "Included",
@@ -139,13 +127,14 @@ custom_rpc_type_registry = {
     "SubnetNodeInfo": {
       "type": "struct",
       "type_mapping": [
+        ["subnet_id", "u32"],
         ["subnet_node_id", "u32"],
         ["coldkey", "[u8; 20]"],
         ["hotkey", "[u8; 20]"],
-        ["peer_id", "Vec<u8>"],
-        ["bootnode_peer_id", "Vec<u8>"],
-        ["client_peer_id", "Vec<u8>"],
-        ["bootnode", "Vec<u8>"],
+        ["peer_id", "PeerId"],
+        ["bootnode_peer_id", "PeerId"],
+        ["client_peer_id", "PeerId"],
+        ["bootnode", "Option<BoundedVec<u8, DefaultMaxVectorLength>>"],
         ["identity", "ColdkeyIdentityData"],
         ["classification", "SubnetNodeClassification"],
         ["delegate_reward_rate", "u128"],
@@ -169,7 +158,7 @@ custom_rpc_type_registry = {
         ["total_decreases", "u32"],
         ["average_attestation", "u128"],
         ["last_validator_epoch", "u32"],
-        ["ow_score", "u32"],
+        ["ow_score", "u128"],
       ],
     },
     "ColdkeyIdentityData": {
@@ -200,6 +189,8 @@ custom_rpc_type_registry = {
         ["validator_id", "u32"],
         ["attests", "BTreeMap<u32, AttestEntry>"],
         ["subnet_nodes", "Vec<SubnetNode<AccountId>>"],
+        ["prioritize_queue_node_id", "Option<u32>"],
+        ["remove_queue_node_id", "Option<u32>"],
         ["data", "Vec<SubnetNodeConsensusData>"],
         ["args", "Option<BoundedVec<u8, DefaultValidatorArgsLimit>>"],
       ],
@@ -212,9 +203,46 @@ custom_rpc_type_registry = {
         ["weight_sum", "u128"],
         ["data_length", "u32"],
         ["data", "Vec<SubnetNodeConsensusData>"],
+        ["attests", "BTreeMap<u32, AttestEntry>"],
         ["subnet_nodes", "Vec<SubnetNode<[u8; 20]>>"],
+        ["prioritize_queue_node_id", "Option<u32>"],
+        ["remove_queue_node_id", "Option<u32>"],
       ],
     },
+    "AllSubnetBootnodes": {
+      "type": "struct",
+      "type_mapping": [
+        ["bootnodes", "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>"],
+        ["node_bootnodes", "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>"],
+      ],
+    },
+    "SubnetNodeStakeInfo": {
+      "type": "struct",
+      "type_mapping": [
+        ["subnet_id", "Option<u32>"],
+        ["subnet_node_id", "Option<u32>"],
+        ["hotkey", "[u8; 20]"],
+        ["balance", "u128"],
+      ],
+    },
+    "DelegateStakeInfo": {
+      "type": "struct",
+      "type_mapping": [
+        ["subnet_id", "u32"],
+        ["shares", "u128"],
+        ["balance", "u128"],
+      ],
+    },
+    "NodeDelegateStakeInfo": {
+      "type": "struct",
+      "type_mapping": [
+        ["subnet_id", "u32"],
+        ["subnet_node_id", "u32"],
+        ["shares", "u128"],
+        ["balance", "u128"],
+      ],
+    },
+    "PeerId": "Vec<u8>",
     "BoundedVec<u8, DefaultMaxVectorLength>": "Vec<u8>",
     "BoundedVec<u8, DefaultMaxUrlLength>": "Vec<u8>",
     "BoundedVec<u8, DefaultMaxSocialIdLength>": "Vec<u8>",
@@ -223,6 +251,7 @@ custom_rpc_type_registry = {
     "Option<BoundedVec<u8, DefaultMaxUrlLength>>": "Option<Vec<u8>>",
     "Option<BoundedVec<u8, DefaultMaxSocialIdLength>>": "Option<Vec<u8>>",
     "Option<BoundedVec<u8, DefaultValidatorArgsLimit>>": "Option<Vec<u8>>",
+    "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>": "Vec<u8>",
   }
 }
 
@@ -238,6 +267,10 @@ class ChainDataType(Enum):
   ConsensusSubmissionData = 6
   SubnetNodeConsensusData = 7
   ConsensusData = 8
+  AllSubnetBootnodes = 9
+  SubnetNodeStakeInfo = 10
+  DelegateStakeInfo = 11
+  NodeDelegateStakeInfo = 12
 
 def from_scale_encoding(
     input: Union[List[int], bytes, ScaleBytes],
@@ -263,6 +296,8 @@ def from_scale_encoding(
       type_string = f"Option<{type_string}>"
     if is_vec:
       type_string = f"Vec<{type_string}>"
+
+    print("type_string", type_string)
 
     return from_scale_encoding_using_type_string(input, type_string)
 
@@ -390,7 +425,6 @@ class SubnetInfo:
   """
   Dataclass for subnet node info.
   """
-
   id: int
   name: str
   repo: str
@@ -401,20 +435,24 @@ class SubnetInfo:
   churn_limit: int
   min_stake: int
   max_stake: int
-  delegate_stake_percentage: int
-  registration_queue_epochs: int
-  activation_grace_epochs: int
-  queue_classification_epochs: int
+  queue_immunity_epochs: int
+  target_node_registrations_per_epoch: int
+  subnet_node_queue_epochs: int
+  idle_classification_epochs: int
   included_classification_epochs: int
+  delegate_stake_percentage: int
+  node_burn_rate_alpha: int
   max_node_penalties: int
   initial_coldkeys: list
   max_registered_nodes: int
   owner: str
+  pending_owner: str
   registration_epoch: int
-  # node_removal_system: int
   key_types: list
   slot_index: int
   penalty_count: int
+  bootnode_access: list
+  bootnodes: list
   total_nodes: int
   total_active_nodes: int
   total_electable_nodes: int
@@ -432,20 +470,24 @@ class SubnetInfo:
     data_decoded["churn_limit"] = data_decoded["churn_limit"]
     data_decoded["min_stake"] = data_decoded["min_stake"]
     data_decoded["max_stake"] = data_decoded["max_stake"]
-    data_decoded["delegate_stake_percentage"] = data_decoded["delegate_stake_percentage"]
-    data_decoded["registration_queue_epochs"] = data_decoded["registration_queue_epochs"]
-    data_decoded["activation_grace_epochs"] = data_decoded["activation_grace_epochs"]
-    data_decoded["queue_classification_epochs"] = data_decoded["queue_classification_epochs"]
+    data_decoded["queue_immunity_epochs"] = data_decoded["queue_immunity_epochs"]
+    data_decoded["target_node_registrations_per_epoch"] = data_decoded["target_node_registrations_per_epoch"]
+    data_decoded["subnet_node_queue_epochs"] = data_decoded["subnet_node_queue_epochs"]
+    data_decoded["idle_classification_epochs"] = data_decoded["idle_classification_epochs"]
     data_decoded["included_classification_epochs"] = data_decoded["included_classification_epochs"]
+    data_decoded["delegate_stake_percentage"] = data_decoded["delegate_stake_percentage"]
+    data_decoded["node_burn_rate_alpha"] = data_decoded["node_burn_rate_alpha"]
     data_decoded["max_node_penalties"] = data_decoded["max_node_penalties"]
     data_decoded["initial_coldkeys"] = data_decoded["initial_coldkeys"]
     data_decoded["max_registered_nodes"] = data_decoded["max_registered_nodes"]
     data_decoded["owner"] = data_decoded["owner"]
+    data_decoded["pending_owner"] = data_decoded["pending_owner"]
     data_decoded["registration_epoch"] = data_decoded["registration_epoch"]
-    # data_decoded["node_removal_system"] = data_decoded["node_removal_system"]
     data_decoded["key_types"] = data_decoded["key_types"]
     data_decoded["slot_index"] = data_decoded["slot_index"]
     data_decoded["penalty_count"] = data_decoded["penalty_count"]
+    data_decoded["bootnode_access"] = data_decoded["bootnode_access"]
+    data_decoded["bootnodes"] = data_decoded["bootnodes"]
     data_decoded["total_nodes"] = data_decoded["total_nodes"]
     data_decoded["total_active_nodes"] = data_decoded["total_active_nodes"]
     data_decoded["total_electable_nodes"] = data_decoded["total_electable_nodes"]
@@ -460,11 +502,15 @@ class SubnetInfo:
       return SubnetInfo._get_null()
 
     decoded = from_scale_encoding(vec_u8, ChainDataType.SubnetInfo, is_option=True)
+    print("SubnetInfo decoded 1", decoded)
 
     if decoded is None:
+      print("SubnetInfo decoded is None")
       return SubnetInfo._get_null()
 
+    print("SubnetInfo fix_decoded_values")
     decoded = SubnetInfo.fix_decoded_values(decoded)
+    print("SubnetInfo decoded 2", decoded)
 
     return decoded
 
@@ -473,9 +519,9 @@ class SubnetInfo:
     """Returns a list of SubnetInfo objects from a ``vec_u8``."""
 
     decoded_list = from_scale_encoding(
-      vec_u8, ChainDataType.SubnetInfo, is_vec=True, is_option=True
+      vec_u8, ChainDataType.SubnetInfo, is_vec=True
     )
-    print("list_from_vec_u8 decoded_list", decoded_list)
+
     if decoded_list is None:
       return []
 
@@ -485,7 +531,7 @@ class SubnetInfo:
     return decoded_list
 
   @staticmethod
-  def _subnet_data_to_namespace(data) -> "SubnetInfo":
+  def _subnet_info_to_namespace(data) -> "SubnetInfo":
     """
     Converts a SubnetInfo object to a namespace.
 
@@ -502,7 +548,7 @@ class SubnetInfo:
   @staticmethod
   def _get_null() -> "SubnetInfo":
     subnet_info = SubnetInfo(
-      id=0,
+      id="",
       name="",
       repo="",
       description="",
@@ -512,20 +558,24 @@ class SubnetInfo:
       churn_limit=0,
       min_stake=0,
       max_stake=0,
-      delegate_stake_percentage=0,
-      registration_queue_epochs=0,
-      activation_grace_epochs=0,
-      queue_classification_epochs=0,
+      queue_immunity_epochs=0,
+      target_node_registrations_per_epoch=0,
+      subnet_node_queue_epochs=0,
+      idle_classification_epochs=0,
       included_classification_epochs=0,
+      delegate_stake_percentage=0,
+      node_burn_rate_alpha=0,
       max_node_penalties=0,
-      initial_coldkeys=[],
+      initial_coldkeys=0,
       max_registered_nodes=0,
       owner="000000000000000000000000000000000000000000000000",
+      pending_owner="000000000000000000000000000000000000000000000000",
       registration_epoch=0,
-      # node_removal_system=0,
-      key_types=[],
+      key_types=0,
       slot_index=0,
       penalty_count=0,
+      bootnode_access=0,
+      bootnodes=0,
       total_nodes=0,
       total_active_nodes=0,
       total_electable_nodes=0,
@@ -640,6 +690,7 @@ class SubnetNodeInfo:
   """
   Dataclass for subnet node info.
   """
+  subnet_id: int
   subnet_node_id: int
   coldkey: str
   hotkey: str
@@ -647,8 +698,8 @@ class SubnetNodeInfo:
   bootnode_peer_id: str
   client_peer_id: str
   bootnode: str
-  identity: Any
-  classification: str
+  identity: dict
+  classification: dict
   delegate_reward_rate: int
   last_delegate_reward_rate_update: int
   unique: str
@@ -656,23 +707,15 @@ class SubnetNodeInfo:
   stake_balance: int
   node_delegate_stake_balance: int
   penalties: int
-  reputation: Any
+  reputation: dict
 
   @classmethod
   def fix_decoded_values(cls, data_decoded: Any) -> "SubnetNodeInfo":
-    """Fixes the values of the RewardsData object."""
+    """Fixes the values of the SubnetNodeInfo object."""
+    data_decoded["subnet_id"] = data_decoded["subnet_id"]
     data_decoded["subnet_node_id"] = data_decoded["subnet_node_id"]
-    # data_decoded["coldkey"] = ss58_encode(
-    #   data_decoded["coldkey"], 42
-    # )
-    # data_decoded["hotkey"] = ss58_encode(
-    #   data_decoded["hotkey"], 42
-    # )
     data_decoded["coldkey"] = data_decoded["coldkey"]
     data_decoded["hotkey"] = data_decoded["hotkey"]
-    # data_decoded["peer_id"] = PeerID.from_base58(data_decoded["peer_id"])
-    # data_decoded["bootnode_peer_id"] = PeerID.from_base58(data_decoded["bootnode_peer_id"])
-    # data_decoded["client_peer_id"] = PeerID.from_base58(data_decoded["client_peer_id"])
     data_decoded["peer_id"] = data_decoded["peer_id"]
     data_decoded["bootnode_peer_id"] = data_decoded["bootnode_peer_id"]
     data_decoded["client_peer_id"] = data_decoded["client_peer_id"]
@@ -693,16 +736,20 @@ class SubnetNodeInfo:
   @classmethod
   def from_vec_u8(cls, vec_u8: List[int]) -> "SubnetNodeInfo":
     """Returns a SubnetNodeInfo object from a ``vec_u8``."""
+    print("SubnetNodeInfo vec_u8", vec_u8)
 
     if len(vec_u8) == 0:
       return SubnetNodeInfo._get_null()
 
-    decoded = from_scale_encoding(vec_u8, ChainDataType.SubnetNodeInfo)
+    decoded = from_scale_encoding(vec_u8, ChainDataType.SubnetNodeInfo, is_option=True)
+    print("SubnetNodeInfo decoded 1", decoded)
 
     if decoded is None:
+      print("SubnetNodeInfo decoded is None")
       return SubnetNodeInfo._get_null()
 
     decoded = SubnetNodeInfo.fix_decoded_values(decoded)
+    print("SubnetNodeInfo decoded 2", decoded)
 
     return decoded
 
@@ -742,15 +789,12 @@ class SubnetNodeInfo:
       subnet_node_id=0,
       coldkey="000000000000000000000000000000000000000000000000",
       hotkey="000000000000000000000000000000000000000000000000",
-      # peer_id=PeerID.from_base58("000000000000000000000000000000000000000000000000"),
-      # bootnode_peer_id=PeerID.from_base58("000000000000000000000000000000000000000000000000"),
-      # client_peer_id=PeerID.from_base58("000000000000000000000000000000000000000000000000"),
       peer_id="000000000000000000000000000000000000000000000000",
       bootnode_peer_id="000000000000000000000000000000000000000000000000",
       client_peer_id="000000000000000000000000000000000000000000000000",
       bootnode="",
-      identity="",
-      classification="",
+      identity=dict(),
+      classification=dict(),
       delegate_reward_rate=0,
       last_delegate_reward_rate_update=0,
       unique="",
@@ -758,7 +802,7 @@ class SubnetNodeInfo:
       stake_balance=0,
       node_delegate_stake_balance=0,
       penalties=0,
-      reputation=""
+      reputation=dict()
     )
     return subnet_node_info
 
@@ -781,12 +825,9 @@ class SubnetNode:
 
   @classmethod
   def fix_decoded_values(cls, data_decoded: Any) -> "SubnetNode":
-    """Fixes the values of the RewardsData object."""
+    """Fixes the values of the SubnetNode object."""
     data_decoded["id"] = data_decoded["id"]
     data_decoded["hotkey"] = data_decoded["hotkey"]
-    # data_decoded["peer_id"] = PeerID.from_base58(data_decoded["peer_id"])
-    # data_decoded["bootnode_peer_id"] = PeerID.from_base58(data_decoded["bootnode_peer_id"])
-    # data_decoded["client_peer_id"] = PeerID.from_base58(data_decoded["client_peer_id"])
     data_decoded["peer_id"] = data_decoded["peer_id"]
     data_decoded["bootnode_peer_id"] = data_decoded["bootnode_peer_id"]
     data_decoded["client_peer_id"] = data_decoded["client_peer_id"]
@@ -886,7 +927,7 @@ class ConsensusSubmissionData:
 
   @classmethod
   def fix_decoded_values(cls, data_decoded: Any) -> "ConsensusSubmissionData":
-    """Fixes the values of the RewardsData object."""
+    """Fixes the values of the ConsensusSubmissionData object."""
     data_decoded["validator_subnet_node_id"] = data_decoded["validator_subnet_node_id"]
     data_decoded["attestation_ratio"] = data_decoded["attestation_ratio"]
     data_decoded["weight_sum"] = data_decoded["weight_sum"]
@@ -928,7 +969,7 @@ class ConsensusSubmissionData:
     return decoded_list
 
   @staticmethod
-  def _subnet_data_to_namespace(data) -> "ConsensusSubmissionData":
+  def _consensus_submission_data_to_namespace(data) -> "ConsensusSubmissionData":
     """
     Converts a ConsensusSubmissionData object to a namespace.
 
@@ -964,7 +1005,7 @@ class SubnetNodeConsensusData:
 
   @classmethod
   def fix_decoded_values(cls, data_decoded: Any) -> "SubnetNodeConsensusData":
-    """Fixes the values of the RewardsData object."""
+    """Fixes the values of the SubnetNodeConsensusData object."""
     data_decoded["subnet_node_id"] = data_decoded["subnet_node_id"]
     data_decoded["score"] = data_decoded["score"]
 
@@ -1002,7 +1043,7 @@ class SubnetNodeConsensusData:
     return decoded_list
 
   @staticmethod
-  def _subnet_data_to_namespace(data) -> "SubnetNodeConsensusData":
+  def _subnet_node_consensus_data_to_namespace(data) -> "SubnetNodeConsensusData":
     """
     Converts a SubnetNodeConsensusData object to a namespace.
 
@@ -1033,12 +1074,14 @@ class ConsensusData:
   validator_id: int
   attests: list
   subnet_nodes: list
+  prioritize_queue_node_id: int
+  remove_queue_node_id: int
   data: list
   args: list
 
   @classmethod
   def fix_decoded_values(cls, data_decoded: Any) -> "ConsensusData":
-    """Fixes the values of the RewardsData object."""
+    """Fixes the values of the ConsensusData object."""
     data_decoded["validator_id"] = data_decoded["validator_id"]
     data_decoded["attests"] = data_decoded["attests"]
     data_decoded["subnet_nodes"] = data_decoded["subnet_nodes"]
@@ -1082,7 +1125,7 @@ class ConsensusData:
     return decoded_list
 
   @staticmethod
-  def _subnet_data_to_namespace(data) -> "ConsensusData":
+  def _consensus_data_to_namespace(data) -> "ConsensusData":
     """
     Converts a ConsensusData object to a namespace.
 
@@ -1102,7 +1145,303 @@ class ConsensusData:
       validator_id=0,
       attests=[],
       subnet_nodes=[],
+      prioritize_queue_node_id=0,
+      remove_queue_node_id=0,
       data=[],
       args=[],
+    )
+    return data
+
+
+@dataclass
+class AllSubnetBootnodes:
+  """
+  Dataclass for subnet node info.
+  """
+  bootnodes: list
+  node_bootnodes: list
+
+  @classmethod
+  def fix_decoded_values(cls, data_decoded: Any) -> "AllSubnetBootnodes":
+    """Fixes the values of the AllSubnetBootnodes object."""
+    data_decoded["bootnodes"] = data_decoded["bootnodes"]
+    data_decoded["node_bootnodes"] = data_decoded["node_bootnodes"]
+
+    return cls(**data_decoded)
+
+  @classmethod
+  def from_vec_u8(cls, vec_u8: List[int]) -> Optional["AllSubnetBootnodes"]:
+    """Returns a AllSubnetBootnodes object from a ``vec_u8``."""
+
+    if len(vec_u8) == 0:
+      return AllSubnetBootnodes._get_null()
+
+    decoded = from_scale_encoding(vec_u8, ChainDataType.AllSubnetBootnodes, is_option=True)
+
+    print("AllSubnetBootnodes decoded", decoded)
+
+    if decoded is None:
+      return AllSubnetBootnodes._get_null()
+
+    decoded = AllSubnetBootnodes.fix_decoded_values(decoded)
+
+    return decoded
+
+  @classmethod
+  def list_from_vec_u8(cls, vec_u8: List[int]) -> List["AllSubnetBootnodes"]:
+    """Returns a list of AllSubnetBootnodes objects from a ``vec_u8``."""
+
+    decoded_list = from_scale_encoding(
+      vec_u8, ChainDataType.AllSubnetBootnodes, is_vec=True, is_option=True
+    )
+    if decoded_list is None:
+      return []
+
+    decoded_list = [
+      AllSubnetBootnodes.fix_decoded_values(decoded) for decoded in decoded_list
+    ]
+    return decoded_list
+
+  @staticmethod
+  def _bootnodes_data_to_namespace(data) -> "AllSubnetBootnodes":
+    """
+    Converts a AllSubnetBootnodes object to a namespace.
+
+    Args:
+      rewards_data (AllSubnetBootnodes): The AllSubnetBootnodes object.
+
+    Returns:
+      AllSubnetBootnodes: The AllSubnetBootnodes object.
+    """
+    data = AllSubnetBootnodes(**data)
+
+    return data
+
+  @staticmethod
+  def _get_null() -> "AllSubnetBootnodes":
+    data = AllSubnetBootnodes(
+      bootnodes=[],
+      node_bootnodes=[],
+    )
+    return data
+
+@dataclass
+class SubnetNodeStakeInfo:
+  subnet_id: int
+  subnet_node_id: int
+  hotkey: str
+  balance: int
+
+  @classmethod
+  def fix_decoded_values(cls, data_decoded: Any) -> "SubnetNodeStakeInfo":
+    """Fixes the values of the SubnetNodeStakeInfo object."""
+    data_decoded["subnet_id"] = data_decoded["subnet_id"]
+    data_decoded["subnet_node_id"] = data_decoded["subnet_node_id"]
+    data_decoded["hotkey"] = data_decoded["hotkey"]
+    data_decoded["balance"] = data_decoded["balance"]
+
+    return cls(**data_decoded)
+
+  @classmethod
+  def from_vec_u8(cls, vec_u8: List[int]) -> Optional["SubnetNodeStakeInfo"]:
+    """Returns a SubnetNodeStakeInfo object from a ``vec_u8``."""
+
+    if len(vec_u8) == 0:
+      return SubnetNodeStakeInfo._get_null()
+
+    decoded = from_scale_encoding(vec_u8, ChainDataType.SubnetNodeStakeInfo)
+
+    print("SubnetNodeStakeInfo decoded", decoded)
+
+    if decoded is None:
+      return SubnetNodeStakeInfo._get_null()
+
+    decoded = SubnetNodeStakeInfo.fix_decoded_values(decoded)
+
+    return decoded
+
+  @classmethod
+  def list_from_vec_u8(cls, vec_u8: List[int]) -> List["SubnetNodeStakeInfo"]:
+    """Returns a list of SubnetNodeStakeInfo objects from a ``vec_u8``."""
+
+    decoded_list = from_scale_encoding(
+      vec_u8, ChainDataType.SubnetNodeStakeInfo, is_vec=True
+    )
+    if decoded_list is None:
+      return []
+
+    decoded_list = [
+      SubnetNodeStakeInfo.fix_decoded_values(decoded) for decoded in decoded_list
+    ]
+    return decoded_list
+
+  @staticmethod
+  def _subnet_node_stake_info_data_to_namespace(data) -> "SubnetNodeStakeInfo":
+    """
+    Converts a SubnetNodeStakeInfo object to a namespace.
+
+    Args:
+      rewards_data (SubnetNodeStakeInfo): The SubnetNodeStakeInfo object.
+
+    Returns:
+      SubnetNodeStakeInfo: The SubnetNodeStakeInfo object.
+    """
+    data = SubnetNodeStakeInfo(**data)
+
+    return data
+
+  @staticmethod
+  def _get_null() -> "SubnetNodeStakeInfo":
+    data = SubnetNodeStakeInfo(
+      subnet_id=0,
+      subnet_node_id=0,
+      hotkey="000000000000000000000000000000000000000000000000",
+      balance=0
+    )
+    return data
+
+@dataclass
+class DelegateStakeInfo:
+  subnet_id: int
+  shares: int
+  balance: int
+
+  @classmethod
+  def fix_decoded_values(cls, data_decoded: Any) -> "DelegateStakeInfo":
+    """Fixes the values of the DelegateStakeInfo object."""
+    data_decoded["subnet_id"] = data_decoded["subnet_id"]
+    data_decoded["shares"] = data_decoded["shares"]
+    data_decoded["balance"] = data_decoded["balance"]
+
+    return cls(**data_decoded)
+
+  @classmethod
+  def from_vec_u8(cls, vec_u8: List[int]) -> Optional["DelegateStakeInfo"]:
+    """Returns a DelegateStakeInfo object from a ``vec_u8``."""
+
+    if len(vec_u8) == 0:
+      return DelegateStakeInfo._get_null()
+
+    decoded = from_scale_encoding(vec_u8, ChainDataType.DelegateStakeInfo)
+
+    print("DelegateStakeInfo decoded", decoded)
+
+    if decoded is None:
+      return DelegateStakeInfo._get_null()
+
+    decoded = DelegateStakeInfo.fix_decoded_values(decoded)
+
+    return decoded
+
+  @classmethod
+  def list_from_vec_u8(cls, vec_u8: List[int]) -> List["DelegateStakeInfo"]:
+    """Returns a list of DelegateStakeInfo objects from a ``vec_u8``."""
+
+    decoded_list = from_scale_encoding(
+      vec_u8, ChainDataType.DelegateStakeInfo, is_vec=True
+    )
+    if decoded_list is None:
+      return []
+
+    decoded_list = [
+      DelegateStakeInfo.fix_decoded_values(decoded) for decoded in decoded_list
+    ]
+    return decoded_list
+
+  @staticmethod
+  def _subnet_node_stake_info_data_to_namespace(data) -> "DelegateStakeInfo":
+    """
+    Converts a DelegateStakeInfo object to a namespace.
+
+    Args:
+      rewards_data (DelegateStakeInfo): The DelegateStakeInfo object.
+
+    Returns:
+      SubnetNoDelegateStakeInfodeStakeInfo: The DelegateStakeInfo object.
+    """
+    data = DelegateStakeInfo(**data)
+
+    return data
+
+  @staticmethod
+  def _get_null() -> "DelegateStakeInfo":
+    data = DelegateStakeInfo(
+      subnet_id=0,
+      shares=0,
+      balance=0
+    )
+    return data
+
+@dataclass
+class NodeDelegateStakeInfo:
+  subnet_id: int
+  subnet_node_id: int
+  shares: int
+  balance: int
+
+  @classmethod
+  def fix_decoded_values(cls, data_decoded: Any) -> "NodeDelegateStakeInfo":
+    """Fixes the values of the NodeDelegateStakeInfo object."""
+    data_decoded["subnet_id"] = data_decoded["subnet_id"]
+    data_decoded["shares"] = data_decoded["shares"]
+    data_decoded["balance"] = data_decoded["balance"]
+
+    return cls(**data_decoded)
+
+  @classmethod
+  def from_vec_u8(cls, vec_u8: List[int]) -> Optional["NodeDelegateStakeInfo"]:
+    """Returns a NodeDelegateStakeInfo object from a ``vec_u8``."""
+
+    if len(vec_u8) == 0:
+      return NodeDelegateStakeInfo._get_null()
+
+    decoded = from_scale_encoding(vec_u8, ChainDataType.NodeDelegateStakeInfo)
+
+    print("NodeDelegateStakeInfo decoded", decoded)
+
+    if decoded is None:
+      return NodeDelegateStakeInfo._get_null()
+
+    decoded = NodeDelegateStakeInfo.fix_decoded_values(decoded)
+
+    return decoded
+
+  @classmethod
+  def list_from_vec_u8(cls, vec_u8: List[int]) -> List["NodeDelegateStakeInfo"]:
+    """Returns a list of NodeDelegateStakeInfo objects from a ``vec_u8``."""
+
+    decoded_list = from_scale_encoding(
+      vec_u8, ChainDataType.NodeDelegateStakeInfo, is_vec=True
+    )
+    if decoded_list is None:
+      return []
+
+    decoded_list = [
+      NodeDelegateStakeInfo.fix_decoded_values(decoded) for decoded in decoded_list
+    ]
+    return decoded_list
+
+  @staticmethod
+  def _subnet_node_stake_info_data_to_namespace(data) -> "NodeDelegateStakeInfo":
+    """
+    Converts a NodeDelegateStakeInfo object to a namespace.
+
+    Args:
+      rewards_data (NodeDelegateStakeInfo): The NodeDelegateStakeInfo object.
+
+    Returns:
+      SubnetNoDelegateStakeInfodeStakeInfo: The NodeDelegateStakeInfo object.
+    """
+    data = NodeDelegateStakeInfo(**data)
+
+    return data
+
+  @staticmethod
+  def _get_null() -> "NodeDelegateStakeInfo":
+    data = NodeDelegateStakeInfo(
+      subnet_id=0,
+      subnet_node_id=0,
+      shares=0,
+      balance=0
     )
     return data

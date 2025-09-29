@@ -8,7 +8,7 @@ import pytest
 from mesh import get_dht_time
 from mesh.dht.crypto import RSASignatureValidator
 from mesh.dht.validation import HypertensorPredicateValidator, RecordValidatorBase
-from mesh.subnet.utils.key import generate_rsa_private_key_file, get_rsa_private_key
+from mesh.utils.key import generate_rsa_private_key_file, get_rsa_private_key
 from mesh.subnet.utils.mock_commit_reveal import (
     COMMIT_DEADLINE,
     CONSENSUS_STORE_DEADLINE,

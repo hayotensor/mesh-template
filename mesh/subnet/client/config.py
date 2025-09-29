@@ -3,7 +3,7 @@ import os
 from typing import Optional, Sequence, Union
 
 from mesh import PeerID
-from mesh.subnet.constants import PUBLIC_INITIAL_PEERS
+from mesh.utils.constants import PUBLIC_INITIAL_PEERS
 
 _max_retries = os.getenv("MAX_RETRIES")
 DEFAULT_MAX_RETRIES = int(_max_retries) if isinstance(_max_retries, str) else None

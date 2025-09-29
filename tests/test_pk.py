@@ -4,7 +4,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric import ed25519
 
 from mesh import PeerID
-from mesh.subnet.utils.key import (
+from mesh.utils.key import (
     extract_ed25519_peer_id_from_ssh,
     extract_rsa_peer_id_from_ssh,
     generate_ed25519_private_key_file,
