@@ -1,6 +1,6 @@
 # Bootnode API
 
-The Bootnode API provides controlled access for frontends (e.g. scanners, stats dashboards) to query the subnet bootnode list and heartbeats (i.e. the DHT Records `"nodes"` key).
+The Bootnode API provides controlled access for frontends (e.g., scanners, stats dashboards) to query the subnet bootnode list and heartbeats (i.e., the DHT Records `"nodes"` key).
 
 <b>Do not give any party API access without trusting them.</b>
 

@@ -13,7 +13,7 @@ from mesh.dht.routing import DHTKey
 from mesh.dht.validation import RecordValidatorBase
 from mesh.p2p import PeerID
 from mesh.utils import DHTExpiration, MPFuture, get_dht_time, get_logger
-from mesh.utils.data_structures import RemoteInfo, RemoteModuleInfo, ServerInfo, ServerState
+from mesh.utils.data_structures import NodeHeartbeat, RemoteInfo, RemoteModuleInfo, ServerInfo, ServerState
 from mesh.utils.key import (
     extract_peer_id_from_record_validator_v2,
 )
@@ -374,8 +374,14 @@ async def _get_node_infos_sig(
     peers = []
     inner_dict = found[uid].value
 
+    print("_get_node_infos_sig")
+    print("found[uid]", found[uid])
+    print("inner_dict", inner_dict)
+
     modules: List[RemoteModuleInfo] = []
     for subkey, values in inner_dict.items():
+        print("subkey", subkey)
+        print("values", values)
         caller_peer_id = extract_peer_id_from_record_validator_v2(subkey)
         peers.append(caller_peer_id)
         server_info = ServerInfo.from_tuple(values.value)
@@ -384,6 +390,66 @@ async def _get_node_infos_sig(
             RemoteModuleInfo(
                 peer_id=caller_peer_id,
                 server=server_info
+            )
+        )
+
+    return modules
+
+def get_node_heartbeats(
+    dht: DHT,
+    uid: Any,
+    expiration_time: Optional[DHTExpiration] = None,
+    *,
+    latest: bool = False,
+    return_future: bool = False,
+    record_validator: Optional[SignatureValidator] = None,
+) -> Union[List[RemoteModuleInfo], MPFuture]:
+    return dht.run_coroutine(
+        partial(
+            _get_node_heartbeats,
+            uid=uid,
+            expiration_time=expiration_time,
+            latest=latest,
+        ),
+        return_future=return_future,
+    )
+
+async def _get_node_heartbeats(
+    dht: DHT,
+    node: DHTNode,
+    uid: Any,
+    expiration_time: Optional[DHTExpiration],
+    latest: bool,
+    record_validator: Optional[SignatureValidator] = None,
+) -> List[NodeHeartbeat]:
+    if latest:
+        assert expiration_time is None, "You should define either `expiration_time` or `latest`, not both"
+        expiration_time = math.inf
+    elif expiration_time is None:
+        expiration_time = get_dht_time()
+    num_workers = 1 if dht.num_workers is None else 1
+    found: Dict[Any, DHTValue] = await node.get_many([uid], expiration_time, num_workers=num_workers)
+
+    if found[uid] is None:
+        return []
+    peers = []
+    inner_dict = found[uid].value
+
+    print("_get_node_infos_sig")
+    print("found[uid]", found[uid])
+    print("inner_dict", inner_dict)
+
+    modules: List[NodeHeartbeat] = []
+    for subkey, values in inner_dict.items():
+        caller_peer_id = extract_peer_id_from_record_validator_v2(subkey)
+        peers.append(caller_peer_id)
+        server_info = ServerInfo.from_tuple(values.value)
+
+        modules.append(
+            NodeHeartbeat(
+                peer_id=caller_peer_id,
+                server=server_info,
+                expiration_time=values.expiration_time
             )
         )
 

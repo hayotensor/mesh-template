@@ -52,7 +52,7 @@ def main():
       )
       print("\n\n")
       print(
-        "Your hotkey is: \n \n"
+        "Your account_id (hotkey or coldkey) is: \n \n"
         f"{hotkey}"
       )
 

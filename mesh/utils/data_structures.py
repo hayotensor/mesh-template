@@ -85,6 +85,18 @@ class RemoteModuleInfo:
     server: ServerInfo
 
 @dataclasses.dataclass
+class NodeHeartbeat:
+    """
+    Same as RemoteModuleInfo with expiration time
+
+    Used in the bootnode API
+    """
+    peer_id: PeerID
+    server: ServerInfo
+    expiration_time: float
+
+
+@dataclasses.dataclass
 class RemoteInfo:
     """A chain of remote blocks served by one specific remote peer"""
 

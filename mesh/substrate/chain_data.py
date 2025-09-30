@@ -786,6 +786,7 @@ class SubnetNodeInfo:
   @staticmethod
   def _get_null() -> "SubnetNodeInfo":
     subnet_node_info = SubnetNodeInfo(
+      subnet_id=0,
       subnet_node_id=0,
       coldkey="000000000000000000000000000000000000000000000000",
       hotkey="000000000000000000000000000000000000000000000000",

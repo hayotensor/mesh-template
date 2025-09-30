@@ -29,7 +29,7 @@ def validate_reachability(peer_id, wait_time: float = 7 * 60, retry_delay: float
             response = r.json()
 
             if response["success"]:
-                logger.info("Server is reachable from the Internet. It will appear at https://dash.subnet.com soon")
+                logger.info("Server is reachable from the Internet. It will appear at https://dashboard.example.com soon")
                 return
 
             if attempt_no == 0:
@@ -38,7 +38,7 @@ def validate_reachability(peer_id, wait_time: float = 7 * 60, retry_delay: float
                 logger.info("Detected a NAT or a firewall, connecting to libp2p relays. This takes a few minutes")
             time.sleep(retry_delay)
         except Exception as e:
-            logger.warning(f"Skipping reachability check because dash.subnet.com is down: {repr(e)}")
+            logger.warning(f"Skipping reachability check because dashboard.example.com is down: {repr(e)}")
             return
 
     raise RuntimeError(
@@ -99,7 +99,6 @@ class ReachabilityProtocol(ServicerBase):
             return response.available
         except Exception as e:
             logger.debug(f"Requested {remote_peer} to check {check_peer}, but got:", exc_info=True)
-            logger.warning(f"Requested {remote_peer} to check {check_peer}, but got:", exc_info=True)
             return None
 
     async def rpc_check(self, request: dht_pb2.PingRequest, context: P2PContext) -> dht_pb2.PingResponse:

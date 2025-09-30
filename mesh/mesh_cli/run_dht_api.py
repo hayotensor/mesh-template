@@ -1,9 +1,12 @@
+import os
 from argparse import ArgumentParser
+from pathlib import Path
 from secrets import token_hex
 from signal import SIGINT, SIGTERM, signal, strsignal
 from threading import Event, Thread
 
 import uvicorn
+from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -12,13 +15,24 @@ from slowapi.util import get_remote_address
 from starlette.status import HTTP_403_FORBIDDEN
 
 from mesh.dht import DHT, DHTNode
+from mesh.dht.crypto import SignatureValidator
 from mesh.mesh_cli.api.api_utils import get_active_keys, load_api_keys
-from mesh.utils.dht import get_node_infos_sig
+from mesh.substrate.chain_functions import Hypertensor, KeypairFrom
+from mesh.substrate.mock.chain_functions import MockHypertensor
+from mesh.utils.authorizers.auth import SignatureAuthorizer
+from mesh.utils.authorizers.pos_auth import ProofOfStakeAuthorizer
+from mesh.utils.dht import get_node_heartbeats
+from mesh.utils.key import get_private_key
 from mesh.utils.logging import get_logger, use_mesh_log_handler
 from mesh.utils.networking import log_visible_maddrs
+from mesh.utils.proof_of_stake import ProofOfStake
 
 use_mesh_log_handler("in_root_logger")
 logger = get_logger(__name__)
+
+load_dotenv(os.path.join(Path.cwd(), '.env'))
+
+PHRASE = os.getenv('PHRASE')
 
 dht: DHT = None
 
@@ -79,6 +93,45 @@ async def attach_api_key(request: Request, call_next):
     request.state.api_key = api_key
     return await call_next(request)
 
+def serialize_object(obj):
+    """Recursively serialize objects to JSON-compatible formats"""
+    # Handle None
+    if obj is None:
+        return None
+
+    # Handle primitive types
+    if isinstance(obj, (str, int, float, bool)):
+        return obj
+
+    # Handle peer_id specifically (libp2p ID objects)
+    if hasattr(obj, '_b58_str'):
+        return obj._b58_str  # Return the base58 string representation
+
+    # Handle enums
+    if hasattr(obj, 'value') and hasattr(obj, 'name'):
+        return obj.value
+
+    # Handle lists/tuples
+    if isinstance(obj, (list, tuple)):
+        return [serialize_object(item) for item in obj]
+
+    # Handle dictionaries
+    if isinstance(obj, dict):
+        return {key: serialize_object(value) for key, value in obj.items()}
+
+    # Handle objects with __dict__ (most custom classes)
+    if hasattr(obj, '__dict__'):
+        result = {}
+        for key, value in obj.__dict__.items():
+            # Skip private/internal attributes
+            if key.startswith('_'):
+                continue
+            result[key] = serialize_object(value)
+        return result
+
+    # Fallback to string representation
+    return str(obj)
+
 @app.get("/get_heartbeat")
 @ip_limiter.limit("5/minute")
 @key_limiter.limit("5/minute")
@@ -91,17 +144,25 @@ async def get_heartbeat(
     """
     if dht is None:
         return {"error": "DHT not initialized"}
-    result = get_node_infos_sig(
+    results = get_node_heartbeats(
         dht,
         uid="node",
         latest=True
     )
-    print("result", result)
-    if result:
+    print("results", results)
+    if results:
         try:
-            return {"value": result.value, "expiration": result.expiration_time}
+            serialized_results = serialize_object(results)
+            return {"value": serialized_results}
         except Exception as e:
             logger.warning(f"Error returning heartbeat {e}", exc_info=True)
+            return {"error": str(e)}
+
+    # if results:
+    #     try:
+    #         return {"value": results}
+    #     except Exception as e:
+    #         logger.warning(f"Error returning heartbeat {e}", exc_info=True)
 
     return {"value": None}
 
@@ -195,10 +256,65 @@ def main():
     parser.add_argument(
         "--refresh_period", type=int, default=30, help="Period (in seconds) for fetching the keys from DHT"
     )
+    parser.add_argument('--subnet_id', type=int, required=False, default=None, help='Subnet ID running a node for ')
+    parser.add_argument("--no_blockchain_rpc", action="store_true", help="[Testing] Run with no RPC")
+    parser.add_argument("--local_rpc", action="store_true", help="[Testing] Run in local RPC mode, uses LOCAL_RPC")
+    parser.add_argument("--phrase", type=str, required=False, help="[Testing] Coldkey phrase that controls actions which include funds, such as registering, and staking")
+    parser.add_argument("--private_key", type=str, required=False, help="[Testing] Hypertensor blockchain private key")
 
     args = parser.parse_args()
 
+    subnet_id = args.subnet_id
+    no_blockchain_rpc = args.no_blockchain_rpc
+    local_rpc = args.local_rpc
+    phrase = args.phrase
+    private_key = args.private_key
+
+    if no_blockchain_rpc is False:
+        if local_rpc:
+            rpc = os.getenv('LOCAL_RPC')
+        else:
+            rpc = os.getenv('DEV_RPC')
+
+        if phrase is not None:
+            hypertensor = Hypertensor(rpc, phrase)
+        elif private_key is not None:
+            hypertensor = Hypertensor(rpc, private_key, KeypairFrom.PRIVATE_KEY)
+        else:
+            hypertensor = Hypertensor(rpc, PHRASE)
+    else:
+        hypertensor = MockHypertensor()
+
+    pk = get_private_key(args.identity_path)
+
+    signature_validator = SignatureValidator(pk)
+    record_validators=[signature_validator]
+
+    signature_authorizer = SignatureAuthorizer(pk)
+
+    if hypertensor is not None:
+        logger.info("Initializing PoS - proof-of-stake")
+        pos = ProofOfStake(
+            subnet_id,
+            hypertensor,
+            min_class=1,
+        )
+        pos_authorizer = ProofOfStakeAuthorizer(pk, pos)
+    else:
+        # For testing purposes, at minimum require signatures
+        pos_authorizer = signature_authorizer
+
     global dht
+    # dht = DHT(
+    #     start=True,
+    #     initial_peers=args.initial_peers,
+    #     host_maddrs=args.host_maddrs,
+    #     announce_maddrs=args.announce_maddrs,
+    #     use_ipfs=args.use_ipfs,
+    #     identity_path=args.identity_path,
+    #     use_relay=args.use_relay,
+    #     use_auto_relay=args.use_auto_relay,
+    # )
     dht = DHT(
         start=True,
         initial_peers=args.initial_peers,
@@ -208,7 +324,10 @@ def main():
         identity_path=args.identity_path,
         use_relay=args.use_relay,
         use_auto_relay=args.use_auto_relay,
+        record_validators=record_validators,
+        **dict(authorizer=pos_authorizer)
     )
+
     log_visible_maddrs(dht.get_visible_maddrs(), only_p2p=args.use_ipfs)
 
     # Run the FastAPI server in a thread

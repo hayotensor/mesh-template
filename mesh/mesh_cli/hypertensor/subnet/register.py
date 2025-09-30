@@ -24,7 +24,6 @@ register-subnet \
 --max_stake  1000.00 \
 --delegate_stake_percentage 0.1 \
 --subnet_node_queue_epochs 10 \
---activation_grace_epochs 10 \
 --queue_classification_epochs 10 \
 --included_classification_epochs 10 \
 --max_node_penalties 10 \
@@ -46,7 +45,6 @@ register-subnet \
 --max_stake  1000.00 \
 --delegate_stake_percentage 0.1 \
 --subnet_node_queue_epochs 10 \
---activation_grace_epochs 10 \
 --queue_classification_epochs 10 \
 --included_classification_epochs 10 \
 --max_node_penalties 10 \
@@ -71,7 +69,6 @@ def main():
     parser.add_argument("--max_stake", type=float, required=True, help="Maximum stake balance to register a Subnet Node in the subnet")
     parser.add_argument("--delegate_stake_percentage", type=float, required=True, help="Percentage of emissions that are allocated to delegate stakers as decimal (100% == 1.0)")
     parser.add_argument("--subnet_node_queue_epochs", type=int, required=True, help="Number of epochs for registered nodes to be in queue before activation")
-    parser.add_argument("--activation_grace_epochs", type=int, required=True, help="Grace period following `subnet_node_queue_epochs` to activate")
     parser.add_argument("--queue_classification_epochs", type=int, required=True, help="Number of epochs in Idle classification (See SubnetNodeClass)")
     parser.add_argument("--included_classification_epochs", type=int, required=True, help="Number of epochs in Included classification (See SubnetNodeClass)")
     parser.add_argument("--max_node_penalties", type=int, required=True, help="Number of penalties to be removed")
@@ -110,7 +107,6 @@ def main():
     max_stake = int(args.max_stake * 1e18)
     delegate_stake_percentage = 1e18 if args.delegate_stake_percentage > 1.0 else int(args.delegate_stake_percentage * 1e18)
     subnet_node_queue_epochs = args.subnet_node_queue_epochs
-    activation_grace_epochs = args.activation_grace_epochs
     queue_classification_epochs = args.queue_classification_epochs
     included_classification_epochs = args.included_classification_epochs
     max_node_penalties = args.max_node_penalties
@@ -131,7 +127,6 @@ def main():
             max_stake,
             delegate_stake_percentage,
             subnet_node_queue_epochs,
-            activation_grace_epochs,
             queue_classification_epochs,
             included_classification_epochs,
             max_node_penalties,

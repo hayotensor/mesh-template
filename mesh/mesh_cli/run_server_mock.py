@@ -130,6 +130,9 @@ def main():
             hypertensor = Hypertensor(rpc, phrase)
         elif private_key is not None:
             hypertensor = Hypertensor(rpc, private_key, KeypairFrom.PRIVATE_KEY)
+            keypair = Keypair.create_from_private_key(private_key, crypto_type=KeypairType.ECDSA)
+            hotkey = keypair.ss58_address
+            print("hotkey", hotkey)
         else:
             hypertensor = Hypertensor(rpc, PHRASE)
     else:
@@ -140,10 +143,6 @@ def main():
         bootnodes = hypertensor.get_bootnodes_formatted(subnet_id)
         if bootnodes is not None:
             args["initial_peers"] = bootnodes
-
-    keypair = Keypair.create_from_private_key(private_key, crypto_type=KeypairType.ECDSA)
-    hotkey = keypair.ss58_address
-    print("hotkey", hotkey)
 
     if args.pop("new_swarm"):
         args["initial_peers"] = []

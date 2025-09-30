@@ -256,7 +256,6 @@ class Hypertensor:
     max_stake: int,
     delegate_stake_percentage: int,
     subnet_node_queue_epochs: int,
-    activation_grace_epochs: int,
     queue_classification_epochs: int,
     included_classification_epochs: int,
     max_node_penalties: int,
@@ -285,7 +284,6 @@ class Hypertensor:
           'max_stake': max_stake,
           'delegate_stake_percentage': delegate_stake_percentage,
           'subnet_node_queue_epochs': subnet_node_queue_epochs,
-          'activation_grace_epochs': activation_grace_epochs,
           'queue_classification_epochs': queue_classification_epochs,
           'included_classification_epochs': included_classification_epochs,
           'max_node_penalties': max_node_penalties,
@@ -1054,30 +1052,6 @@ class Hypertensor:
       try:
         with self.interface as _interface:
           result = _interface.query('Network', 'SubnetNodeIdHotkey', [subnet_id, hotkey])
-          return result.value['data']['free']
-      except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
-
-    return make_query()
-
-  def get_activation_grace_epochs(
-    self,
-    subnet_id: int,
-  ) -> ExtrinsicReceipt:
-    """
-    Query subnet grace epochs
-
-    The grace epochs the are epochs allowable following the start_epoch for activating
-    a subnet node
-
-    :param subnet_id: Subnet ID
-    """
-
-    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-    def make_query():
-      try:
-        with self.interface as _interface:
-          result = _interface.query('Network', 'ActivationGraceEpochs', [subnet_id])
           return result.value['data']['free']
       except SubstrateRequestException as e:
         print("Failed to get rpc request: {}".format(e))
