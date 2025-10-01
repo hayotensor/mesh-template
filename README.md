@@ -118,7 +118,6 @@ activate-node --subnet_id 1
 ---
 ## Running Nodes
 
-
 - Replace port 31330 with your port of choice.
 - Replace `{your_ip}` with your IP.
 ### Bootnode

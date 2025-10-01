@@ -54,6 +54,7 @@ class EpochData:
 class OverwatchEpochData:
   block: int
   epoch: int
+  overwatch_epoch: int
   block_per_epoch: int
   seconds_per_epoch: int
   percent_complete: float
@@ -68,6 +69,7 @@ class OverwatchEpochData:
     return OverwatchEpochData(
       block=current_block,
       epoch=0,
+      overwatch_epoch=0,
       block_per_epoch=epoch_length,
       seconds_per_epoch=epoch_length * BLOCK_SECS,
       percent_complete=0.0,
@@ -142,6 +144,8 @@ class Hypertensor:
     self,
     subnet_id: int,
     data,
+    prioritize_queue_node_id: Optional[Any] = None,
+    remove_queue_node_id: Optional[Any] = None,
     args: Optional[Any] = None,
     attest_data: Optional[Any] = None,
   ):
@@ -157,6 +161,7 @@ class Hypertensor:
     Note: It's important before calling this to ensure the entrinsic will be successful.
           If the function reverts, the extrinsic is Pays::Yes
     """
+
     # compose call
     call = self.interface.compose_call(
       call_module='Network',
@@ -164,6 +169,8 @@ class Hypertensor:
       call_params={
         'subnet_id': subnet_id,
         'data': data,
+        'prioritize_queue_node_id': prioritize_queue_node_id,
+        'remove_queue_node_id': remove_queue_node_id,
         'args': args,
         'attest_data': attest_data
       }
@@ -199,7 +206,7 @@ class Hypertensor:
   def attest(
     self,
     subnet_id: int,
-    data: Optional[List[Any]] = None
+    attest_data: Optional[List[Any]] = None
   ):
     """
     Attest validator submission on current epoch
@@ -215,7 +222,7 @@ class Hypertensor:
       call_function='attest',
       call_params={
         'subnet_id': subnet_id,
-        'data': data
+        'attest_data': attest_data
       }
     )
 
@@ -247,6 +254,7 @@ class Hypertensor:
   def register_subnet(
     self,
     hotkey: str,
+    max_cost: int,
     name: str,
     repo: str,
     description: str,
@@ -256,11 +264,11 @@ class Hypertensor:
     max_stake: int,
     delegate_stake_percentage: int,
     subnet_node_queue_epochs: int,
-    queue_classification_epochs: int,
+    idle_classification_epochs: int,
     included_classification_epochs: int,
     max_node_penalties: int,
-    initial_coldkeys: list,
     max_registered_nodes: int,
+    initial_coldkeys: list,
     key_types: list,
     bootnodes: list,
   ) -> ExtrinsicReceipt:
@@ -274,6 +282,7 @@ class Hypertensor:
       call_function='register_subnet',
       call_params={
         'hotkey': hotkey,
+        'max_cost': max_cost,
         'subnet_data': {
           'name': name.encode(),
           'repo': repo.encode(),
@@ -284,11 +293,11 @@ class Hypertensor:
           'max_stake': max_stake,
           'delegate_stake_percentage': delegate_stake_percentage,
           'subnet_node_queue_epochs': subnet_node_queue_epochs,
-          'queue_classification_epochs': queue_classification_epochs,
+          'idle_classification_epochs': idle_classification_epochs,
           'included_classification_epochs': included_classification_epochs,
           'max_node_penalties': max_node_penalties,
-          'initial_coldkeys': sorted(set(initial_coldkeys)),
           'max_registered_nodes': max_registered_nodes,
+          'initial_coldkeys': sorted(set(initial_coldkeys)),
           'key_types': sorted(set(key_types)),
           'bootnodes': sorted(set(bootnodes)),
         }
@@ -448,6 +457,7 @@ class Hypertensor:
     client_peer_id: str,
     delegate_reward_rate: int,
     stake_to_be_added: int,
+    max_burn_amount: int,
     bootnode: Optional[str] = None,
     unique: Optional[str] = None,
     non_unique: Optional[str] = None,
@@ -480,6 +490,7 @@ class Hypertensor:
         'stake_to_be_added': stake_to_be_added,
         'unique': unique,
         'non_unique': non_unique,
+        'max_burn_amount': max_burn_amount
       }
     )
 
@@ -1449,7 +1460,7 @@ class Hypertensor:
   """
   RPC
   """
-  
+
   def get_subnet_info(
     self,
     subnet_id: int,
@@ -1708,26 +1719,18 @@ class Hypertensor:
   ):
     """
     Query an epochs consesnus submission
-
-    :param subnet_id: subnet I
-    :returns: subnet_nodes_data
     """
+
     @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-    def make_rpc_request():
+    def make_query():
       try:
         with self.interface as _interface:
-          data = _interface.rpc_request(
-            method='network_getConsensusData',
-            params=[
-              subnet_id,
-              epoch
-            ]
-          )
-          return data
+          result = _interface.query('Network', 'SubnetConsensusSubmission', [subnet_id, epoch])
+          return result
       except SubstrateRequestException as e:
         print("Failed to get rpc request: {}".format(e))
 
-    return make_rpc_request()
+    return make_query()
 
   def proof_of_stake(
     self,
@@ -2022,8 +2025,10 @@ class Hypertensor:
     """
     try:
       result = self.get_subnet_info(subnet_id)
+      print("get_formatted_subnet_info result", result)
 
       subnet = SubnetInfo.from_vec_u8(result["result"])
+      print("get_formatted_subnet_info", subnet)
 
       return subnet
     except Exception:
@@ -2039,10 +2044,8 @@ class Hypertensor:
     """
     try:
       result = self.get_all_subnet_info()
-      print("get_formatted_all_subnet_info result", result)
 
       subnets_info = SubnetInfo.list_from_vec_u8(result["result"])
-      print("get_formatted_all_subnet_info subnets_info", subnets_info)
 
       return subnets_info
     except Exception:
@@ -2058,10 +2061,8 @@ class Hypertensor:
     """
     try:
       result = self.get_subnet_node_info(subnet_id, subnet_node_id)
-      print("get_formatted_get_subnet_node_info result", result)
 
       subnet_node_info = SubnetNodeInfo.from_vec_u8(result["result"])
-      print("get_formatted_get_subnet_node_info subnet_node_info", subnet_node_info)
 
       return subnet_node_info
     except Exception:
@@ -2077,10 +2078,8 @@ class Hypertensor:
     """
     try:
       result = self.get_subnet_nodes_info(subnet_id)
-      print("get_subnet_nodes_info_formatted result", result)
 
       subnet_nodes_info = SubnetNodeInfo.list_from_vec_u8(result["result"])
-      print("get_subnet_nodes_info_formatted subnet_nodes_info", subnet_nodes_info)
 
       return subnet_nodes_info
     except Exception:
@@ -2097,16 +2096,14 @@ class Hypertensor:
     """
     try:
       result = self.get_all_subnet_nodes_info()
-      print("get_all_subnet_nodes_info_formatted result", result)
 
       subnet_nodes_info = SubnetNodeInfo.list_from_vec_u8(result["result"])
-      print("get_all_subnet_nodes_info_formatted subnet_nodes_info", subnet_nodes_info)
 
       return subnet_nodes_info
     except Exception:
       return None
 
-  def get_bootnodes_formatted(self, subnet_id: int) -> List["AllSubnetBootnodes"]:
+  def get_bootnodes_formatted(self, subnet_id: int) -> "AllSubnetBootnodes":
     """
     Get formatted list of subnet nodes classified as Validator
 
@@ -2114,13 +2111,10 @@ class Hypertensor:
 
     :returns: List of subnet node IDs
     """
-    print("get_bootnodes_formatted")
     try:
       result = self.get_bootnodes(subnet_id)
-      print("get_all_bootnodes_formatted result", result)
 
       all_subnet_bootnodes = AllSubnetBootnodes.from_vec_u8(result["result"])
-      print("get_all_bootnodes_formatted subnet_nodes_info", all_subnet_bootnodes)
 
       return all_subnet_bootnodes
     except Exception:
@@ -2134,13 +2128,10 @@ class Hypertensor:
 
     :returns: List of subnet node IDs
     """
-    print("get_coldkey_subnet_nodes_info")
     try:
       result = self.get_coldkey_subnet_nodes_info(coldkey)
-      print("get_coldkey_subnet_nodes_info result", result)
 
       subnet_nodes_info = SubnetNodeInfo.list_from_vec_u8(result["result"])
-      print("get_coldkey_subnet_nodes_info subnet_nodes_info", subnet_nodes_info)
 
       return subnet_nodes_info
     except Exception:
@@ -2154,13 +2145,10 @@ class Hypertensor:
 
     :returns: List of subnet node IDs
     """
-    print("get_coldkey_stakes_formatted")
     try:
       result = self.get_coldkey_stakes(coldkey)
-      print("get_coldkey_stakes_formatted result", result)
 
       coldkey_stakes = SubnetNodeStakeInfo.list_from_vec_u8(result["result"])
-      print("get_coldkey_stakes_formatted coldkey_stakes", coldkey_stakes)
 
       return coldkey_stakes
     except Exception:
@@ -2174,7 +2162,6 @@ class Hypertensor:
 
     :returns: List of subnet node IDs
     """
-    print("get_coldkey_stakes_formatted")
     try:
       result = self.get_delegate_stakes(account_id)
 
@@ -2192,13 +2179,10 @@ class Hypertensor:
 
     :returns: List of subnet node IDs
     """
-    print("get_coldkey_stakes_formatted")
     try:
       result = self.get_node_delegate_stakes(account_id)
-      print("get_node_delegate_stakes_formatted result", result)
 
       node_delegate_stakes = NodeDelegateStakeInfo.list_from_vec_u8(result["result"])
-      print("get_node_delegate_stakes_formatted coldkey_stakes", node_delegate_stakes)
 
       return node_delegate_stakes
     except Exception:
@@ -2214,13 +2198,21 @@ class Hypertensor:
     """
     try:
       result = self.get_consensus_data(subnet_id, epoch)
+      print("get_consensus_data_formatted result", result)
+      print("get_consensus_data_formatted", result is None)
+      print("get_consensus_data_formatted", result == None)
+      print("get_consensus_data_formatted", result == 'None')
+      print("get_consensus_data_formatted", result == "None")
 
-      if result is None or result == 'None':
+      if result is None or result == 'None' or result == None:  # noqa: E711
         return None
 
-      consensus_data = ConsensusData.from_vec_u8(result["result"])
+      consensus_data = ConsensusData.fix_decoded_values(result)
+      print("get_consensus_data_formatted consensus_data'", consensus_data)
+
       return consensus_data
-    except Exception:
+    except Exception as e:
+      print(e)
       return None
 
   def get_min_class_subnet_nodes_formatted(self, subnet_id: int, subnet_epoch: int, min_class: SubnetNodeClass) -> List["SubnetNodeInfo"]:
@@ -2231,18 +2223,21 @@ class Hypertensor:
 
     :returns: List of subnet node IDs
     """
-    print("get_min_class_subnet_nodes_formatted")
     try:
       result = self.get_subnet_nodes_info(subnet_id)
 
-      print("get_min_class_subnet_nodes_formatted result", result)
-
       subnet_nodes = SubnetNodeInfo.list_from_vec_u8(result["result"])
+
       print("get_min_class_subnet_nodes_formatted subnet_nodes", subnet_nodes)
+      for node in subnet_nodes:
+          print("node", node)
+          print("node.classification", node.classification)
+          print("node.classification['node_class']", node.classification['node_class'])
+          print("subnet_node_class_to_enum(node.classification['node_class'])", subnet_node_class_to_enum(node.classification['node_class']))
 
       return [
           node for node in subnet_nodes
-          if subnet_node_class_to_enum(node.classification).value >= min_class.value and node.classification.start_epoch <= subnet_epoch
+          if subnet_node_class_to_enum(node.classification['node_class']).value >= min_class.value and node.classification['start_epoch'] <= subnet_epoch
       ]
     except Exception:
       return []
@@ -2284,3 +2279,25 @@ class Hypertensor:
         print("Failed to send: {}".format(e))
 
     return submit_extrinsic()
+
+  def get_subnet_key_types(
+    self,
+    subnet_id: int,
+  ) -> ExtrinsicReceipt:
+    """
+    Query hotkey by subnet node ID
+
+    :param hotkey: Hotkey of subnet node
+    """
+
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_query():
+      try:
+        with self.interface as _interface:
+          result = _interface.query('Network', 'SubnetKeyTypes', [subnet_id])
+          return result
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_query()
+

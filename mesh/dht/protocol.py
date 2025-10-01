@@ -145,33 +145,20 @@ class DHTProtocol(ServicerBase):
 
     async def rpc_ping(self, request: dht_pb2.PingRequest, context: P2PContext) -> dht_pb2.PingResponse:
         """Some node wants us to add it to our routing table."""
-
-        print("rpc_ping request", request)
-
         response = dht_pb2.PingResponse(peer=self.node_info, dht_time=get_dht_time(), available=False)
-        print("rpc_ping response1", response)
 
         if request.peer and request.peer.node_id:
             sender_id = DHTID.from_bytes(request.peer.node_id)
             sender_peer_id = context.remote_id
 
-            print("rpc_ping sender_id", sender_id)
-            print("rpc_ping sender_peer_id", sender_peer_id)
-
             if request.validate:
-                print("rpc_ping request.validate")
                 response.available = await self.call_ping(sender_peer_id, validate=False) == sender_id
-                print("rpc_ping response.available", response.available)
 
-            print("rpc_ping asyncio.create_task before")
             asyncio.create_task(
                 self.update_routing_table(
                     sender_id, sender_peer_id, responded=response.available or not request.validate
                 )
             )
-            print("rpc_ping after")
-
-        print("rpc_ping response2", response)
 
         return response
 
@@ -384,7 +371,6 @@ class DHTProtocol(ServicerBase):
         return response
 
     async def update_routing_table(self, node_id: Optional[DHTID], peer_id: PeerID, responded=True):
-        print("update_routing_table")
         """
         This method is called on every incoming AND outgoing request to update the routing table
 

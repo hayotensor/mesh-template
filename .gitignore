@@ -95,7 +95,6 @@ mesh/mesh_cli/p2pd
 
 # private keys
 *.key
-# *.id
 
 
 # DHT Bootnode API

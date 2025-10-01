@@ -374,14 +374,8 @@ async def _get_node_infos_sig(
     peers = []
     inner_dict = found[uid].value
 
-    print("_get_node_infos_sig")
-    print("found[uid]", found[uid])
-    print("inner_dict", inner_dict)
-
     modules: List[RemoteModuleInfo] = []
     for subkey, values in inner_dict.items():
-        print("subkey", subkey)
-        print("values", values)
         caller_peer_id = extract_peer_id_from_record_validator_v2(subkey)
         peers.append(caller_peer_id)
         server_info = ServerInfo.from_tuple(values.value)
@@ -434,10 +428,6 @@ async def _get_node_heartbeats(
         return []
     peers = []
     inner_dict = found[uid].value
-
-    print("_get_node_infos_sig")
-    print("found[uid]", found[uid])
-    print("inner_dict", inner_dict)
 
     modules: List[NodeHeartbeat] = []
     for subkey, values in inner_dict.items():

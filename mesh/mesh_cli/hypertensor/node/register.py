@@ -22,7 +22,8 @@ register-node \
 --bootnode /ip4/127.00.1/tcp/31330/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
 --client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
 --delegate_reward_rate 0.125 \
---stake_to_be_added 100.00
+--stake_to_be_added 100.00 \
+--max_burn_amount 100.00 \
 
 # Local
 
@@ -37,6 +38,7 @@ register-node \
 --client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
 --delegate_reward_rate 0.125 \
 --stake_to_be_added 100.00 \
+--max_burn_amount 100.00 \
 --private_key "0x5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133" \
 --local_rpc
 
@@ -51,6 +53,7 @@ register-node \
 --client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
 --delegate_reward_rate 0.125 \
 --stake_to_be_added 100.00 \
+--max_burn_amount 100.00 \
 --private_key "0x8075991ce870b93a8870eca0c0f91913d12f47948ca0fd25b49c6fa7cdbeee8b" \
 --local_rpc
 
@@ -65,6 +68,7 @@ register-node \
 --client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
 --delegate_reward_rate 0.125 \
 --stake_to_be_added 100.00 \
+--max_burn_amount 100.00 \
 --private_key "0x0b6e18cafb6ed99687ec547bd28139cafdd2bffe70e6b688025de6b445aa5c5b" \
 --local_rpc
 
@@ -79,6 +83,7 @@ register-node \
 --client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
 --delegate_reward_rate 0.125 \
 --stake_to_be_added 100.00 \
+--max_burn_amount 100.00 \
 --private_key "0x39539ab1876910bbf3a223d84a29e28f1cb4e2e456503e7e91ed39b2e7223d68" \
 --local_rpc
 
@@ -91,12 +96,13 @@ def main():
     parser.add_argument("--hotkey", type=str, required=True, help="Hotkey responsible for subnet features. ")
     parser.add_argument("--peer_id", type=str, required=True, help="Peer ID generated using `keygen`")
     parser.add_argument("--bootnode_peer_id", type=str, required=True, help="Bootnode Peer ID generated using `keygen`")
-    parser.add_argument("--bootnode", type=str, required=False, default=None, help="Bootnode URL/MultiAddr")
     parser.add_argument("--client_peer_id", type=str, required=True, help="Bootstrap Peer ID generated using `keygen`")
+    parser.add_argument("--bootnode", type=str, required=False, default=None, help="Bootnode URL/MultiAddr")
     parser.add_argument("--delegate_reward_rate", type=float, required=False, default=0.0, help="Reward weight for your delegate stakers")
     parser.add_argument("--stake_to_be_added", type=float, required=True, help="Amount of stake to be added as float")
     parser.add_argument("--unique", type=str, required=False, default=None, help="Non-unique value for subnet node")
     parser.add_argument("--non_unique", type=str, required=False, default=None, help="Non-unique value for subnet node")
+    parser.add_argument("--max_burn_amount", type=float, required=False, default=None, help="Non-unique value for subnet node")
     parser.add_argument("--local_rpc", action="store_true", help="[Testing] Run in local RPC mode, uses LOCAL_RPC")
     parser.add_argument("--phrase", type=str, required=False, help="[Testing] Coldkey phrase that controls actions which include funds, such as registering, and staking")
     parser.add_argument("--private_key", type=str, required=False, help="[Testing] Hypertensor blockchain private key")
@@ -132,6 +138,7 @@ def main():
     stake_to_be_added = int(args.stake_to_be_added * 1e18)
     unique = args.unique
     non_unique = args.non_unique
+    max_burn_amount = int(args.max_burn_amount * 1e18)
 
     try:
         receipt = hypertensor.register_subnet_node(
@@ -142,6 +149,7 @@ def main():
             client_peer_id,
             delegate_reward_rate,
             stake_to_be_added,
+            max_burn_amount,
             bootnode=bootnode,
             unique=unique,
             non_unique=non_unique

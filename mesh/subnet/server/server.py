@@ -113,6 +113,7 @@ class Server:
             self.pos_authorizer = ProofOfStakeAuthorizer(pk, pos)
             # self.pos_authorizer = self.signature_authorizer
         else:
+            logger.info("Skipping PoS - proof-of-stake, using signature authorization only. If starting in production, make sure to use PoS")
             # For testing purposes, at minimum require signatures
             self.pos_authorizer = self.signature_authorizer
 
@@ -162,14 +163,6 @@ class Server:
 
         self.protocol = MockProtocol(dht=self.dht)
         """
-        # self.mock_protocol = MockProtocol(
-        #     dht=self.dht,
-        #     subnet_id=self.subnet_id,
-        #     hypertensor=self.hypertensor,
-        #     authorizer=self.signature_authorizer,
-        #     start=True
-        # )
-
         self.module_container = ModuleAnnouncerThread(
             dht=self.dht,
             server_info=self.server_info,
@@ -369,13 +362,6 @@ class ModuleHeartbeatThread(threading.Thread):
                 expiration_time=get_dht_time() + self.expiration,
                 record_validator=self.record_validator
             )
-            # declare_node_rsa(
-            #     dht=self.dht,
-            #     key="node",
-            #     server_info=self.server_info,
-            #     expiration_time=get_dht_time() + self.expiration,
-            #     record_validator=self.record_validator
-            # )
 
             if self.server_info.state == ServerState.OFFLINE:
                 break

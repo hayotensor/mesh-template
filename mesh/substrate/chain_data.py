@@ -51,7 +51,7 @@ custom_rpc_type_registry = {
         ["key_types", "BTreeSet<KeyType>"],
         ["slot_index", "Option<u32>"],
         ["penalty_count", "u32"],
-        ["bootnode_access", "BTreeSet<AccountId>"],
+        ["bootnode_access", "BTreeSet<[u8; 20]>"],
         ["bootnodes", "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>"],
         ["total_nodes", "u32"],
         ["total_active_nodes", "u32"],
@@ -188,7 +188,7 @@ custom_rpc_type_registry = {
       "type_mapping": [
         ["validator_id", "u32"],
         ["attests", "BTreeMap<u32, AttestEntry>"],
-        ["subnet_nodes", "Vec<SubnetNode<AccountId>>"],
+        ["subnet_nodes", "Vec<SubnetNode<[u8; 20]>>"],
         ["prioritize_queue_node_id", "Option<u32>"],
         ["remove_queue_node_id", "Option<u32>"],
         ["data", "Vec<SubnetNodeConsensusData>"],
@@ -243,6 +243,9 @@ custom_rpc_type_registry = {
       ],
     },
     "PeerId": "Vec<u8>",
+    "BTreeSet<KeyType>": "Vec<KeyType>",
+    "BTreeSet<[u8; 20]>": "Vec<[u8; 20]>",
+    "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>": "Vec<BoundedVec<u8, DefaultMaxVectorLength>>",  # Not just Vec<u8>
     "BoundedVec<u8, DefaultMaxVectorLength>": "Vec<u8>",
     "BoundedVec<u8, DefaultMaxUrlLength>": "Vec<u8>",
     "BoundedVec<u8, DefaultMaxSocialIdLength>": "Vec<u8>",
@@ -251,7 +254,6 @@ custom_rpc_type_registry = {
     "Option<BoundedVec<u8, DefaultMaxUrlLength>>": "Option<Vec<u8>>",
     "Option<BoundedVec<u8, DefaultMaxSocialIdLength>>": "Option<Vec<u8>>",
     "Option<BoundedVec<u8, DefaultValidatorArgsLimit>>": "Option<Vec<u8>>",
-    "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>": "Vec<u8>",
   }
 }
 
@@ -460,6 +462,9 @@ class SubnetInfo:
   @classmethod
   def fix_decoded_values(cls, data_decoded: Any) -> "SubnetInfo":
     """Fixes the values of the SubnetInfo object."""
+
+    print("SubnetInfo data_decoded", data_decoded)
+
     data_decoded["id"] = data_decoded["id"]
     data_decoded["name"] = data_decoded["name"]
     data_decoded["repo"] = data_decoded["repo"]
@@ -497,6 +502,7 @@ class SubnetInfo:
   @classmethod
   def from_vec_u8(cls, vec_u8: List[int]) -> "SubnetInfo":
     """Returns a SubnetInfo object from a ``vec_u8``."""
+    print("SubnetInfo vec_u8", vec_u8)
 
     if len(vec_u8) == 0:
       return SubnetInfo._get_null()
@@ -1075,84 +1081,15 @@ class ConsensusData:
   validator_id: int
   attests: list
   subnet_nodes: list
-  prioritize_queue_node_id: int
-  remove_queue_node_id: int
-  data: list
-  args: list
+  prioritize_queue_node_id: int | None
+  remove_queue_node_id: int | None
+  data: list | None
+  args: list | None
 
   @classmethod
   def fix_decoded_values(cls, data_decoded: Any) -> "ConsensusData":
-    """Fixes the values of the ConsensusData object."""
-    data_decoded["validator_id"] = data_decoded["validator_id"]
-    data_decoded["attests"] = data_decoded["attests"]
-    data_decoded["subnet_nodes"] = data_decoded["subnet_nodes"]
-    data_decoded["data"] = data_decoded["data"]
-    data_decoded["args"] = data_decoded["args"]
-
-    return cls(**data_decoded)
-
-  @classmethod
-  def from_vec_u8(cls, vec_u8: List[int]) -> Optional["ConsensusData"]:
-    """Returns a ConsensusData object from a ``vec_u8``."""
-
-    if len(vec_u8) == 0:
-      return ConsensusData._get_null()
-
-    decoded = from_scale_encoding(vec_u8, ChainDataType.ConsensusData, is_option=True)
-
-    print("ConsensusData decoded", decoded)
-
-    if decoded is None:
-      # return ConsensusData._get_null()
-      return None
-
-    decoded = ConsensusData.fix_decoded_values(decoded)
-
-    return decoded
-
-  @classmethod
-  def list_from_vec_u8(cls, vec_u8: List[int]) -> List["ConsensusData"]:
-    """Returns a list of ConsensusData objects from a ``vec_u8``."""
-
-    decoded_list = from_scale_encoding(
-      vec_u8, ChainDataType.ConsensusData, is_vec=True, is_option=True
-    )
-    if decoded_list is None:
-      return []
-
-    decoded_list = [
-      ConsensusData.fix_decoded_values(decoded) for decoded in decoded_list
-    ]
-    return decoded_list
-
-  @staticmethod
-  def _consensus_data_to_namespace(data) -> "ConsensusData":
-    """
-    Converts a ConsensusData object to a namespace.
-
-    Args:
-      rewards_data (ConsensusData): The ConsensusData object.
-
-    Returns:
-      ConsensusData: The ConsensusData object.
-    """
-    data = ConsensusData(**data)
-
-    return data
-
-  @staticmethod
-  def _get_null() -> "ConsensusData":
-    data = ConsensusData(
-      validator_id=0,
-      attests=[],
-      subnet_nodes=[],
-      prioritize_queue_node_id=0,
-      remove_queue_node_id=0,
-      data=[],
-      args=[],
-    )
-    return data
-
+      """Converts substrate-interface SCALE object to ConsensusData dataclass."""
+      return cls(**data_decoded.serialize())
 
 @dataclass
 class AllSubnetBootnodes:

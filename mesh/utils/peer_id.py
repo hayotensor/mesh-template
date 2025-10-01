@@ -39,10 +39,8 @@ def get_ed25519_peer_id(public_key: Ed25519PublicKey) -> Optional[PeerID]:
 
 def get_peer_id_from_pubkey(public_key: RSAPublicKey | Ed25519PublicKey) -> Optional[PeerID]:
   if isinstance(public_key, RSAPublicKey):
-    print("get_peer_id_from_pubkey RSAPublicKey")
     return get_rsa_peer_id(public_key)
   elif isinstance(public_key, Ed25519PublicKey):
-    print("get_peer_id_from_pubkey Ed25519PublicKey")
     return get_ed25519_peer_id(public_key)
   else:
     return None

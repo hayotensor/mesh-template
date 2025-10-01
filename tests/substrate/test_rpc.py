@@ -1,13 +1,13 @@
 
 
 
+from typing import Any
 import pytest
 import scalecodec
+from dataclasses import dataclass
 from scalecodec.base import RuntimeConfiguration, ScaleBytes
 from scalecodec.type_registry import load_type_registry_preset
-from scalecodec.utils.ss58 import ss58_encode
 
-# from mesh.substrate.chain_data import ConsensusData, SubnetBootnodes, SubnetInfo
 from mesh.substrate.chain_functions import Hypertensor, KeypairFrom
 
 custom_rpc_type_registry = {
@@ -53,7 +53,7 @@ custom_rpc_type_registry = {
         ["key_types", "BTreeSet<KeyType>"],
         ["slot_index", "Option<u32>"],
         ["penalty_count", "u32"],
-        ["bootnode_access", "BTreeSet<AccountId>"],
+        ["bootnode_access", "BTreeSet<[u8; 20]>"],
         ["bootnodes", "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>"],
         ["total_nodes", "u32"],
         ["total_active_nodes", "u32"],
@@ -190,7 +190,7 @@ custom_rpc_type_registry = {
       "type_mapping": [
         ["validator_id", "u32"],
         ["attests", "BTreeMap<u32, AttestEntry>"],
-        ["subnet_nodes", "Vec<SubnetNode<AccountId>>"],
+        ["subnet_nodes", "Vec<SubnetNode<[u8; 20]>>"],
         ["prioritize_queue_node_id", "Option<u32>"],
         ["remove_queue_node_id", "Option<u32>"],
         ["data", "Vec<SubnetNodeConsensusData>"],
@@ -266,15 +266,87 @@ hypertensor = Hypertensor(LOCAL_RPC, "0x5fb92d6e98884f76de468fa3f6278f8807c48beb
 # pytest tests/substrate/test_rpc.py::test_get_subnet_info -rP
 
 def test_get_subnet_info():
+    debug_custom_rpc_type_registry = {
+      "types": {
+        "SubnetInfo": {
+          "type": "struct",
+          "type_mapping": [
+            ["id", "u32"],
+            ["name", "Vec<u8>"],
+            ["repo", "Vec<u8>"],
+            ["description", "Vec<u8>"],
+            ["misc", "Vec<u8>"],
+            ["state", "SubnetState"],
+            ["start_epoch", "u32"],
+            ["churn_limit", "u32"],
+            ["min_stake", "u128"],
+            ["max_stake", "u128"],
+            ["queue_immunity_epochs", "u32"],
+            ["target_node_registrations_per_epoch", "u32"],
+            ["subnet_node_queue_epochs", "u32"],
+            ["idle_classification_epochs", "u32"],
+            ["included_classification_epochs", "u32"],
+            ["delegate_stake_percentage", "u128"],
+            ["node_burn_rate_alpha", "u128"],
+            ["max_node_penalties", "u32"],
+            ["initial_coldkeys", "Option<Vec<[u8; 20]>>"],
+            ["max_registered_nodes", "u32"],
+            ["owner", "Option<[u8; 20]>"],
+            ["pending_owner", "Option<[u8; 20]>"],
+            ["registration_epoch", "Option<u32>"],
+            ["key_types", "BTreeSet<KeyType>"],
+            ["slot_index", "Option<u32>"],
+            ["penalty_count", "u32"],
+            ["bootnode_access", "BTreeSet<[u8; 20]>"],
+            ["bootnodes", "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>"],
+            ["total_nodes", "u32"],
+            ["total_active_nodes", "u32"],
+            ["total_electable_nodes", "u32"],
+          ],
+        },
+        "SubnetState": {
+          "type": "enum",
+          "value_list": [
+            "Registered",
+            "Active",
+            "Paused",
+          ],
+        },
+        "KeyType": {
+          "type": "enum",
+          "value_list": [
+            "Rsa",
+            "Ed25519",
+            "Secp256k1",
+            "Ecdsa",
+          ],
+        },
+        "BTreeSet<KeyType>": "Vec<KeyType>",
+        "BTreeSet<[u8; 20]>": "Vec<[u8; 20]>",
+        "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>": "Vec<BoundedVec<u8, DefaultMaxVectorLength>>",  # Not just Vec<u8>
+        "BoundedVec<u8, DefaultMaxVectorLength>": "Vec<u8>",
+        "BoundedVec<u8, DefaultMaxUrlLength>": "Vec<u8>",
+        "BoundedVec<u8, DefaultMaxSocialIdLength>": "Vec<u8>",
+        "BoundedVec<u8, DefaultValidatorArgsLimit>": "Vec<u8>",
+        "Option<BoundedVec<u8, DefaultMaxVectorLength>>": "Option<Vec<u8>>",
+        "Option<BoundedVec<u8, DefaultMaxUrlLength>>": "Option<Vec<u8>>",
+        "Option<BoundedVec<u8, DefaultMaxSocialIdLength>>": "Option<Vec<u8>>",
+        "Option<BoundedVec<u8, DefaultValidatorArgsLimit>>": "Option<Vec<u8>>",
+      }
+    }
+
     rpc_runtime_config = RuntimeConfiguration()
     rpc_runtime_config.update_type_registry(load_type_registry_preset("legacy"))
-    rpc_runtime_config.update_type_registry(custom_rpc_type_registry)
+    rpc_runtime_config.update_type_registry(debug_custom_rpc_type_registry)
 
     with hypertensor.interface as _interface:
         result = _interface.rpc_request(
             method='network_getSubnetInfo',
             params=[1]
         )
+        scale_obj = rpc_runtime_config.create_scale_object("Option<SubnetInfo>")
+        type_info = scale_obj.generate_type_decomposition()
+        print("type_info", type_info)
 
         if 'result' in result and result['result']:
             try:
@@ -303,7 +375,7 @@ def test_get_subnet_info():
 
 def test_get_subnet_info_formatted():
   subnet_info = hypertensor.get_formatted_subnet_info(1)
-  print(subnet_info)
+  print("subnet_info", subnet_info)
 
 # pytest tests/substrate/test_rpc.py::test_get_all_subnet_info -rP
 
@@ -750,3 +822,53 @@ def test_get_node_delegate_stakes():
 def test_get_node_delegate_stakes_formatted():
   data = hypertensor.get_node_delegate_stakes_formatted("0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac")
   print(data)
+
+
+@dataclass
+class ConsensusData:
+  """
+  Dataclass for subnet node info.
+  """
+  validator_id: int
+  attests: list
+  subnet_nodes: list
+  prioritize_queue_node_id: int | None
+  remove_queue_node_id: int | None
+  data: list | None
+  args: list | None
+
+  @classmethod
+  def fix_decoded_values(cls, data_decoded: Any) -> "ConsensusData":
+      """Converts substrate-interface SCALE object to ConsensusData dataclass."""
+      return cls(**data_decoded.serialize())
+
+  # @classmethod
+  # def fix_decoded_values(cls, data_decoded: Any) -> "ConsensusData":
+  #   # Try serialize method if available
+  #   if hasattr(data_decoded, 'serialize'):
+  #       data_dict = data_decoded.serialize()
+  #       print(f"DEBUG: serialize() returned: {type(data_dict)}")
+  #   else:
+  #       # Manually extract all fields
+  #       data_dict = {}
+  #       for key in ['validator_id', 'attests', 'subnet_nodes', 'prioritize_queue_node_id',
+  #                   'remove_queue_node_id', 'data', 'args']:
+  #           try:
+  #               data_dict[key] = data_decoded[key]
+  #           except Exception as e:
+  #               print(f"DEBUG: Failed to get {key}: {e}")
+  #               data_dict[key] = None
+
+  #       print(f"DEBUG: Manual extraction: {data_dict}")
+  #   return cls(**data_dict)
+
+
+# pytest tests/substrate/test_rpc.py::test_get_consensus_data_formatted -rP
+
+def test_get_consensus_data_formatted():
+  # subnet_info = hypertensor.get_consensus_data_formatted(1, 15)
+  # print("subnet_info", subnet_info)
+    result = hypertensor.get_consensus_data(1, 1)
+
+    consensus_data = ConsensusData.fix_decoded_values(result)
+    print("consensus_data", consensus_data)

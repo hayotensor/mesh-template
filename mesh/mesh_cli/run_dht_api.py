@@ -1,3 +1,7 @@
+"""
+!See README.md
+"""
+
 import os
 from argparse import ArgumentParser
 from pathlib import Path
@@ -11,7 +15,6 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 from starlette.status import HTTP_403_FORBIDDEN
 
 from mesh.dht import DHT, DHTNode
@@ -25,6 +28,7 @@ from mesh.utils.dht import get_node_heartbeats
 from mesh.utils.key import get_private_key
 from mesh.utils.logging import get_logger, use_mesh_log_handler
 from mesh.utils.networking import log_visible_maddrs
+from mesh.utils.p2p_utils import extract_peer_ip_info, get_peers_ips
 from mesh.utils.proof_of_stake import ProofOfStake
 
 use_mesh_log_handler("in_root_logger")
@@ -49,6 +53,43 @@ Example:
                 ]
             }
     curl -H "X-API-Key: key-party1-abc123" http://localhost:8000/get_heartbeat
+    (This returns data based on the unique variables for the subnet nodes that are sent in during the heartbeat submissions)
+        returns:
+            [
+                {
+                    "peer_id":"QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG",
+                    "server":{
+                        "state":2,
+                        "role":"validator",
+                        "throughput":1.0,
+                        "public_name":null,
+                        "version":"1.0.0",
+                        "inference_rps":null,
+                        "using_relay":false,
+                        "next_pings":{}},
+                        "expiration_time":1759202593.575971
+                    }
+                ]
+    curl -H "X-API-Key: key-party1-abc123" http://localhost:8000/get_peers_info
+        returns:
+             {
+                'QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG': {
+                    'location': {
+                        'status': 'fail',
+                        'message': 'private range',
+                        'query': '127.0.0.1'
+                    },
+                    'multiaddrs': ['/ip4/127.0.0.1/tcp/31332']
+                },
+                '12D3KooWMUcE668wDF6aTiMmsKFwSV2wJNZ4tNvphVhMziPgg7mN': {
+                    'location': {
+                        'status': 'fail',
+                        'message': 'private range',
+                        'query': '127.0.0.1'
+                    }, 
+                    'multiaddrs': ['/ip4/127.0.0.1/tcp/41500']
+                }
+             }
 
 Create endpoint with NGINX for HTTPS encryption
 
@@ -109,7 +150,7 @@ def serialize_object(obj):
 
     # Handle enums
     if hasattr(obj, 'value') and hasattr(obj, 'name'):
-        return obj.value
+        return obj.name
 
     # Handle lists/tuples
     if isinstance(obj, (list, tuple)):
@@ -149,7 +190,6 @@ async def get_heartbeat(
         uid="node",
         latest=True
     )
-    print("results", results)
     if results:
         try:
             serialized_results = serialize_object(results)
@@ -157,13 +197,6 @@ async def get_heartbeat(
         except Exception as e:
             logger.warning(f"Error returning heartbeat {e}", exc_info=True)
             return {"error": str(e)}
-
-    # if results:
-    #     try:
-    #         return {"value": results}
-    #     except Exception as e:
-    #         logger.warning(f"Error returning heartbeat {e}", exc_info=True)
-
     return {"value": None}
 
 @app.get("/get_bootnodes")
@@ -179,7 +212,6 @@ async def get_bootnodes(
     if dht is None:
         return {"error": "DHT not initialized"}
     visible_maddrs = dht.get_visible_maddrs()
-    print("visible_maddrs", visible_maddrs)
     if visible_maddrs:
         try:
             addrs = []
@@ -190,6 +222,32 @@ async def get_bootnodes(
             logger.warning(f"Error returning heartbeat {e}", exc_info=True)
 
     return {"value": None}
+
+@app.get("/get_peers_info")
+@ip_limiter.limit("5/minute")
+@key_limiter.limit("5/minute")
+async def get_peers_info(
+    request: Request,
+    api_key: str = Depends(get_api_key)
+):
+    """
+    Query the DHT bootnodes.
+    """
+    if dht is None:
+        return {"error": "DHT not initialized"}
+
+    peers_info = {str(peer.peer_id): {"location": extract_peer_ip_info(str(peer.addrs[0])), "multiaddrs": [str(multiaddr) for multiaddr in peer.addrs]} for peer in dht.run_coroutine(get_peers_ips)}
+    if peers_info:
+        try:
+            serialized_results = serialize_object(peers_info)
+            return {"value": serialized_results}
+        except Exception as e:
+            logger.warning(f"Error returning heartbeat {e}", exc_info=True)
+
+    return {"value": None}
+
+
+
 
 def run_api():
     uvicorn.run(app, host="0.0.0.0", port=8000)

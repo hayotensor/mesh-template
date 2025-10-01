@@ -47,7 +47,7 @@ class Consensus(mp.Process):
         validator = self.hypertensor.get_rewards_validator(self.subnet_id, epoch)
         return validator
 
-    def get_scores(self) -> List[Any]:
+    def get_scores(self, current_epoch: int) -> List[Any]:
         """
         Fill in a way to get scores on each node
 
@@ -69,8 +69,8 @@ class Consensus(mp.Process):
             return []
 
         # Get each subnet node ID that is included onchain AND in the subnet
-        included_nodes = self.hypertensor.get_subnet_included_nodes(self.subnet_id)
-        subnet_node_ids = [n.id for n in included_nodes if PeerID.from_base58(n.peer_id) in node_peer_ids]
+        included_nodes = self.hypertensor.get_min_class_subnet_nodes_formatted(self.subnet_id, current_epoch, SubnetNodeClass.Included)
+        subnet_node_ids = [n.subnet_node_id for n in included_nodes if PeerID.from_base58(n.peer_id) in node_peer_ids]
 
         """
             {
@@ -148,10 +148,10 @@ class Consensus(mp.Process):
                 If this is the nodes first epoch after a restart of the node, check last epochs consensus data
                 """
                 consensus_data = self.hypertensor.get_consensus_data_formatted(self.subnet_id, epoch - 1)
-                if consensus_data is None or consensus_data == 'None':  # noqa: E711
+                if consensus_data is None:  # noqa: E711
                     success = False
                 else:
-                    previous_epoch_validator_data = consensus_data
+                    previous_epoch_validator_data = consensus_data.data
                     # This is a backup so we ensure the data was super majority attested to use it
                     if previous_epoch_validator_data is not None and previous_epoch_validator_data != None:  # noqa: E711
                         attestation_ratio = self._get_attestation_ratio(consensus_data)
@@ -229,9 +229,7 @@ class Consensus(mp.Process):
 
             if current_epoch != last_epoch:
                 # offset_sleep = 0
-                subnet_info = self.hypertensor.get_formatted_subnet_info(
-                    self.subnet_id
-                )
+                subnet_info = self.hypertensor.get_formatted_subnet_info(self.subnet_id)
                 print("run_activate_subnet subnet_info", subnet_info)
                 if subnet_info is None or subnet_info == None:  # noqa: E711
                     # None means the subnet is likely deactivated
@@ -361,7 +359,7 @@ class Consensus(mp.Process):
         """
         logger.info(f"[Consensus] epoch: {current_epoch}")
 
-        scores = self.get_scores()
+        scores = self.get_scores(current_epoch)
 
         print("scores", scores)
 
@@ -392,7 +390,14 @@ class Consensus(mp.Process):
 
             # See if attestation proposal submitted
             consensus_data = self.hypertensor.get_consensus_data_formatted(self.subnet_id, current_epoch)
-            if consensus_data is not None or consensus_data != None: # noqa: E711
+            # consensus_data = self.hypertensor.get_consensus_data(
+            #     self.subnet_id,
+            #     current_epoch
+            # )
+            print("consensus_data", consensus_data)
+            print("consensus_data is not None", consensus_data is not None)
+            print("consensus_data != None", consensus_data != None)
+            if consensus_data is not None: # noqa: E711
                 logger.info("Already submitted data, moving to next epoch")
                 return
 
@@ -424,7 +429,12 @@ class Consensus(mp.Process):
             while not self.stop.is_set():
                 # Check consensus data exists in case attest fails
                 if consensus_data is None or consensus_data == None:  # noqa: E711
+                    # consensus_data = self.hypertensor.get_consensus_data(
+                    #     self.subnet_id,
+                    #     current_epoch
+                    # )
                     consensus_data = self.hypertensor.get_consensus_data_formatted(self.subnet_id, current_epoch)
+                    print("consensus_data", consensus_data)
 
                 epoch_data = self.hypertensor.get_subnet_epoch_data(self.slot)
                 _current_epoch = epoch_data.epoch
@@ -464,5 +474,4 @@ class Consensus(mp.Process):
                     break
 
     def shutdown(self):
-        self.join()
         self.stop.set()
