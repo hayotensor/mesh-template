@@ -7,16 +7,16 @@ from pydantic.v1 import BaseModel, StrictInt, conint
 
 import mesh
 from mesh.dht.node import DHTNode
-from mesh.dht.schema import BytesWithRSAPublicKey, SchemaValidator
+from mesh.dht.schema import BytesWithPublicKey, SchemaValidator
 from mesh.dht.validation import DHTRecord, DHTRecordRequestType, RecordValidatorBase
 from mesh.utils.timed_storage import get_dht_time
 
-# pytest tests/test_dht_schema_rsa.py -rP
+# pytest tests/test_dht_schema.py -rP
 
 class SampleSchema(BaseModel):
     experiment_name: bytes
     n_batches: Dict[bytes, conint(ge=0, strict=True)] # type: ignore
-    signed_data: Dict[BytesWithRSAPublicKey, bytes] # type: ignore
+    signed_data: Dict[BytesWithPublicKey, bytes] # type: ignore
 
 
 @pytest_asyncio.fixture
@@ -84,7 +84,7 @@ async def test_expecting_public_keys(dht_nodes_with_schema):
     alice, bob = dht_nodes_with_schema
 
     # Subkeys expected to contain a public key
-    # (so mesh.dht.crypto.RSASignatureValidator would require a signature)
+    # (so mesh.dht.crypto.SignatureValidator would require a signature)
     assert await bob.store("signed_data", b"foo_bar", get_dht_time() + 10, subkey=b"uid[owner:public-key]")
     assert not await bob.store("signed_data", b"foo_bar", get_dht_time() + 10, subkey=b"uid-without-public-key")
 

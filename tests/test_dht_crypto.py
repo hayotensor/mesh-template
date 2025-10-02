@@ -11,6 +11,8 @@ from mesh.dht.validation import DHTRecord, DHTRecordRequestType
 from mesh.utils.crypto import Ed25519PrivateKey, RSAPrivateKey
 from mesh.utils.timed_storage import get_dht_time
 
+# pytest tests/test_dht_crypto.py -rP
+
 # pytest tests/test_dht_crypto.py::test_signature_validator_rsa_and_ed25519 -rP
 
 def test_signature_validator_rsa_and_ed25519():

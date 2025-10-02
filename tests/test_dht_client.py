@@ -3,7 +3,7 @@ from typing import List
 
 import pytest
 
-from mesh.dht.crypto import RSASignatureValidator
+from mesh.dht.crypto import SignatureValidator
 from mesh.utils.key import generate_rsa_private_key_file, get_rsa_private_key
 
 from test_utils.dht_swarms import (
@@ -17,7 +17,7 @@ def test_dht_same_clients(n_peers=10):
     peers_len = 5
 
     test_paths = []
-    record_validators: List[RSASignatureValidator] = []
+    record_validators: List[SignatureValidator] = []
     for i in range(peers_len):
         test_path = f"rsa_test_path_{i}.key"
         root_path = os.path.dirname(os.path.abspath(__file__))
@@ -28,7 +28,7 @@ def test_dht_same_clients(n_peers=10):
 
         test_paths.append(test_path)
         loaded_key = get_rsa_private_key(test_path)
-        record_validator = RSASignatureValidator(loaded_key)
+        record_validator = SignatureValidator(loaded_key)
         record_validators.append(record_validator)
 
         if i > 0:

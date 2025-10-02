@@ -4,13 +4,13 @@ from typing import List
 import pytest
 
 from mesh import get_dht_time
-from mesh.dht.crypto import RSASignatureValidator
+from mesh.dht.crypto import SignatureValidator
 from mesh.subnet.client.config import ClientConfig
 from mesh.subnet.client.routing.routing_manager import RemoteManager
 from mesh.subnet.client.session import Session
 from mesh.subnet.protocols.mock_protocol import MockProtocol
 from mesh.utils.data_structures import QuantType, ServerClass, ServerInfo, ServerState
-from mesh.utils.dht import declare_node
+from mesh.utils.dht import declare_node_sig
 from mesh.utils.key import (
     generate_rsa_private_key_file,
     get_rsa_peer_id,
@@ -39,13 +39,13 @@ async def test_mock_session():
     peers_len = 2
 
     test_paths = []
-    record_validators: List[RSASignatureValidator] = []
+    record_validators: List[SignatureValidator] = []
     for i in range(peers_len):
         test_path = f"rsa_test_path_{i}.key"
         test_paths.append(test_path)
         private_key, public_key, public_bytes, encoded_public_key, encoded_digest, peer_id = generate_rsa_private_key_file(test_path)
         loaded_key = get_rsa_private_key(test_path)
-        record_validator = RSASignatureValidator(loaded_key)
+        record_validator = SignatureValidator(loaded_key)
         record_validators.append(record_validator)
         peer_id = get_rsa_peer_id(public_bytes)
 
@@ -55,14 +55,13 @@ async def test_mock_session():
     )
 
     hoster_dht = dhts[0]
+    hoster_record_validator = record_validators[0]
     validator_dht = dhts[1]
-
-    converted_model_name_or_path = "bigscience/bloom-560m"
 
     throughput_info = {"throughput": 1.0}
     server_info = ServerInfo(
         state=ServerState.ONLINE,
-        role=ServerClass.HOSTER,
+        role=ServerClass.VALIDATOR,
         public_name="",
         version="1.0.0",
         adapters=tuple(()),
@@ -72,16 +71,17 @@ async def test_mock_session():
         **throughput_info,
     )
 
-    declare_node(
+    declare_node_sig(
         dht=hoster_dht,
-        key="hoster",
+        key="node",
         server_info=server_info,
         expiration_time=get_dht_time() + 999,
+        record_validator=hoster_record_validator
     )
 
     hoster_inference_protocol = MockProtocol(
         dht=hoster_dht,
-        model_name=converted_model_name_or_path,
+        subnet_id=1,
         start=True
     )
 

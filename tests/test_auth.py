@@ -5,15 +5,15 @@ import pytest
 
 from mesh.proto import dht_pb2
 from mesh.proto.auth_pb2 import AccessToken
-from mesh.utils.authorizers.auth import AuthRole, AuthRPCWrapper, TokenRSAAuthorizerBase
-from mesh.utils.crypto import RSAPrivateKey
+from mesh.utils.authorizers.auth import AuthRole, AuthRPCWrapper, SignatureAuthorizer
+from mesh.utils.crypto import Ed25519PrivateKey, RSAPrivateKey
 from mesh.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 # pytest tests/test_auth_rsa.py -rP
 
-class MockAuthorizer(TokenRSAAuthorizerBase):
+class MockAuthorizer(SignatureAuthorizer):
     _authority_private_key = None
     _authority_public_key = None
 
@@ -84,11 +84,12 @@ class MockAuthorizer(TokenRSAAuthorizerBase):
     def _token_to_bytes(access_token: AccessToken) -> bytes:
         return f"{access_token.username} {access_token.public_key} {access_token.expiration_time}".encode()
 
+# pytest tests/test_auth.py::test_valid_request_and_response -rP
 
 @pytest.mark.asyncio
 async def test_valid_request_and_response():
     client_authorizer = MockAuthorizer(RSAPrivateKey())
-    service_authorizer = MockAuthorizer(RSAPrivateKey())
+    service_authorizer = MockAuthorizer(Ed25519PrivateKey())
 
     request = dht_pb2.PingRequest()
     request.peer.node_id = b"ping"
@@ -100,11 +101,12 @@ async def test_valid_request_and_response():
     await service_authorizer.sign_response(response, request)
     assert await client_authorizer.validate_response(response, request)
 
+# pytest tests/test_auth.py::test_invalid_access_token -rP
 
 @pytest.mark.asyncio
 async def test_invalid_access_token():
     client_authorizer = MockAuthorizer(RSAPrivateKey())
-    service_authorizer = MockAuthorizer(RSAPrivateKey())
+    service_authorizer = MockAuthorizer(Ed25519PrivateKey())
 
     request = dht_pb2.PingRequest()
     request.peer.node_id = b"ping"
@@ -124,11 +126,12 @@ async def test_invalid_access_token():
 
     assert not await client_authorizer.validate_response(response, request)
 
+# pytest tests/test_auth.py::test_invalid_signatures -rP
 
 @pytest.mark.asyncio
 async def test_invalid_signatures():
     client_authorizer = MockAuthorizer(RSAPrivateKey())
-    service_authorizer = MockAuthorizer(RSAPrivateKey())
+    service_authorizer = MockAuthorizer(Ed25519PrivateKey())
 
     request = dht_pb2.PingRequest()
     request.peer.node_id = b"true-ping"
@@ -148,6 +151,7 @@ async def test_invalid_signatures():
 
     assert not await client_authorizer.validate_response(response, request)
 
+# pytest tests/test_auth.py::test_auth_rpc_wrapper -rP
 
 @pytest.mark.asyncio
 async def test_auth_rpc_wrapper():
@@ -167,7 +171,7 @@ async def test_auth_rpc_wrapper():
         async def rpc_increment(self, request: dht_pb2.PingRequest) -> dht_pb2.PingResponse:
             return await self._servicer.rpc_increment(request)
 
-    servicer = AuthRPCWrapper(Servicer(), AuthRole.SERVICER, MockAuthorizer(RSAPrivateKey(), "bob"))
+    servicer = AuthRPCWrapper(Servicer(), AuthRole.SERVICER, MockAuthorizer(Ed25519PrivateKey(), "bob"))
     client = AuthRPCWrapper(Client(servicer), AuthRole.CLIENT, MockAuthorizer(RSAPrivateKey(), "alice"))
 
     request = dht_pb2.PingRequest()

@@ -9,10 +9,11 @@ from mesh.utils.authorizers.auth import (
     AuthorizedResponseBase,
     AuthRole,
     AuthRPCWrapperStreamer,
-    TokenRSAAuthorizerBase,
+    SignatureAuthorizer,
 )
+from mesh.utils.crypto import Ed25519PrivateKey, RSAPrivateKey
 
-# pytest tests/test_auth_streamer_rsa.py -rP
+# pytest tests/test_auth_streamer.py -rP
 
 # class DummyRequest:
 #     def __init__(self, msg):
@@ -95,9 +96,37 @@ class DummyStub:
             yield DummyResponse(f"stream:{request.msg}:{i}")
 
 @pytest.mark.asyncio
-async def test_authrpcwrapper_real_authorizer():
+async def test_authrpcwrapper_real_authorizer_ed25519():
     # Use real RSA keys
-    authorizer = TokenRSAAuthorizerBase()
+    authorizer = SignatureAuthorizer(Ed25519PrivateKey())
+
+    raw_stub = DummyStub()
+    servicer_stub = AuthRPCWrapperStreamer(raw_stub, AuthRole.SERVICER, authorizer)
+    client_stub = AuthRPCWrapperStreamer(servicer_stub, AuthRole.CLIENT, authorizer)
+
+    # ✅ VALID unary
+    req = DummyRequest("test")
+    resp = await client_stub.rpc_unary(req)
+    assert resp is not None
+    assert resp.reply == "echo:test"
+
+    # ✅ VALID streaming
+    stream = client_stub.rpc_stream(DummyRequest("streaming"))
+    replies = [r.reply async for r in stream]
+    assert replies == ["stream:streaming:0", "stream:streaming:1"]
+
+    stream = client_stub.rpc_stream(req)
+    replies = []
+    async for resp in stream:
+        assert isinstance(resp.auth, ResponseAuthInfo)
+        replies.append(resp.reply)
+
+    assert replies == ["stream:test:0", "stream:test:1"]
+
+@pytest.mark.asyncio
+async def test_authrpcwrapper_real_authorizer_rsa():
+    # Use real RSA keys
+    authorizer = SignatureAuthorizer(RSAPrivateKey())
 
     raw_stub = DummyStub()
     servicer_stub = AuthRPCWrapperStreamer(raw_stub, AuthRole.SERVICER, authorizer)

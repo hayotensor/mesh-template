@@ -1114,7 +1114,7 @@ class AllSubnetBootnodes:
     if len(vec_u8) == 0:
       return AllSubnetBootnodes._get_null()
 
-    decoded = from_scale_encoding(vec_u8, ChainDataType.AllSubnetBootnodes, is_option=True)
+    decoded = from_scale_encoding(vec_u8, ChainDataType.AllSubnetBootnodes)
 
     print("AllSubnetBootnodes decoded", decoded)
 

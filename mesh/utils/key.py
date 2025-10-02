@@ -169,13 +169,13 @@ Peer IDs
 """
 Extract Ed25519 peer ID from public key
 """
-def extract_ed25519_peer_id_from_subkey(record_validator: RecordValidatorBase, key)-> Optional[PeerID]:
-  public_keys = SignatureValidator._PUBLIC_KEY_RE.findall(key)
-  # public_keys = record_validator._PUBLIC_KEY_RE.findall(key)
-  pubkey = Ed25519PublicKey.from_bytes(public_keys[0])
+# def extract_ed25519_peer_id_from_subkey(record_validator: RecordValidatorBase, key)-> Optional[PeerID]:
+#   public_keys = SignatureValidator._PUBLIC_KEY_RE.findall(key)
+#   # public_keys = record_validator._PUBLIC_KEY_RE.findall(key)
+#   pubkey = Ed25519PublicKey.from_bytes(public_keys[0])
 
-  peer_id = get_ed25519_peer_id(pubkey)
-  return peer_id
+#   peer_id = get_ed25519_peer_id(pubkey)
+#   return peer_id
 
 def extract_ed25519_peer_id_from_ssh(ssh_public_key)-> Optional[PeerID]:
   ed25519_public_key = serialization.load_ssh_public_key(ssh_public_key)
@@ -373,3 +373,55 @@ def extract_peer_id_from_record_validator_v2(key)-> Optional[PeerID]:
     return PeerID(encoded_public_key)
   else:
     return None
+
+def get_peer_id_from_identity_path(identity_path: str):
+  with open(f"{identity_path}", "rb") as f:
+    data = f.read()
+    private_key = crypto_pb2.PrivateKey.FromString(data)
+    key_type = private_key.key_type
+    key_data = private_key.data
+
+    if key_type == 0:
+      # RSA
+      private_key = serialization.load_der_private_key(key_data, password=None)
+
+      encoded_public_key = private_key.public_key().public_bytes(
+          encoding=serialization.Encoding.DER,
+          format=serialization.PublicFormat.SubjectPublicKeyInfo,
+      )
+      logger.info(f"DER RSA Public Key: {encoded_public_key}")
+
+      encoded_public_key = crypto_pb2.PublicKey(
+          key_type=crypto_pb2.RSA,
+          data=encoded_public_key,
+      ).SerializeToString()
+
+      encoded_digest = multihash.encode(
+          hashlib.sha256(encoded_public_key).digest(),
+          multihash.coerce_code("sha2-256"),
+      )
+
+      return PeerID(encoded_digest)
+    elif key_type == 1:
+      # Ed25519
+      private_key = ed25519.Ed25519PrivateKey.from_private_bytes(key_data[:32])
+      public_key = private_key.public_key().public_bytes(
+          encoding=serialization.Encoding.Raw,
+          format=serialization.PublicFormat.Raw,
+      )
+
+      encoded_public_key = crypto_pb2.PublicKey(
+          key_type=crypto_pb2.Ed25519,
+          data=public_key,
+      ).SerializeToString()
+
+      encoded_digest = b"\x00$" + encoded_public_key
+
+      return PeerID(encoded_digest)
+    elif key_type == 2:
+      # Secp256k1
+      raise ValueError("Secp256k1 is an unsupported public key type")
+
+    elif key_type == 3:
+      # ECDSA
+      raise ValueError("ECDSA is an unsupported public key type")

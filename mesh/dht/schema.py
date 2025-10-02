@@ -176,5 +176,4 @@ def conbytes(*, regex: bytes = None, **kwargs) -> Type[pydantic.BaseModel]:
     return ConstrainedBytesWithRegex
 
 
-BytesWithRSAPublicKey = conbytes(regex=b".*" + SignatureValidator.PUBLIC_KEY_REGEX + b".*")
-BytesWithEd25519PublicKey = conbytes(regex=b".*" + SignatureValidator.PUBLIC_KEY_REGEX + b".*")
+BytesWithPublicKey = conbytes(regex=b".*" + SignatureValidator.PUBLIC_KEY_REGEX + b".*")

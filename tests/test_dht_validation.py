@@ -5,31 +5,32 @@ import pytest
 from pydantic.v1 import BaseModel, StrictInt
 
 import mesh
-from mesh.dht.crypto import RSASignatureValidator
+from mesh.dht.crypto import SignatureValidator
 from mesh.dht.protocol import DHTProtocol
 from mesh.dht.routing import DHTID
-from mesh.dht.schema import BytesWithRSAPublicKey, SchemaValidator
+from mesh.dht.schema import BytesWithPublicKey, SchemaValidator
 from mesh.dht.validation import CompositeValidator, DHTRecord, DHTRecordRequestType
+from mesh.utils.crypto import Ed25519PrivateKey, RSAPrivateKey
 
-# pytest tests/test_dht_validation_rsa.py -rP
+# pytest tests/test_dht_validation.py -rP
 
 class SchemaA(BaseModel):
     field_a: bytes
 
 
 class SchemaB(BaseModel):
-    field_b: Dict[BytesWithRSAPublicKey, StrictInt]
+    field_b: Dict[BytesWithPublicKey, StrictInt]
 
 
 @pytest.fixture
 def validators_for_app():
     # Each application may add its own validator set
     return {
-        "A": [RSASignatureValidator(), SchemaValidator(SchemaA, allow_extra_keys=False)],
-        "B": [SchemaValidator(SchemaB, allow_extra_keys=False), RSASignatureValidator()],
+        "A": [SignatureValidator(RSAPrivateKey()), SchemaValidator(SchemaA, allow_extra_keys=False)],
+        "B": [SchemaValidator(SchemaB, allow_extra_keys=False), SignatureValidator(Ed25519PrivateKey())],
     }
 
-# pytest tests/test_dht_validation_rsa.py::test_dht_add_validators -rP
+# pytest tests/test_dht_validation.py::test_dht_add_validators -rP
 
 @pytest.mark.forked
 def test_dht_add_validators(validators_for_app):
@@ -61,10 +62,10 @@ def test_dht_add_validators(validators_for_app):
 
 def test_composite_validator(validators_for_app):
     validator = CompositeValidator(validators_for_app["A"])
-    assert [type(item) for item in validator._validators] == [SchemaValidator, RSASignatureValidator]
+    assert [type(item) for item in validator._validators] == [SchemaValidator, SignatureValidator]
 
     validator.extend(validators_for_app["B"])
-    assert [type(item) for item in validator._validators] == [SchemaValidator, RSASignatureValidator]
+    assert [type(item) for item in validator._validators] == [SchemaValidator, SignatureValidator]
     assert len(validator._validators[0]._schemas) == 2
 
     local_public_key = validators_for_app["A"][0].local_public_key

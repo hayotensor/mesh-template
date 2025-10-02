@@ -72,7 +72,6 @@ class Server:
         See https://docs.hypertensor.org/mesh-template/dht-records/record-validator
         """
         # Initialize standard RSA signature record validator. See https://docs.hypertensor.org/mesh-template/dht-records/record-validator/signature-validators
-        # self.signature_validator = RSASignatureValidator(pk)
         self.signature_validator = SignatureValidator(pk)
         self.record_validators=[self.signature_validator]
 

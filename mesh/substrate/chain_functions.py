@@ -201,7 +201,7 @@ class Hypertensor:
     try:
       return submit_extrinsic()
     except Exception as e:
-      logger.warning(f"propose_attestation={e}", exc_info=True)    
+      logger.warning(f"propose_attestation={e}", exc_info=True)
 
   def attest(
     self,
@@ -1441,7 +1441,7 @@ class Hypertensor:
               print("result", result)
               return result
 
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             # Force reconnect + metadata refresh so retry can succeed
             try:
                 self.interface.close()
