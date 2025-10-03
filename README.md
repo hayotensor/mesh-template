@@ -135,7 +135,7 @@ Each subnet must have at least one public and running bootnode at all times for 
 mesh-dht \
 --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
 --announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
---identity_path server2.id
+--identity_path alith.id
 ```
 
 #### Start Bootnode and Join Subnet
@@ -160,7 +160,7 @@ This will start a new subnet (fresh swarm as initial node)
 mesh-server-mock \
 --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
 --announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
---identity_path server2.id \
+--identity_path alith.id \
 --new_swarm  \
 --subnet_id 1 --subnet_node_id 1
 ```
@@ -170,7 +170,7 @@ mesh-server-mock \
 mesh-server-mock \
 --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
 --announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
---identity_path server2.id \
+--identity_path alith.id \
 --subnet_id 1 --subnet_node_id 1
 ```
 ---

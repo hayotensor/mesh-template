@@ -389,7 +389,6 @@ def get_peer_id_from_identity_path(identity_path: str):
           encoding=serialization.Encoding.DER,
           format=serialization.PublicFormat.SubjectPublicKeyInfo,
       )
-      logger.info(f"DER RSA Public Key: {encoded_public_key}")
 
       encoded_public_key = crypto_pb2.PublicKey(
           key_type=crypto_pb2.RSA,

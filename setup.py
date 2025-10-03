@@ -208,7 +208,7 @@ setup(
             # generate coldkey or hotkey
             "generate-key = mesh.mesh_cli.hypertensor.keys.generate_key:main",
             # view peer ID from private key
-            "keyview = mesh.mesh_cli.hypertensor.keys.keyview:main",
+            "keyview = mesh.mesh_cli.crypto.keyview:main",
             # hypertensor subnet
             "register-subnet = mesh.mesh_cli.hypertensor.subnet.register:main",
             "activate-subnet = mesh.mesh_cli.hypertensor.subnet.activate:main",

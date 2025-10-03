@@ -8,7 +8,7 @@ logger = get_logger(__name__)
 # View peer ID by inputing path
 
 """
-keyview --path s-1-rsa
+keyview --path alith.id
 """
 
 def main():
