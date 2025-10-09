@@ -15,7 +15,7 @@ from mesh.p2p import PeerID
 from mesh.utils import DHTExpiration, MPFuture, get_dht_time, get_logger
 from mesh.utils.data_structures import NodeHeartbeat, RemoteInfo, RemoteModuleInfo, ServerInfo, ServerState
 from mesh.utils.key import (
-    extract_peer_id_from_record_validator_v2,
+    extract_peer_id_from_record_validator,
 )
 
 logger = get_logger(__name__)
@@ -275,7 +275,7 @@ async def _get_node_infos_sig(
 
     modules: List[RemoteModuleInfo] = []
     for subkey, values in inner_dict.items():
-        caller_peer_id = extract_peer_id_from_record_validator_v2(subkey)
+        caller_peer_id = extract_peer_id_from_record_validator(subkey)
         peers.append(caller_peer_id)
         server_info = ServerInfo.from_tuple(values.value)
 
@@ -330,7 +330,7 @@ async def _get_node_heartbeats(
 
     modules: List[NodeHeartbeat] = []
     for subkey, values in inner_dict.items():
-        caller_peer_id = extract_peer_id_from_record_validator_v2(subkey)
+        caller_peer_id = extract_peer_id_from_record_validator(subkey)
         peers.append(caller_peer_id)
         server_info = ServerInfo.from_tuple(values.value)
 

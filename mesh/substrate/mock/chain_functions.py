@@ -152,7 +152,7 @@ class MockHypertensor:
             total_electable_nodes=4,
         )
 
-    def get_formatted_elected_validator_node(self, subnet_id: int, epoch: int) -> Optional["SubnetNode"]:
+    def get_elected_validator_node_formatted(self, subnet_id: int, epoch: int) -> Optional["SubnetNode"]:
         return SubnetNode(
             id=1,
             hotkey="0x1234567890abcdef1234567890abcdef12345678",

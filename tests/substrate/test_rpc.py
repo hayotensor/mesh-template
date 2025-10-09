@@ -1,10 +1,11 @@
 
 
 
+from dataclasses import dataclass
 from typing import Any
+
 import pytest
 import scalecodec
-from dataclasses import dataclass
 from scalecodec.base import RuntimeConfiguration, ScaleBytes
 from scalecodec.type_registry import load_type_registry_preset
 
@@ -58,6 +59,7 @@ custom_rpc_type_registry = {
         ["total_nodes", "u32"],
         ["total_active_nodes", "u32"],
         ["total_electable_nodes", "u32"],
+        ["current_min_delegate_stake", "u128"]
       ],
     },
     "SubnetState": {
@@ -302,6 +304,7 @@ def test_get_subnet_info():
             ["total_nodes", "u32"],
             ["total_active_nodes", "u32"],
             ["total_electable_nodes", "u32"],
+            ["current_min_delegate_stake", "u128"]
           ],
         },
         "SubnetState": {

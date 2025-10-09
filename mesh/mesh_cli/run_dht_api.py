@@ -86,7 +86,7 @@ Example:
                         'status': 'fail',
                         'message': 'private range',
                         'query': '127.0.0.1'
-                    }, 
+                    },
                     'multiaddrs': ['/ip4/127.0.0.1/tcp/41500']
                 }
              }

@@ -1834,6 +1834,35 @@ class Hypertensor:
 
     return make_rpc_request()
 
+  def get_elected_validator_info(
+    self,
+    subnet_id: int,
+    subnet_epoch: int
+  ):
+    """
+    Query an epochs chosen subnet validator and return SubnetNode
+
+    :param subnet_id: subnet ID
+    :returns: Struct of subnet info
+    """
+
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          data = _interface.rpc_request(
+            method='network_getElectedValidatorInfo',
+            params=[
+              subnet_id,
+              subnet_epoch
+            ]
+          )
+          return data
+      except SubstrateRequestException as e:
+        print("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
   """
   Events
   """
@@ -1976,7 +2005,7 @@ class Hypertensor:
   """
   Formatted
   """
-  def get_formatted_elected_validator_node(self, subnet_id: int, epoch: int) -> Optional["SubnetNode"]:
+  def get_elected_validator_node_formatted(self, subnet_id: int, subnet_epoch: int) -> Optional["SubnetNode"]:
     """
     Get formatted list of subnet nodes classified as Validator
 
@@ -1985,12 +2014,12 @@ class Hypertensor:
     :returns: List of subnet node IDs
     """
     try:
-      result = self.get_elected_validator_node(
+      result = self.get_elected_validator_info(
         subnet_id,
-        epoch
+        subnet_epoch
       )
 
-      subnet_node = SubnetNode.from_vec_u8(result["result"])
+      subnet_node = SubnetNodeInfo.from_vec_u8(result["result"])
 
       return subnet_node
     except Exception:
@@ -2025,10 +2054,8 @@ class Hypertensor:
     """
     try:
       result = self.get_subnet_info(subnet_id)
-      print("get_formatted_subnet_info result", result)
 
       subnet = SubnetInfo.from_vec_u8(result["result"])
-      print("get_formatted_subnet_info", subnet)
 
       return subnet
     except Exception:
@@ -2198,17 +2225,11 @@ class Hypertensor:
     """
     try:
       result = self.get_consensus_data(subnet_id, epoch)
-      print("get_consensus_data_formatted result", result)
-      print("get_consensus_data_formatted", result is None)
-      print("get_consensus_data_formatted", result == None)
-      print("get_consensus_data_formatted", result == 'None')
-      print("get_consensus_data_formatted", result == "None")
 
       if result is None or result == 'None' or result == None:  # noqa: E711
         return None
 
       consensus_data = ConsensusData.fix_decoded_values(result)
-      print("get_consensus_data_formatted consensus_data'", consensus_data)
 
       return consensus_data
     except Exception as e:
@@ -2227,13 +2248,6 @@ class Hypertensor:
       result = self.get_subnet_nodes_info(subnet_id)
 
       subnet_nodes = SubnetNodeInfo.list_from_vec_u8(result["result"])
-
-      print("get_min_class_subnet_nodes_formatted subnet_nodes", subnet_nodes)
-      for node in subnet_nodes:
-          print("node", node)
-          print("node.classification", node.classification)
-          print("node.classification['node_class']", node.classification['node_class'])
-          print("subnet_node_class_to_enum(node.classification['node_class'])", subnet_node_class_to_enum(node.classification['node_class']))
 
       return [
           node for node in subnet_nodes

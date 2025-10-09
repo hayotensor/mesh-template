@@ -305,13 +305,12 @@ def extract_rsa_peer_id_from_record_validator(key)-> Optional[PeerID]:
 
   return PeerID(encoded_digest)
 
-def extract_peer_id_from_record_validator(key, key_type: KeyType)-> Optional[PeerID]:
+def extract_peer_id_from_record_validator(key)-> Optional[PeerID]:
   public_keys = SignatureValidator._PUBLIC_KEY_RE.findall(key)
+  key = load_public_key_from_bytes(public_keys[0])
 
-  if key_type is KeyType.RSA:
-    rsa_public_key = serialization.load_ssh_public_key(public_keys[0])
-
-    public_bytes = rsa_public_key.public_bytes(
+  if isinstance(key, RSAPublicKey):
+    public_bytes = key._public_key.public_bytes(
       encoding=serialization.Encoding.DER,
       format=serialization.PublicFormat.SubjectPublicKeyInfo,
     )
@@ -326,24 +325,21 @@ def extract_peer_id_from_record_validator(key, key_type: KeyType)-> Optional[Pee
       multihash.coerce_code("sha2-256"),
     )
 
-    peer_id = PeerID(encoded_digest)
-  elif key_type is KeyType.Ed25519:
-    pubkey = Ed25519PublicKey.from_bytes(public_keys[0])
-
+    return PeerID(encoded_digest)
+  elif isinstance(key, Ed25519PublicKey):
     encoded_public_key = crypto_pb2.PublicKey(
       key_type=crypto_pb2.Ed25519,
-      data=pubkey.to_raw_bytes(),
+      data=key.to_raw_bytes(),
     ).SerializeToString()
 
     encoded_public_key = b"\x00$" + encoded_public_key
 
-    peer_id = PeerID(encoded_public_key)
+    return PeerID(encoded_public_key)
+  else:
+    return None
 
-  return peer_id
-
-def extract_peer_id_from_record_validator_v2(key)-> Optional[PeerID]:
-  public_keys = SignatureValidator._PUBLIC_KEY_RE.findall(key)
-  key = load_public_key_from_bytes(public_keys[0])
+def extract_peer_id_from_public_key(public_keys)-> Optional[PeerID]:
+  key = load_public_key_from_bytes(public_keys)
 
   if isinstance(key, RSAPublicKey):
     public_bytes = key._public_key.public_bytes(

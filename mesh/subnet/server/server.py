@@ -98,7 +98,6 @@ class Server:
         See https://docs.hypertensor.org/mesh-template/authorizers
         """
         # Initialize RSA signature authorizer. See https://docs.hypertensor.org/mesh-template/authorizers/signature-authorizer
-        # self.signature_authorizer = TokenRSAAuthorizerBase(pk)
         self.signature_authorizer = SignatureAuthorizer(pk)
 
         # Initialize PoS authorizer. See https://docs.hypertensor.org/mesh-template/authorizers/pos
@@ -110,7 +109,6 @@ class Server:
                 min_class=1,
             )
             self.pos_authorizer = ProofOfStakeAuthorizer(pk, pos)
-            # self.pos_authorizer = self.signature_authorizer
         else:
             logger.info("Skipping PoS - proof-of-stake, using signature authorization only. If starting in production, make sure to use PoS")
             # For testing purposes, at minimum require signatures
@@ -232,7 +230,7 @@ class ModuleAnnouncerThread(threading.Thread):
             self.run()
 
     def run(self):
-        logger.info("Announcing node is online")
+        logger.info("Announcing that node is online")
         self.dht_announcer.announce(ServerState.ONLINE)
 
     def shutdown(self):
@@ -293,6 +291,8 @@ class ConsensusThread(threading.Thread):
             skip_activate_subnet=False,
             start=True,
         )
+
+        logger.info("Starting consensus")
 
     def shutdown(self):
         if self.consensus is not None:

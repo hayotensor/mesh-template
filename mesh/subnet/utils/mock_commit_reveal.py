@@ -5,7 +5,7 @@ from mesh.dht.routing import DHTID
 from mesh.dht.validation import DHTRecord, DHTRecordRequestType
 from mesh.substrate.chain_functions import EpochData
 from mesh.substrate.config import BLOCK_SECS, EPOCH_LENGTH
-from mesh.utils.key import extract_peer_id_from_record_validator_v2
+from mesh.utils.key import extract_peer_id_from_record_validator
 
 logger = get_logger(__name__)
 
@@ -58,7 +58,7 @@ This predicate validator ensures:
 def mock_hypertensor_consensus_predicate() -> Callable[[DHTRecord, DHTRecordRequestType], bool]:
     def predicate(record: DHTRecord, type: DHTRecordRequestType, epoch_data: EpochData) -> bool:
         try:
-            caller_peer_id = extract_peer_id_from_record_validator_v2(record.subkey)
+            caller_peer_id = extract_peer_id_from_record_validator(record.subkey)
 
             # Enable GET data at any time
             if type is DHTRecordRequestType.GET:

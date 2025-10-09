@@ -56,6 +56,7 @@ custom_rpc_type_registry = {
         ["total_nodes", "u32"],
         ["total_active_nodes", "u32"],
         ["total_electable_nodes", "u32"],
+        ["current_min_delegate_stake", "u128"]
       ],
     },
     "SubnetState": {
@@ -299,8 +300,6 @@ def from_scale_encoding(
     if is_vec:
       type_string = f"Vec<{type_string}>"
 
-    print("type_string", type_string)
-
     return from_scale_encoding_using_type_string(input, type_string)
 
 def from_scale_encoding_using_type_string(
@@ -458,13 +457,11 @@ class SubnetInfo:
   total_nodes: int
   total_active_nodes: int
   total_electable_nodes: int
+  current_min_delegate_stake: int
 
   @classmethod
   def fix_decoded_values(cls, data_decoded: Any) -> "SubnetInfo":
     """Fixes the values of the SubnetInfo object."""
-
-    print("SubnetInfo data_decoded", data_decoded)
-
     data_decoded["id"] = data_decoded["id"]
     data_decoded["name"] = data_decoded["name"]
     data_decoded["repo"] = data_decoded["repo"]
@@ -496,27 +493,23 @@ class SubnetInfo:
     data_decoded["total_nodes"] = data_decoded["total_nodes"]
     data_decoded["total_active_nodes"] = data_decoded["total_active_nodes"]
     data_decoded["total_electable_nodes"] = data_decoded["total_electable_nodes"]
+    data_decoded["current_min_delegate_stake"] = data_decoded["current_min_delegate_stake"]
 
     return cls(**data_decoded)
 
   @classmethod
   def from_vec_u8(cls, vec_u8: List[int]) -> "SubnetInfo":
     """Returns a SubnetInfo object from a ``vec_u8``."""
-    print("SubnetInfo vec_u8", vec_u8)
 
     if len(vec_u8) == 0:
       return SubnetInfo._get_null()
 
     decoded = from_scale_encoding(vec_u8, ChainDataType.SubnetInfo, is_option=True)
-    print("SubnetInfo decoded 1", decoded)
 
     if decoded is None:
-      print("SubnetInfo decoded is None")
       return SubnetInfo._get_null()
 
-    print("SubnetInfo fix_decoded_values")
     decoded = SubnetInfo.fix_decoded_values(decoded)
-    print("SubnetInfo decoded 2", decoded)
 
     return decoded
 
@@ -585,6 +578,7 @@ class SubnetInfo:
       total_nodes=0,
       total_active_nodes=0,
       total_electable_nodes=0,
+      current_min_delegate_stake=0
     )
     return subnet_info
 
@@ -742,20 +736,16 @@ class SubnetNodeInfo:
   @classmethod
   def from_vec_u8(cls, vec_u8: List[int]) -> "SubnetNodeInfo":
     """Returns a SubnetNodeInfo object from a ``vec_u8``."""
-    print("SubnetNodeInfo vec_u8", vec_u8)
 
     if len(vec_u8) == 0:
       return SubnetNodeInfo._get_null()
 
     decoded = from_scale_encoding(vec_u8, ChainDataType.SubnetNodeInfo, is_option=True)
-    print("SubnetNodeInfo decoded 1", decoded)
 
     if decoded is None:
-      print("SubnetNodeInfo decoded is None")
       return SubnetNodeInfo._get_null()
 
     decoded = SubnetNodeInfo.fix_decoded_values(decoded)
-    print("SubnetNodeInfo decoded 2", decoded)
 
     return decoded
 
@@ -857,7 +847,6 @@ class SubnetNode:
     decoded_list = from_scale_encoding(
       vec_u8, ChainDataType.SubnetNode, is_vec=True
     )
-    print("list_from_vec_u8 decoded_list", decoded_list)
 
     if decoded_list is None:
       return []
@@ -865,7 +854,6 @@ class SubnetNode:
     decoded_list = [
       SubnetNode.fix_decoded_values(decoded) for decoded in decoded_list
     ]
-    print("fix_decoded_values decoded_list", decoded_list)
 
     return decoded_list
 
@@ -1116,8 +1104,6 @@ class AllSubnetBootnodes:
 
     decoded = from_scale_encoding(vec_u8, ChainDataType.AllSubnetBootnodes)
 
-    print("AllSubnetBootnodes decoded", decoded)
-
     if decoded is None:
       return AllSubnetBootnodes._get_null()
 
@@ -1188,8 +1174,6 @@ class SubnetNodeStakeInfo:
       return SubnetNodeStakeInfo._get_null()
 
     decoded = from_scale_encoding(vec_u8, ChainDataType.SubnetNodeStakeInfo)
-
-    print("SubnetNodeStakeInfo decoded", decoded)
 
     if decoded is None:
       return SubnetNodeStakeInfo._get_null()
@@ -1262,8 +1246,6 @@ class DelegateStakeInfo:
 
     decoded = from_scale_encoding(vec_u8, ChainDataType.DelegateStakeInfo)
 
-    print("DelegateStakeInfo decoded", decoded)
-
     if decoded is None:
       return DelegateStakeInfo._get_null()
 
@@ -1334,8 +1316,6 @@ class NodeDelegateStakeInfo:
       return NodeDelegateStakeInfo._get_null()
 
     decoded = from_scale_encoding(vec_u8, ChainDataType.NodeDelegateStakeInfo)
-
-    print("NodeDelegateStakeInfo decoded", decoded)
 
     if decoded is None:
       return NodeDelegateStakeInfo._get_null()

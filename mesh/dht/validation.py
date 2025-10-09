@@ -271,7 +271,7 @@ class HypertensorSlotPredicateValidator(RecordValidatorBase):
         return record.value
 
     def _epoch_data(self):
-        # Get epoch data from the blockchain and calulate the remaining
+        # Get epoch data from the blockchain and calculate the remaining
         if self.slot is None:
             # slot = self.hypertensor.get_subnet_slot(self.subnet_id)
             # self.slot = int(str(slot))
