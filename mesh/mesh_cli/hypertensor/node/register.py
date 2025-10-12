@@ -16,11 +16,11 @@ logger = get_logger(__name__)
 """
 register-node \
 --subnet_id 1 \
---hotkey 0x773539d4Ac0e786233D90A233654ccEE26a613D9 \
---peer_id QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9 \
---bootnode_peer_id QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
---bootnode /ip4/127.00.1/tcp/31330/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
---client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
+--hotkey 0x317D7a5a2ba5787A99BE4693Eb340a10C71d680b \
+--peer_id QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JB \
+--bootnode_peer_id QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JC \
+--bootnode /ip4/127.00.1/tcp/31330/p2p/QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JC \
+--client_peer_id QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JD \
 --delegate_reward_rate 0.125 \
 --stake_to_be_added 100.00 \
 --max_burn_amount 100.00 \
@@ -32,10 +32,10 @@ register-node \
 register-node \
 --subnet_id 1 \
 --hotkey 0x317D7a5a2ba5787A99BE4693Eb340a10C71d680b \
---peer_id QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9 \
---bootnode_peer_id QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
---bootnode /ip4/127.00.1/tcp/31330/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
---client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
+--peer_id QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JB \
+--bootnode_peer_id QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JC \
+--bootnode /ip4/127.00.1/tcp/31330/p2p/QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JC \
+--client_peer_id QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JD \
 --delegate_reward_rate 0.125 \
 --stake_to_be_added 100.00 \
 --max_burn_amount 100.00 \
@@ -47,10 +47,10 @@ register-node \
 register-node \
 --subnet_id 1 \
 --hotkey 0xc30fE91DE91a3FA79E42Dfe7a01917d0D92D99D7 \
---peer_id QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9 \
---bootnode_peer_id QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
---bootnode /ip4/127.00.1/tcp/31330/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
---client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
+--peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
+--bootnode_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiH \
+--bootnode /ip4/127.00.1/tcp/31330/p2p/QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiH \
+--client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiI \
 --delegate_reward_rate 0.125 \
 --stake_to_be_added 100.00 \
 --max_burn_amount 100.00 \
@@ -63,9 +63,9 @@ register-node \
 --subnet_id 1 \
 --hotkey 0x2f7703Ba9953d422294079A1CB32f5d2B60E38EB \
 --peer_id QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9 \
---bootnode_peer_id QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
---bootnode /ip4/127.00.1/tcp/31330/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
---client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
+--bootnode_peer_id QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta1 \
+--bootnode /ip4/127.00.1/tcp/31330/p2p/QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta1 \
+--client_peer_id QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta2 \
 --delegate_reward_rate 0.125 \
 --stake_to_be_added 100.00 \
 --max_burn_amount 100.00 \
@@ -77,10 +77,10 @@ register-node \
 register-node \
 --subnet_id 1 \
 --hotkey 0x294BFfC18b5321264f55c517Aca2963bEF9D29EA \
---peer_id QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9 \
---bootnode_peer_id QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
---bootnode /ip4/127.00.1/tcp/31330/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
---client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
+--peer_id QmPpeHpL6R4aXeBxRqqvA78mNW9QjM1ZiFrS3n2MdMtPKJ \
+--bootnode_peer_id QmPpeHpL6R4aXeBxRqqvA78mNW9QjM1ZiFrS3n2MdMtPKK \
+--bootnode /ip4/127.00.1/tcp/31330/p2p/QmPpeHpL6R4aXeBxRqqvA78mNW9QjM1ZiFrS3n2MdMtPKK \
+--client_peer_id QmPpeHpL6R4aXeBxRqqvA78mNW9QjM1ZiFrS3n2MdMtPKL \
 --delegate_reward_rate 0.125 \
 --stake_to_be_added 100.00 \
 --max_burn_amount 100.00 \
