@@ -208,3 +208,94 @@ def cancel_task_if_running(task: Optional[asyncio.Task]) -> None:
             # Only ignore event loop closure errors
             if "Event loop is closed" not in str(e):
                 raise
+
+async def peek_first(async_gen):
+    """Peeks the first item from an async generator without removing it."""
+    try:
+        first_item = await anext(async_gen)
+        async def new_gen():
+            yield first_item
+            async for item in async_gen:
+                yield item
+        return first_item, new_gen()
+    except StopAsyncIteration:
+        return None, async_gen
+
+def async_tee(source, n=2):
+    """
+    Duplicate an async generator into n identical async generators.
+
+    Args:
+        source: The source async generator to duplicate
+        n: Number of copies to create (default: 2)
+
+    Returns:
+        List of n async generators that yield the same items as source
+    """
+    queues = [asyncio.Queue() for _ in range(n)]
+    stop = object()
+    fanout_task = None
+    active_consumers = set(range(n))
+    lock = asyncio.Lock()
+    started = False
+
+    async def fanout():
+        """Background task that reads from source and distributes to all queues."""
+        try:
+            async for item in source:
+                # Check if all consumers have stopped
+                async with lock:
+                    if not active_consumers:
+                        break
+
+                # Put item in all queues (blocks if any queue is full - backpressure)
+                await asyncio.gather(*[q.put(item) for q in queues])
+        except Exception as e:
+            # Propagate exceptions to all consumers
+            for q in queues:
+                await q.put(e)
+        finally:
+            # Send stop signal to all queues
+            for q in queues:
+                try:
+                    await asyncio.wait_for(q.put(stop), timeout=1.0)
+                except asyncio.TimeoutError:
+                    pass  # Queue might be full, consumer will notice fanout is done
+
+    async def gen(idx, q):
+        """Individual generator that yields from its queue."""
+        nonlocal fanout_task, started
+
+        # Start fanout task only once, when first generator is accessed
+        async with lock:
+            if not started:
+                started = True
+                fanout_task = asyncio.create_task(fanout())
+
+        try:
+            while True:
+                item = await q.get()
+
+                # Check for stop signal
+                if item is stop:
+                    break
+
+                # Check if item is an exception from fanout
+                if isinstance(item, Exception):
+                    raise item
+
+                yield item
+        finally:
+            # Remove this consumer from active set
+            async with lock:
+                active_consumers.discard(idx)
+
+                # If this was the last consumer, cancel fanout
+                if not active_consumers and fanout_task and not fanout_task.done():
+                    fanout_task.cancel()
+                    try:
+                        await fanout_task
+                    except asyncio.CancelledError:
+                        pass
+
+    return [gen(i, q) for i, q in enumerate(queues)]

@@ -10,6 +10,7 @@ from typing import Optional
 from mesh.proto.auth_pb2 import AccessToken, RequestAuthInfo, ResponseAuthInfo
 from mesh.utils.asyncio import (
     anext,
+    peek_first,
 )
 from mesh.utils.crypto import (
     Ed25519PrivateKey,
@@ -502,11 +503,11 @@ class AuthRPCWrapperStreamer:
                             return
 
                 async for response in method(request, *args, **kwargs):
-                    if self._authorizer:
-                        if self._role == AuthRole.SERVICER:
-                            await self._authorizer.sign_response(response, request)
-                        elif self._role == AuthRole.CLIENT:
-                            if not await self._authorizer.validate_response(response, request):
+                    if authorizer:
+                        if role == AuthRole.SERVICER:
+                            await authorizer.sign_response(response, request)
+                        elif role == AuthRole.CLIENT:
+                            if not await authorizer.validate_response(response, request):
                                 continue
 
                     yield response
@@ -528,8 +529,25 @@ class AuthRPCWrapperStreamer:
                     if role == AuthRole.SERVICER:
                         await authorizer.sign_response(response, request)
                     elif role == AuthRole.CLIENT:
-                        if not await authorizer.validate_response(response, request):
-                            return None
+                        if inspect.isasyncgen(response):
+                            # Only validate the first response in the async generator
+                            # The other way to accomplish this is to use `async_tee(response)`
+                            # to get a copy of the consumer but with thousands of results
+                            # it will buffer the entire response into memory
+                            """
+                            # gen1, gen2 = async_tee(response)
+                            # async for r in gen2:
+                            #     if not await authorizer.validate_response(r, request):
+                            #         return None
+                            # return gen1
+                            """
+                            first, full_gen = await peek_first(response)
+                            if not await authorizer.validate_response(first, request):
+                                return None
+                            return full_gen
+                        else:
+                            if not await authorizer.validate_response(response, request):
+                                return None
 
                 return response
 
