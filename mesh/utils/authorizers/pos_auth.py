@@ -130,12 +130,7 @@ class ProofOfStakeAuthorizer(AuthorizerBase):
         auth.signature = self._local_private_key.sign(response.SerializeToString())
 
     async def validate_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> bool:
-        if inspect.isasyncgen(response):
-            # asyncgenerator block for inference protocol
-            response = await anext(response)
-            auth = response.auth
-        else:
-            auth = response.auth
+        auth = response.auth
 
         service_public_key = load_public_key_from_bytes(auth.service_access_token.public_key)
 
