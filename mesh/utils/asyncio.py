@@ -209,17 +209,17 @@ def cancel_task_if_running(task: Optional[asyncio.Task]) -> None:
             if "Event loop is closed" not in str(e):
                 raise
 
-async def peek_first(async_gen):
-    """Peeks the first item from an async generator without removing it."""
-    try:
-        first_item = await anext(async_gen)
-        async def new_gen():
-            yield first_item
-            async for item in async_gen:
-                yield item
-        return first_item, new_gen()
-    except StopAsyncIteration:
-        return None, async_gen
+# async def peek_first(async_gen):
+#     """Peeks the first item from an async generator without removing it."""
+#     try:
+#         first_item = await anext(async_gen)
+#         async def new_gen():
+#             yield first_item
+#             async for item in async_gen:
+#                 yield item
+#         return first_item, new_gen()
+#     except StopAsyncIteration:
+#         return None, async_gen
 
 def async_tee(source, n=2):
     """
@@ -299,3 +299,27 @@ def async_tee(source, n=2):
                         pass
 
     return [gen(i, q) for i, q in enumerate(queues)]
+
+async def peek_first(async_gen: AsyncIterator[T]) -> Tuple[T | None, AsyncIterator[T]]:
+    """Peek the first item from an async generator without losing it."""
+    try:
+        first_item = await anext(async_gen)
+    except StopAsyncIteration:
+        return None, async_gen  # nothing to peek
+
+    class PeekableGen:
+        def __init__(self, first, gen):
+            self.first = first
+            self.gen = gen
+            self._yielded_first = False
+
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            if not self._yielded_first:
+                self._yielded_first = True
+                return self.first
+            return await self.gen.__anext__()
+
+    return first_item, PeekableGen(first_item, async_gen)

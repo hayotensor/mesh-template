@@ -357,7 +357,7 @@ def main():
             hypertensor,
             min_class=1,
         )
-        pos_authorizer = ProofOfStakeAuthorizer(pk, pos)
+        pos_authorizer = ProofOfStakeAuthorizer(signature_authorizer, pk, pos)
     else:
         # For testing purposes, at minimum require signatures
         pos_authorizer = signature_authorizer

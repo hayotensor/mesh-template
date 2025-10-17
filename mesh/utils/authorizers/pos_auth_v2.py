@@ -26,12 +26,14 @@ class ProofOfStakeAuthorizer(AuthorizerBase):
 
     def __init__(
         self,
+        inner_authorizer: AuthorizerBase,
         local_private_key: RSAPublicKey | Ed25519PrivateKey,
         pos: ProofOfStake
     ):
         super().__init__()
         self._local_private_key = local_private_key
         self._local_public_key = local_private_key.get_public_key()
+        self.inner_authorizer = inner_authorizer
         self.pos = pos
 
         self._local_access_token = None
@@ -52,21 +54,32 @@ class ProofOfStakeAuthorizer(AuthorizerBase):
     def _token_to_bytes(access_token: AccessToken) -> bytes:
         return f"{access_token.username} {access_token.public_key} {access_token.expiration_time}".encode()
 
-    async def sign_request(self, request: AuthorizedRequestBase, service_public_key: Optional[Ed25519PrivateKey | RSAPrivateKey]) -> None:
-        auth = request.auth
+    # async def sign_request(self, request: AuthorizedRequestBase, service_public_key: Optional[Ed25519PrivateKey | RSAPrivateKey]) -> None:
+    #     auth = request.auth
 
-        local_access_token = await self.get_token()
-        auth.client_access_token.CopyFrom(local_access_token)
+    #     local_access_token = await self.get_token()
+    #     auth.client_access_token.CopyFrom(local_access_token)
 
-        if service_public_key is not None:
-            auth.service_public_key = service_public_key.to_bytes()
-        auth.time = get_dht_time()
+    #     if service_public_key is not None:
+    #         auth.service_public_key = service_public_key.to_bytes()
+    #     auth.time = get_dht_time()
 
-        auth.nonce = secrets.token_bytes(8)
+    #     auth.nonce = secrets.token_bytes(8)
 
 
-        assert auth.signature == b""
-        auth.signature = self._local_private_key.sign(request.SerializeToString())
+    #     assert auth.signature == b""
+    #     auth.signature = self._local_private_key.sign(request.SerializeToString())
+
+    async def sign_request(
+        self,
+        request: AuthorizedRequestBase,
+        service_public_key: Optional[Ed25519PrivateKey | RSAPrivateKey]
+    ) -> None:
+        """
+        Sign a request using the inner authorizer.
+        No rate limiting on outgoing requests (we're the client).
+        """
+        await self.inner_authorizer.sign_request(request, service_public_key)
 
     _MAX_CLIENT_SERVICER_TIME_DIFF = timedelta(minutes=1)
 

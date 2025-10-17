@@ -37,6 +37,8 @@ register-subnet \
 
 [Local]
 
+Alith
+
 register-subnet \
 --max_cost 100.00 \
 --name subnet-1 \

@@ -8,10 +8,7 @@ from enum import Enum
 from typing import Optional
 
 from mesh.proto.auth_pb2 import AccessToken, RequestAuthInfo, ResponseAuthInfo
-from mesh.utils.asyncio import (
-    anext,
-    peek_first,
-)
+from mesh.utils.asyncio import anext, peek_first
 from mesh.utils.crypto import (
     Ed25519PrivateKey,
     Ed25519PublicKey,

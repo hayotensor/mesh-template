@@ -9,12 +9,11 @@ from mesh import DHT, get_dht_time
 from mesh.dht.crypto import SignatureValidator
 from mesh.dht.validation import HypertensorSlotPredicateValidator, RecordValidatorBase
 from mesh.subnet.consensus.consensus_slots import Consensus
-from mesh.subnet.protocols.mock_protocol import MockProtocol
 from mesh.subnet.utils.mock_commit_reveal import mock_hypertensor_consensus_predicate
 from mesh.substrate.chain_functions import Hypertensor
 from mesh.substrate.mock.chain_functions import MockHypertensor
 from mesh.utils.authorizers.auth import SignatureAuthorizer
-from mesh.utils.authorizers.pos_auth import ProofOfStakeAuthorizer
+from mesh.utils.authorizers.pos_auth_v2 import ProofOfStakeAuthorizer
 from mesh.utils.data_structures import ServerClass, ServerInfo, ServerState
 from mesh.utils.dht import declare_node_sig, get_node_infos_sig
 from mesh.utils.key import get_private_key
@@ -108,7 +107,7 @@ class Server:
                 self.hypertensor,
                 min_class=1,
             )
-            self.pos_authorizer = ProofOfStakeAuthorizer(pk, pos)
+            self.pos_authorizer = ProofOfStakeAuthorizer(self.signature_authorizer, pk, pos)
         else:
             logger.info("Skipping PoS - proof-of-stake, using signature authorization only. If starting in production, make sure to use PoS")
             # For testing purposes, at minimum require signatures
