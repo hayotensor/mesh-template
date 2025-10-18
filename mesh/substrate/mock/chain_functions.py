@@ -1,4 +1,5 @@
 import glob
+import time
 from typing import Any, List, Optional
 
 from mesh.substrate.chain_data import SubnetInfo, SubnetNode, SubnetNodeInfo
@@ -8,16 +9,17 @@ from mesh.utils.key import generate_rsa_private_key_file
 
 
 class MockHypertensor:
-    url = None
-    interface = None
-    keypair = None
-    hotkey = None
+    def __init__(self):
+        # self.start_time = time.time()
+        self.BLOCK_TIME = 6
 
     def get_epoch_length(self):
-        return 100
+        return 10
 
-    def get_block_number(self):
-        return 100
+    def get_block_number(self) -> int:
+        """Simulate block height based on elapsed time."""
+        now = time.time()
+        return int(now // self.BLOCK_TIME)
 
     def proof_of_stake(
         self,
@@ -170,11 +172,12 @@ class MockHypertensor:
 
     def get_min_class_subnet_nodes_formatted(self, subnet_id: int, subnet_epoch: int, min_class: SubnetNodeClass) -> List["SubnetNodeInfo"]:
         return [
+            # alith.id
             SubnetNodeInfo(
                 subnet_id=1,
                 subnet_node_id=1,
-                coldkey="0x1234567890abcdef1234567890abcdef12345678",
-                hotkey="0x1234567890abcdef1234567890abcdef12345678",
+                coldkey="0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac",
+                hotkey="0x317D7a5a2ba5787A99BE4693Eb340a10C71d680b",
                 peer_id="QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JB",
                 bootnode_peer_id="QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JB",
                 client_peer_id="QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JB",
@@ -190,11 +193,12 @@ class MockHypertensor:
                 penalties=0,
                 reputation=dict()
             ),
+            # baltathar.id
             SubnetNodeInfo(
                 subnet_id=1,
-                subnet_node_id=1,
-                coldkey="0x1234567890abcdef1234567890abcdef12345678",
-                hotkey="0x1234567890abcdef1234567890abcdef12345678",
+                subnet_node_id=2,
+                coldkey="0x3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0",
+                hotkey="0xc30fE91DE91a3FA79E42Dfe7a01917d0D92D99D7",
                 peer_id="QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG",
                 bootnode_peer_id="QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG",
                 client_peer_id="QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG",
@@ -210,11 +214,12 @@ class MockHypertensor:
                 penalties=0,
                 reputation=dict()
             ),
+            # charleth.id
             SubnetNodeInfo(
                 subnet_id=1,
-                subnet_node_id=1,
-                coldkey="0x1234567890abcdef1234567890abcdef12345678",
-                hotkey="0x1234567890abcdef1234567890abcdef12345678",
+                subnet_node_id=3,
+                coldkey="0x798d4Ba9baf0064Ec19eB4F0a1a45785ae9D6DFc",
+                hotkey="0x2f7703Ba9953d422294079A1CB32f5d2B60E38EB",
                 peer_id="QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9",
                 bootnode_peer_id="QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9",
                 client_peer_id="QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9",
@@ -230,14 +235,78 @@ class MockHypertensor:
                 penalties=0,
                 reputation=dict()
             ),
+            # dorothy.id
             SubnetNodeInfo(
                 subnet_id=1,
-                subnet_node_id=1,
-                coldkey="0x1234567890abcdef1234567890abcdef12345678",
-                hotkey="0x1234567890abcdef1234567890abcdef12345678",
+                subnet_node_id=4,
+                coldkey="0x773539d4Ac0e786233D90A233654ccEE26a613D9",
+                hotkey="0x294BFfC18b5321264f55c517Aca2963bEF9D29EA",
+                peer_id="QmPpeHpL6R4aXeBxRqqvA78mNW9QjM1ZiFrS3n2MdMtPKJ",
+                bootnode_peer_id="QmPpeHpL6R4aXeBxRqqvA78mNW9QjM1ZiFrS3n2MdMtPKJ",
+                client_peer_id="QmPpeHpL6R4aXeBxRqqvA78mNW9QjM1ZiFrS3n2MdMtPKJ",
+                bootnode="",
+                identity=dict(),
+                classification=dict(),
+                delegate_reward_rate=0,
+                last_delegate_reward_rate_update=0,
+                unique="",
+                non_unique="",
+                stake_balance=0,
+                node_delegate_stake_balance=0,
+                penalties=0,
+                reputation=dict()
+            ),
+            # ethan.id
+            SubnetNodeInfo(
+                subnet_id=1,
+                subnet_node_id=5,
+                coldkey="0xFf64d3F6efE2317EE2807d223a0Bdc4c0c49dfDB",
+                hotkey="0x919a696741e5bEe48538D43CB8A34a95261E62fc",
+                peer_id="Qma2JzgMccgNvrFwMRccjRVzQtJBQT8Qrz7rcfR7RAkHJf",
+                bootnode_peer_id="Qma2JzgMccgNvrFwMRccjRVzQtJBQT8Qrz7rcfR7RAkHJf",
+                client_peer_id="Qma2JzgMccgNvrFwMRccjRVzQtJBQT8Qrz7rcfR7RAkHJf",
+                bootnode="",
+                identity=dict(),
+                classification=dict(),
+                delegate_reward_rate=0,
+                last_delegate_reward_rate_update=0,
+                unique="",
+                non_unique="",
+                stake_balance=0,
+                node_delegate_stake_balance=0,
+                penalties=0,
+                reputation=dict()
+            ),
+            # faith.id
+            SubnetNodeInfo(
+                subnet_id=1,
+                subnet_node_id=6,
+                coldkey="0xC0F0f4ab324C46e55D02D0033343B4Be8A55532d",
+                hotkey="0xD4eb2503fA9F447CCa7b78D9a86F2fdbc964401e",
                 peer_id="Qmd9kjDLqM9isDgU5rCW6H9mpmfeLVtgsSHC5bqdDJtXmM",
                 bootnode_peer_id="Qmd9kjDLqM9isDgU5rCW6H9mpmfeLVtgsSHC5bqdDJtXmM",
                 client_peer_id="Qmd9kjDLqM9isDgU5rCW6H9mpmfeLVtgsSHC5bqdDJtXmM",
+                bootnode="",
+                identity=dict(),
+                classification=dict(),
+                delegate_reward_rate=0,
+                last_delegate_reward_rate_update=0,
+                unique="",
+                non_unique="",
+                stake_balance=0,
+                node_delegate_stake_balance=0,
+                penalties=0,
+                reputation=dict()
+            ),
+            # bootnode.id
+            SubnetNodeInfo(
+                subnet_id=1,
+                subnet_node_id=6,
+                coldkey="0xD4eb2503fA9F447CCa7b78D9a86F2fdbc964401e",
+                hotkey="0xD4eb2503fA9F447CCa7b78D9a86F2fdbc964401e",
+                peer_id="QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v",
+                bootnode_peer_id="QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v",
+                client_peer_id="QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v",
                 bootnode="",
                 identity=dict(),
                 classification=dict(),

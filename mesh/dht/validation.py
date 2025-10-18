@@ -127,8 +127,6 @@ class CompositeValidator(RecordValidatorBase):
             record = dataclasses.replace(record, value=validator.strip_value(record))
         return record.value
 
-
-
 class PredicateValidator(RecordValidatorBase):
     """
     A general-purpose DHT validator that delegates all validation logic to a custom callable.
@@ -188,101 +186,36 @@ class PredicateValidator(RecordValidatorBase):
         return True
 
 class HypertensorPredicateValidator(RecordValidatorBase):
-    """
-    A general-purpose DHT validator that delegates all validation logic to a custom callable
-    that takes in a epoch data function.
-
-    This is a minimal validator that can enforce any condition on the entire DHTRecord.
-    Useful for filtering keys, expiration time, value content, or any combination thereof.
-
-    This can be used to ensure keys match a specific format, or nodes are doing something within a certain period
-    of time in relation to the blockchain, i.e., ensuring a commit-reveal schema where the commit is submitted by the
-    first half of the epoch and the reveal is done on the second half of the epoch.
-
-    Attributes:
-        record_predicate (Callable[[DHTRecord], bool]): A user-defined function that receives a record and returns True if valid.
-    """
-
-    def __init__(
-        self,
-        hypertensor: Hypertensor,
-        record_predicate: Callable[[DHTRecord, DHTRecordRequestType], bool] = lambda r: True
-    ):
+    def __init__(self, record_predicate: Callable[[DHTRecord, DHTRecordRequestType], bool]):
         self.record_predicate = record_predicate
-        self.hypertensor = hypertensor
+
+    @classmethod
+    def from_predicate_class(
+        cls,
+        predicate_cls: type,
+        *args,
+        **kwargs
+    ) -> "HypertensorPredicateValidator":
+        """
+        Example:
+            HypertensorPredicateValidator.from_predicate_class(
+                HypertensorConsensusPredicate, hypertensor, subnet_id
+            )
+        """
+        predicate = predicate_cls(*args, **kwargs)
+        return cls(record_predicate=predicate)
 
     def validate(self, record: DHTRecord, type: DHTRecordRequestType) -> bool:
-        return self.record_predicate(record, type, self._epoch_data())
+        return self.record_predicate(record, type)
 
     def sign_value(self, record: DHTRecord) -> bytes:
         return record.value
 
     def strip_value(self, record: DHTRecord) -> bytes:
         return record.value
-
-    def _epoch_data(self):
-        # Get epoch data from the blockchain and calulate the remaining
-        return self.hypertensor.get_epoch_data()
 
     def merge_with(self, other: RecordValidatorBase) -> bool:
         if not isinstance(other, HypertensorPredicateValidator):
-            return False
-
-        # Ignore another KeyValidator instance (it doesn't make sense to have several
-        # instances of this class) and report successful merge
-        return True
-
-class HypertensorSlotPredicateValidator(RecordValidatorBase):
-    """
-    A general-purpose DHT validator that delegates all validation logic to a custom callable.
-
-    Uses the Hypertensor `get_subnet_epoch_data` as a parameter for the predicate
-
-    This is a minimal validator that can enforce any condition on the entire DHTRecord.
-    Useful for filtering keys, expiration time, value content, or any combination thereof.
-
-    This can be used to ensure keys match a specific format, or nodes are doing something within a certain period
-    of time in relation to the blockchain, i.e., ensuring a commit-reveal schema where the commit is submitted by the
-    first half of the epoch and the reveal is done on the second half of the epoch.
-
-    Attributes:
-        record_predicate (Callable[[DHTRecord], bool]): A user-defined function that receives a record and returns True if valid.
-    """
-
-    def __init__(
-        self,
-        hypertensor: Hypertensor,
-        subnet_id: int,
-        record_predicate: Callable[[DHTRecord, DHTRecordRequestType], bool] = lambda r: True,
-        slot: Optional[int] = None
-    ):
-        self.record_predicate = record_predicate
-        self.hypertensor = hypertensor
-        self.subnet_id = subnet_id
-        self.slot: int | None = slot
-
-    def validate(self, record: DHTRecord, type: DHTRecordRequestType) -> bool:
-        return self.record_predicate(record, type, self._epoch_data())
-
-    def sign_value(self, record: DHTRecord) -> bytes:
-        return record.value
-
-    def strip_value(self, record: DHTRecord) -> bytes:
-        return record.value
-
-    def _epoch_data(self):
-        # Get epoch data from the blockchain and calculate the remaining
-        if self.slot is None:
-            # slot = self.hypertensor.get_subnet_slot(self.subnet_id)
-            # self.slot = int(str(slot))
-            subnet_info = self.hypertensor.get_formatted_subnet_info(
-                self.subnet_id
-            )
-            self.slot = subnet_info.slot_index
-        return self.hypertensor.get_subnet_epoch_data(self.slot)
-
-    def merge_with(self, other: RecordValidatorBase) -> bool:
-        if not isinstance(other, HypertensorSlotPredicateValidator):
             return False
 
         # Ignore another KeyValidator instance (it doesn't make sense to have several

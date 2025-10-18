@@ -306,36 +306,40 @@ def extract_rsa_peer_id_from_record_validator(key)-> Optional[PeerID]:
   return PeerID(encoded_digest)
 
 def extract_peer_id_from_record_validator(key)-> Optional[PeerID]:
-  public_keys = SignatureValidator._PUBLIC_KEY_RE.findall(key)
-  key = load_public_key_from_bytes(public_keys[0])
+  try:
+    public_keys = SignatureValidator._PUBLIC_KEY_RE.findall(key)
+    key = load_public_key_from_bytes(public_keys[0])
 
-  if isinstance(key, RSAPublicKey):
-    public_bytes = key._public_key.public_bytes(
-      encoding=serialization.Encoding.DER,
-      format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    )
+    if isinstance(key, RSAPublicKey):
+      public_bytes = key._public_key.public_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+      )
 
-    encoded_public_key = crypto_pb2.PublicKey(
-      key_type=crypto_pb2.RSA,
-      data=public_bytes,
-    ).SerializeToString()
+      encoded_public_key = crypto_pb2.PublicKey(
+        key_type=crypto_pb2.RSA,
+        data=public_bytes,
+      ).SerializeToString()
 
-    encoded_digest = multihash.encode(
-      hashlib.sha256(encoded_public_key).digest(),
-      multihash.coerce_code("sha2-256"),
-    )
+      encoded_digest = multihash.encode(
+        hashlib.sha256(encoded_public_key).digest(),
+        multihash.coerce_code("sha2-256"),
+      )
 
-    return PeerID(encoded_digest)
-  elif isinstance(key, Ed25519PublicKey):
-    encoded_public_key = crypto_pb2.PublicKey(
-      key_type=crypto_pb2.Ed25519,
-      data=key.to_raw_bytes(),
-    ).SerializeToString()
+      return PeerID(encoded_digest)
+    elif isinstance(key, Ed25519PublicKey):
+      encoded_public_key = crypto_pb2.PublicKey(
+        key_type=crypto_pb2.Ed25519,
+        data=key.to_raw_bytes(),
+      ).SerializeToString()
 
-    encoded_public_key = b"\x00$" + encoded_public_key
+      encoded_public_key = b"\x00$" + encoded_public_key
 
-    return PeerID(encoded_public_key)
-  else:
+      return PeerID(encoded_public_key)
+    else:
+      return None
+  except Exception as e:
+    logger.debug(f"Error extracting peer ID from record validator {e}", exc_info=True)
     return None
 
 def extract_peer_id_from_public_key(public_keys)-> Optional[PeerID]:

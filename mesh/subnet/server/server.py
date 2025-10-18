@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import multiprocessing as mp
 import threading
 import time
 from typing import Dict, List, Optional
@@ -7,9 +8,9 @@ from typing import Dict, List, Optional
 import mesh
 from mesh import DHT, get_dht_time
 from mesh.dht.crypto import SignatureValidator
-from mesh.dht.validation import HypertensorSlotPredicateValidator, RecordValidatorBase
-from mesh.subnet.consensus.consensus_slots import Consensus
-from mesh.subnet.utils.mock_commit_reveal import mock_hypertensor_consensus_predicate
+from mesh.dht.validation import HypertensorPredicateValidator, RecordValidatorBase
+from mesh.subnet.consensus.consensus import Consensus
+from mesh.subnet.utils.mock_commit_reveal import MockHypertensorCommitReveal
 from mesh.substrate.chain_functions import Hypertensor
 from mesh.substrate.mock.chain_functions import MockHypertensor
 from mesh.utils.authorizers.auth import SignatureAuthorizer
@@ -63,30 +64,25 @@ class Server:
 
         identity_path = kwargs.get('identity_path', None)
         pk = get_private_key(identity_path)
-        # pk = get_rsa_private_key(identity_path)
 
         """
         Initialize record validators
 
         See https://docs.hypertensor.org/mesh-template/dht-records/record-validator
         """
-        # Initialize standard RSA signature record validator. See https://docs.hypertensor.org/mesh-template/dht-records/record-validator/signature-validators
+        # Initialize signature record validator. See https://docs.hypertensor.org/mesh-template/dht-records/record-validator/signature-validators
         self.signature_validator = SignatureValidator(pk)
         self.record_validators=[self.signature_validator]
 
         # Initialize predicate validator here. See https://docs.hypertensor.org/mesh-template/dht-records/record-validator/predicate-validators
-        predicate = mock_hypertensor_consensus_predicate()
         if self.hypertensor is not None:
-            consensus_predicate = HypertensorSlotPredicateValidator(
-                record_predicate=predicate,
-                subnet_id=subnet_id,
-                hypertensor=self.hypertensor
+            consensus_predicate = HypertensorPredicateValidator.from_predicate_class(
+                MockHypertensorCommitReveal, hypertensor=self.hypertensor, subnet_id=subnet_id
             )
+
         else:
-            consensus_predicate = HypertensorSlotPredicateValidator(
-                record_predicate=predicate,
-                subnet_id=subnet_id,
-                hypertensor=MockHypertensor()
+            consensus_predicate = HypertensorPredicateValidator.from_predicate_class(
+                MockHypertensorCommitReveal, hypertensor=MockHypertensor(), subnet_id=subnet_id
             )
 
         self.record_validators.append(consensus_predicate)
@@ -96,7 +92,7 @@ class Server:
 
         See https://docs.hypertensor.org/mesh-template/authorizers
         """
-        # Initialize RSA signature authorizer. See https://docs.hypertensor.org/mesh-template/authorizers/signature-authorizer
+        # Initialize signature authorizer. See https://docs.hypertensor.org/mesh-template/authorizers/signature-authorizer
         self.signature_authorizer = SignatureAuthorizer(pk)
 
         # Initialize PoS authorizer. See https://docs.hypertensor.org/mesh-template/authorizers/pos
@@ -112,7 +108,6 @@ class Server:
             logger.info("Skipping PoS - proof-of-stake, using signature authorization only. If starting in production, make sure to use PoS")
             # For testing purposes, at minimum require signatures
             self.pos_authorizer = self.signature_authorizer
-
 
         # Test connecting to the DHT as a direct peer
         if reachable_via_relay is None:
@@ -226,7 +221,7 @@ class ModuleAnnouncerThread(threading.Thread):
         logger.info("Announced to the DHT that we are joining")
 
         if start:
-            self.run()
+            self.start()
 
     def run(self):
         logger.info("Announcing that node is online")
@@ -239,10 +234,71 @@ class ModuleAnnouncerThread(threading.Thread):
         self.dht_announcer.announce(ServerState.OFFLINE)
         logger.info("Announced to the DHT that we are exiting")
 
-        self.join()
+        # self.join()
+        # logger.info("Module shut down successfully")
+
+        if self.is_alive() and threading.current_thread() is not self:
+            self.join(timeout=5)
         logger.info("Module shut down successfully")
 
-class ConsensusThread(threading.Thread):
+
+# class ConsensusThread(threading.Thread):
+#     def __init__(
+#         self,
+#         dht: DHT,
+#         server_info: ServerInfo,
+#         subnet_id: int,
+#         subnet_node_id: int,
+#         record_validator: RecordValidatorBase,
+#         hypertensor: Hypertensor,
+#         start: bool = True,
+#     ):
+#         super().__init__()
+#         self.dht = dht
+#         self.server_info = server_info
+#         self.subnet_id = subnet_id
+#         self.subnet_node_id = subnet_node_id
+#         self.signature_validator = record_validator
+#         self.hypertensor = hypertensor
+#         self.event = threading.Event()
+#         self.consensus = None
+#         self.validator = None
+
+#         if start:
+#             self.start()
+
+#     def run(self) -> None:
+#         """
+#         Add any other logic the Consensus class requires to run,
+#         such as differ node role classes, etc.
+
+#         See template implementation
+#         """
+
+#         self.consensus = ConsensusWithThread(
+#             dht=self.dht,
+#             subnet_id=self.subnet_id,
+#             subnet_node_id=self.subnet_node_id,
+#             record_validator=self.signature_validator,
+#             hypertensor=self.hypertensor,
+#             skip_activate_subnet=False,
+#             start=True,
+#         )
+
+#         logger.info("Starting consensus")
+
+#     def shutdown(self):
+#         # if self.consensus is not None:
+#         #     self.consensus.shutdown()
+
+#         if self.validator is not None:
+#             self.validator.shutdown()
+
+#         # self.join()
+#         if self.is_alive():
+#             self.join(timeout=5)
+
+class ConsensusThread():
     def __init__(
         self,
         dht: DHT,
@@ -271,13 +327,6 @@ class ConsensusThread(threading.Thread):
         Add any other logic the Consensus class requires to run,
         such as differ node role classes, etc.
 
-        self.validator = Validator(
-            role=self.server_info.role,
-            dht=self.dht,
-            record_validator=self.signature_validator,
-            hypertensor=self.hypertensor,
-        )
-
         See template implementation
         """
 
@@ -300,7 +349,9 @@ class ConsensusThread(threading.Thread):
         if self.validator is not None:
             self.validator.shutdown()
 
-        self.join()
+        # # self.join()
+        # if self.is_alive():
+        #     self.join(timeout=5)
 
 class ModuleHeartbeatThread(threading.Thread):
     """Periodically announces server is live before expiration of storage, visible to all DHT peers"""
@@ -389,9 +440,15 @@ class ModuleHeartbeatThread(threading.Thread):
 
     def announce(self, state: ServerState) -> None:
         self.server_info.state = state
+        # self.trigger.set()
+        # if state == ServerState.OFFLINE:
+        #     self.join()
+
         self.trigger.set()
         if state == ServerState.OFFLINE:
-            self.join()
+            if self.is_alive():
+                self.join(timeout=5)
+
 
     def _ping_next_servers(self) -> Dict[mesh.PeerID, float]:
         module_infos = get_node_infos_sig(

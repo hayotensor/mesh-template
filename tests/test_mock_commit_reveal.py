@@ -6,19 +6,19 @@ from typing import List
 import pytest
 
 from mesh import get_dht_time
-from mesh.dht.crypto import RSASignatureValidator
+from mesh.dht.crypto import SignatureValidator
 from mesh.dht.validation import HypertensorPredicateValidator, RecordValidatorBase
-from mesh.utils.key import generate_rsa_private_key_file, get_rsa_private_key
 from mesh.subnet.utils.mock_commit_reveal import (
     COMMIT_DEADLINE,
     CONSENSUS_STORE_DEADLINE,
     MAX_CONSENSUS_TIME,
+    MockHypertensorCommitReveal,
     get_mock_commit_key,
     get_mock_consensus_key,
     get_mock_reveal_key,
-    mock_hypertensor_consensus_predicate,
 )
 from mesh.substrate.config import BLOCK_SECS
+from mesh.utils.key import generate_rsa_private_key_file, get_rsa_private_key
 
 from test_utils.dht_swarms import launch_dht_instances_with_record_validators2
 from test_utils.mock_hypertensor_json_rsa import MockHypertensor, increase_progress_and_write, write_epoch_json
@@ -28,7 +28,6 @@ from test_utils.mock_hypertensor_json_rsa import MockHypertensor, increase_progr
 @pytest.mark.forked
 @pytest.mark.asyncio
 async def test_predicate_validator():
-    predicate = mock_hypertensor_consensus_predicate()
     hypertensor = MockHypertensor()
     # start at commit phase 0%
 
@@ -65,10 +64,9 @@ async def test_predicate_validator():
         test_paths.append(test_path)
         _, _, public_bytes, _, _, _ = generate_rsa_private_key_file(test_path)
         loaded_key = get_rsa_private_key(test_path)
-        record_validator = RSASignatureValidator(loaded_key)
-        consensus_predicate = HypertensorPredicateValidator(
-            hypertensor=hypertensor,
-            record_predicate=predicate,
+        record_validator = SignatureValidator(loaded_key)
+        consensus_predicate = HypertensorPredicateValidator.from_predicate_class(
+            MockHypertensorCommitReveal, hypertensor=hypertensor, subnet_id=1
         )
         record_validators.append([record_validator, consensus_predicate])
 
