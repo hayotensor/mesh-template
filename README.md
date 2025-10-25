@@ -155,12 +155,12 @@ mesh-dht \
 
 #### Start DHT / Start Node
 
-This will start a new subnet (fresh swarm as initial node)
+This will start a new subnet (fresh swarm as initial node/bootnode and server in one)
 ```bash
 mesh-server-mock \
 --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
 --announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
---identity_path alith.id \
+--identity_path bootnode.id \
 --new_swarm  \
 --subnet_id 1 --subnet_node_id 1
 ```
@@ -168,8 +168,8 @@ mesh-server-mock \
 #### Join DHT / Start Node
 ```bash
 mesh-server-mock \
---host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
---announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
+--host_maddrs /ip4/0.0.0.0/tcp/31331 /ip4/0.0.0.0/udp/31331/quic \
+--announce_maddrs /ip4/{your_ip}/tcp/31331 /ip4/{your_ip}/udp/31331/quic \
 --identity_path alith.id \
 --subnet_id 1 --subnet_node_id 1
 ```

@@ -7,8 +7,10 @@ from mesh import PeerID
 from mesh.dht.crypto import SignatureValidator
 from mesh.dht.validation import RecordValidatorBase
 from mesh.proto import crypto_pb2
-from mesh.utils import multihash
+from mesh.utils import get_logger, multihash
 from mesh.utils.crypto import Ed25519PublicKey, RSAPublicKey
+
+logger = get_logger(__name__)
 
 """
 Extract Ed25519 peer ID from public key
@@ -34,7 +36,7 @@ def get_ed25519_peer_id(public_key: Ed25519PublicKey) -> Optional[PeerID]:
 
     return peer_id
   except Exception as e:
-    print(e)
+    logger.error(e)
     return None
 
 def get_peer_id_from_pubkey(public_key: RSAPublicKey | Ed25519PublicKey) -> Optional[PeerID]:
@@ -79,5 +81,5 @@ def get_rsa_peer_id(public_key: RSAPublicKey) -> Optional[PeerID]:
 
     return peer_id
   except Exception as e:
-    print(e)
+    logger.error(e)
     return None

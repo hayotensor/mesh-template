@@ -67,12 +67,12 @@ def block_ip(ip_address):
             text=True,
             check=True
         )
-        print(f"Successfully blocked {ip_address}")
-        print(result.stdout)
+        logger.info(f"Successfully blocked {ip_address}")
+        logger.info(result.stdout)
         return True
     except subprocess.CalledProcessError as e:
-        print(f"Failed to block {ip_address}: {e}")
-        print(e.stderr)
+        logger.error(f"Failed to block {ip_address}: {e}")
+        logger.error(e.stderr)
         return False
 
 def unblock_ip(ip_address):
@@ -87,7 +87,7 @@ def unblock_ip(ip_address):
         )
 
         if ip_address not in check_result.stdout:
-            print(f"No block rule found for {ip_address}")
+            logger.info(f"No block rule found for {ip_address}")
             return False
 
         # Delete the rule
@@ -97,10 +97,10 @@ def unblock_ip(ip_address):
             text=True,
             check=True
         )
-        print(f"Successfully unblocked {ip_address}")
-        print(result.stdout)
+        logger.info(f"Successfully unblocked {ip_address}")
+        logger.info(result.stdout)
         return True
     except subprocess.CalledProcessError as e:
-        print(f"Failed to unblock {ip_address}: {e}")
-        print(e.stderr)
+        logger.error(f"Failed to unblock {ip_address}: {e}")
+        logger.error(e.stderr)
         return False

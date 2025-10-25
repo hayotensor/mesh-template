@@ -5,7 +5,7 @@ import secrets
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta, timezone
 from enum import Enum
-from typing import Optional
+from typing import Optional, Tuple, Union
 
 from mesh.proto.auth_pb2 import AccessToken, RequestAuthInfo, ResponseAuthInfo
 from mesh.utils.asyncio import anext, peek_first
@@ -95,13 +95,16 @@ class SignatureAuthorizer(AuthorizerBase):
 
         auth.nonce = secrets.token_bytes(8)
 
-
         assert auth.signature == b""
         auth.signature = self._local_private_key.sign(request.SerializeToString())
 
     _MAX_CLIENT_SERVICER_TIME_DIFF = timedelta(minutes=1)
 
-    async def validate_request(self, request: AuthorizedRequestBase) -> bool:
+    async def do_validate_request(self, request: AuthorizedRequestBase) -> Tuple[RSAPublicKey | Ed25519PublicKey, float, bytes, bool]:
+        """
+        Returns:
+            public key, current time, nonce, verified
+        """
         auth = request.auth
 
         client_public_key = load_public_key_from_bytes(auth.client_access_token.public_key)
@@ -110,28 +113,36 @@ class SignatureAuthorizer(AuthorizerBase):
         auth.signature = b""
         if not client_public_key.verify(request.SerializeToString(), signature):
             logger.debug("Request has invalid signature")
-            return False
+            return client_public_key, 0.0, auth.nonce, False
 
         if auth.service_public_key and auth.service_public_key != self._local_public_key.to_bytes():
             logger.debug("Request is generated for a peer with another public key")
-            return False
+            return client_public_key, 0.0, auth.nonce, False
 
         with self._recent_nonces.freeze():
             current_time = get_dht_time()
             if abs(auth.time - current_time) > self._MAX_CLIENT_SERVICER_TIME_DIFF.total_seconds():
                 logger.debug("Clocks are not synchronized or a previous request is replayed again")
-                return False
+                return client_public_key, current_time, auth.nonce, False
             if auth.nonce in self._recent_nonces:
                 logger.debug("Previous request is replayed again")
-                return False
+                return client_public_key, current_time, auth.nonce, False
 
         if auth.nonce in self._recent_nonces:
             logger.debug("Previous request is replayed again")
+            return client_public_key, current_time, auth.nonce, False
+
+        return client_public_key, current_time, auth.nonce, True
+
+    async def validate_request(self, request: AuthorizedRequestBase) -> bool:
+        _, current_time, nonce, valid = await self.do_validate_request(request)
+        if not valid:
             return False
 
         self._recent_nonces.store(
-            auth.nonce, None, current_time + self._MAX_CLIENT_SERVICER_TIME_DIFF.total_seconds() * 3
+            nonce, None, current_time + self._MAX_CLIENT_SERVICER_TIME_DIFF.total_seconds() * 3
         )
+
         return True
 
     async def sign_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> None:
@@ -145,7 +156,7 @@ class SignatureAuthorizer(AuthorizerBase):
         assert auth.signature == b""
         auth.signature = self._local_private_key.sign(response.SerializeToString())
 
-    async def validate_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> bool:
+    async def do_validate_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> Tuple[RSAPublicKey | Ed25519PublicKey, bool]:
         auth = response.auth
 
         service_public_key = load_public_key_from_bytes(auth.service_access_token.public_key)
@@ -154,13 +165,17 @@ class SignatureAuthorizer(AuthorizerBase):
         auth.signature = b""
         if not service_public_key.verify(response.SerializeToString(), signature):
             logger.debug("Response has invalid signature")
-            return False
+            return service_public_key, False
 
         if auth.nonce != request.auth.nonce:
             logger.debug("Response is generated for another request")
-            return False
+            return service_public_key, False
 
-        return True
+        return service_public_key, True
+
+    async def validate_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> bool:
+        _, valid = await self.do_validate_response(response, request)
+        return valid
 
 
 class AuthRole(Enum):

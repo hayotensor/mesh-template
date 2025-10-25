@@ -123,8 +123,6 @@ class ReachabilityProtocol(ServicerBase):
 
     @classmethod
     def attach_to_dht(cls, dht: DHT, identity_path: str, await_ready: bool = False, **kwargs) -> Optional["ReachabilityProtocol"]:
-        print("attach_to_dht")
-
         protocol = cls(**kwargs)
         ready = Future()
 

@@ -132,7 +132,7 @@ def main():
             hypertensor = Hypertensor(rpc, private_key, KeypairFrom.PRIVATE_KEY)
             keypair = Keypair.create_from_private_key(private_key, crypto_type=KeypairType.ECDSA)
             hotkey = keypair.ss58_address
-            print("hotkey", hotkey)
+            logger.info("hotkey", hotkey)
         else:
             hypertensor = Hypertensor(rpc, PHRASE)
     else:

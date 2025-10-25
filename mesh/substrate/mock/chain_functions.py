@@ -27,7 +27,9 @@ class MockHypertensor:
         peer_id: str,
         min_class: int
     ):
-        return True
+        return {
+            "result": True
+        }
 
     def get_epoch(self):
         current_block = self.get_block_number()

@@ -136,8 +136,6 @@ class MockHypertensor:
             if current_block < slot:
                 return EpochData.zero(current_block=current_block, epoch_length=epoch_length)
 
-            print("mock get_subnet_epoch_data current_block", current_block)
-
             blocks_since_start = current_block - slot
             epoch = blocks_since_start // epoch_length
             blocks_elapsed = blocks_since_start % epoch_length
@@ -145,10 +143,6 @@ class MockHypertensor:
             blocks_remaining = epoch_length - blocks_elapsed
             seconds_elapsed = blocks_elapsed * BLOCK_SECS
             seconds_remaining = blocks_remaining * BLOCK_SECS
-
-            print("mock get_subnet_epoch_data blocks_elapsed", blocks_elapsed)
-            print("mock get_subnet_epoch_data epoch", epoch)
-            print("mock get_subnet_epoch_data percent_complete", percent_complete)
 
         return EpochData(
             block=current_block,
@@ -227,11 +221,9 @@ class MockHypertensor:
         return consensus_data
 
     def get_subnet_included_nodes(self, subnet_id: int) -> List:
-        print("get_subnet_included_nodes")
         subnet_nodes = []
         id = 1
         for identity_path in glob.glob("rsa_test_path*.key"):
-            print("get_subnet_included_nodes identity_path", identity_path)
             with open(identity_path, "rb") as f:
                 peer_id = PeerID.from_identity_rsa(f.read())
                 subnet_nodes.append(SubnetNode(

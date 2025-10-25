@@ -17,7 +17,7 @@ def load_api_keys() -> List[Dict]:
             data = json.load(f)
             return data
     except Exception as e:
-        print(f"Error loading API keys: {e}")
+        logger.error(f"Error loading API keys: {e}")
         return []
 
 def get_active_keys(keys: List[Dict]) -> set[str]:
@@ -27,7 +27,7 @@ def save_api_keys(keys):
     try:
         with open(KEYS_FILE, 'w') as f:
             json.dump(keys, f, indent=4)
-            print(f"Saved keys to {KEYS_FILE}")
+            logger.info(f"Saved keys to {KEYS_FILE}")
     except Exception as e:
         logger.error(f"Error saving API keys {e}", exc_info=True)
 
@@ -37,7 +37,7 @@ def add_api_key(owner: str, key: str = None, active: bool = True):
         key = f"key-{owner}-{secrets.token_hex(6)}"  # noqa: F821
     # Check for duplicates
     if any(k["key"] == key for k in keys):
-        print(f"Key {key} already exists!")
+        logger.info(f"Key {key} already exists!")
         return
     # Look for existing entry for this owner
     for entry in keys:

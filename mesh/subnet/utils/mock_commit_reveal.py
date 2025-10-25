@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Optional
 
 from mesh import get_dht_time, get_logger
@@ -33,7 +34,7 @@ Store something by the 15% progress of the epoch
 """
 CONSENSUS_STORE_DEADLINE = 0.15
 
-# hoster commit-reveal epoch percentage elapsed deadlines
+# peer commit-reveal epoch percentage elapsed deadlines
 COMMIT_DEADLINE = 0.5
 REVEAL_DEADLINE = 0.6
 
@@ -61,13 +62,16 @@ This predicate validator ensures:
 - commits can only be stored within the 15-50% progress span of the epoch, with a maximum expiration of 2 epochs
 - reveals can only be stored within the 50-60% progress span on the epoch, with a maximum expiration of 2 epochs
 """
+"""
+When utilizing the `ProofOfStakeAuthorizer` into the DHT
+and in all custom protocols, all calls between peers, including
+GET/PUT DHT records will already have the `ProofOfStakeAuthorizer`
+in between the calls.
+"""
 class MockHypertensorCommitReveal:
-    """
-    When utilizing the `ProofOfStakeAuthorizer` into the DHT
-    and in all custom protocols, all calls between peers, including
-    GET/PUT DHT records will already have the `ProofOfStakeAuthorizer`
-    in between the calls.
-    """
+
+    MAX_EPOCH_HISTORY = 5 # How many epochs to store peer epoch history before clean up
+
     def __init__(self, hypertensor: Hypertensor, subnet_id: int):
         self.hypertensor = hypertensor
         self.subnet_id = subnet_id
@@ -75,6 +79,15 @@ class MockHypertensorCommitReveal:
         # Store any data required for logic
         self.slot: int | None = None
         self._epoch_data: Optional[EpochData] = None
+        self._peer_store_tracker = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+
+        # Stores per peer per epoch
+        self.per_peer_epoch_limits = {
+            "node": 100,
+            "consensus": 1,
+            "commit": 1,
+            "reveal": 1,
+        }
 
         # Store `self.slot`
         self._ensure_slot()
@@ -89,46 +102,102 @@ class MockHypertensorCommitReveal:
     def epoch_data(self) -> EpochData:
         return self.hypertensor.get_subnet_epoch_data(self._ensure_slot())
 
+    def _has_exceeded_store_limit(self, peer_id: str, key_type: str, epoch: int) -> bool:
+        """Check if the peer has already hit their per-epoch limit for this key type."""
+        limit = self.per_peer_epoch_limits.get(key_type, 1)
+        count = self._peer_store_tracker[epoch][key_type][peer_id]
+        logger.debug(f"Current node key count {count}")
+        if count >= limit:
+            logger.debug(
+                f"Peer {peer_id} exceeded store limit for {key_type} (epoch {epoch}, "
+                f"count={count}, limit={limit})"
+            )
+            return True
+        return False
+
+    def _record_peer_store(self, peer_id: str, key_type: str, epoch: int):
+        """Increment peer store counter after a successful PUT."""
+        self._peer_store_tracker[epoch][key_type][peer_id] += 1
+        new_count = self._peer_store_tracker[epoch][key_type][peer_id]
+        logger.debug(
+            f"Recorded store for {peer_id} → {key_type} @ epoch {epoch} "
+            f"(new count={new_count})"
+        )
+
+    def _cleanup_old_epochs(self, current_epoch: int):
+        """Remove records older than MAX_EPOCH_HISTORY epochs."""
+        old_epochs = [
+            e for e in self._peer_store_tracker.keys()
+            if e < current_epoch - self.MAX_EPOCH_HISTORY
+        ]
+        for e in old_epochs:
+            del self._peer_store_tracker[e]
+            logger.debug(f"Cleaned up tracking data for old epoch {e}")
+
+    def _get_key_type(self, record: DHTRecord, current_epoch: int) -> Optional[int]:
+        """
+        Create schemas here
+        You can use libraries like Pydantic to define schemas for keys, subkeys, and values
+
+        TODO: Persist this data in a local database for persistance on validator node restarts
+        """
+        valid_keys = {
+            # Heartbeat
+            DHTID.generate(source="node").to_bytes(): "node",
+            # ⸺ 0-15%
+            DHTID.generate(source=f"consensus_epoch_{current_epoch}").to_bytes(): "consensus",
+            # ⸺ 15-50%
+            DHTID.generate(source=f"commit_epoch_{current_epoch}").to_bytes(): "commit",
+            # ⸺ 50-60%
+            DHTID.generate(source=f"reveal_epoch_{current_epoch}").to_bytes(): "reveal",
+        }
+
+        return valid_keys.get(record.key, None)
+
     def __call__(self, record: DHTRecord, type: DHTRecordRequestType) -> bool:
         """
         Callable interface
+
+        This is the logic that will run to validate all GET/POST DHT records
+
+        Note: If any peers change this, it is very likely they will become out of consensus as
+              its data will mismatch others. For example, if a node stores data that others will
+              not store, they will be out of sync and have bad data.
+              See on-chain subnet node reputations for how nodes are removed when they go below the
+              subnets minimum node reputation
         """
         try:
+            # Get caller peer ID
+            # This also ensures the record has a public key as a subkey
+            # NOTE: To use this `SignatureValidator` must be implemented with priority
             caller_peer_id = extract_peer_id_from_record_validator(record.subkey)
             if caller_peer_id is None:
                 return False
+
+            logger.debug(f"caller_peer_id: {caller_peer_id}")
 
             if type is DHTRecordRequestType.GET:
                 logger.debug(f"{caller_peer_id} requested GET")
                 return True
 
-            # Example: use cached epoch data here
+            # Get `EpochData`
             epoch_data = self.epoch_data()
             current_epoch = epoch_data.epoch
-            # Get progress of epoch for commit-reveal phases
-            percent_complete = epoch_data.percent_complete
+            percent_complete = epoch_data.percent_complete # Get progress of epoch for commit-reveal phases
 
             logger.debug(f"{caller_peer_id} is storing data at slot {self.slot}, epoch={current_epoch}")
 
-            """
-            Create schemas here
-            You can use libraries like Pydantic to define schemas for keys, subkeys, and values
-            """
-            # Ensure the keys are valid for the current allowable keys or epoch allowable keys
-            valid_keys = {
-                # Heartbeat
-                DHTID.generate(source="node").to_bytes(): "node",
-                # ⸺ 0-15%
-                DHTID.generate(source=f"consensus_epoch_{current_epoch}").to_bytes(): "consensus",
-                # ⸺ 15-50%
-                DHTID.generate(source=f"commit_epoch_{current_epoch}").to_bytes(): "commit",
-                # ⸺ 50-60%
-                DHTID.generate(source=f"reveal_epoch_{current_epoch}").to_bytes(): "reveal",
-            }
+            # Clean up old keys
+            self._cleanup_old_epochs(current_epoch)
 
-            key_type = valid_keys.get(record.key, None)
-
+            # Get valid key type
+            key_type = self._get_key_type(record, current_epoch)
+            logger.debug(f"key_type: {key_type}")
             if key_type is None:
+                return False
+
+            # Verify peer store limit condition
+            if self._has_exceeded_store_limit(caller_peer_id, key_type, current_epoch):
                 return False
 
             dht_time = get_dht_time()
@@ -139,45 +208,33 @@ class MockHypertensorCommitReveal:
             heartbeat, etc.
             """
 
-            # ⸺ 0-100% (any time)
+            # DEADLINES AND EXPIRATIONS
             if key_type == "node":
                 max_expiration = dht_time + MAX_HEART_BEAT_TIME
                 if record.expiration_time > max_expiration:
                     return False
-                return True
 
-            # ⸺ 0-15%
             elif key_type == "consensus":
-                # Must be submitted before deadline
                 if percent_complete > CONSENSUS_STORE_DEADLINE:
                     return False
-
-                max_expiration = dht_time + MAX_CONSENSUS_TIME
-                if record.expiration_time > max_expiration:
+                if record.expiration_time > dht_time + MAX_CONSENSUS_TIME:
                     return False
 
-                return True
-
-            # ⸺ 15-50%
             elif key_type == "commit":
-                max_expiration = dht_time + MAX_COMMIT_TIME
-                if record.expiration_time > max_expiration:
-                    return False
                 if percent_complete <= CONSENSUS_STORE_DEADLINE or percent_complete > COMMIT_DEADLINE:
                     return False
-
-                return True
-
-            # ⸺ 50-60%
-            elif key_type == "reveal":
-                max_expiration = dht_time + MAX_REVEAL_TIME
-                if record.expiration_time > max_expiration:
+                if record.expiration_time > dht_time + MAX_COMMIT_TIME:
                     return False
+
+            elif key_type == "reveal":
                 if percent_complete <= COMMIT_DEADLINE or percent_complete > REVEAL_DEADLINE:
                     return False
-                return True
+                if record.expiration_time > dht_time + MAX_REVEAL_TIME:
+                    return False
 
-            return False  # Key doesn't match any known schema
+            self._record_peer_store(caller_peer_id, key_type, current_epoch)
+
+            return True
         except Exception as e:
             logger.warning(f"MockHypertensorCommitReveal error: {e}")
             return False

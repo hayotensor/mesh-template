@@ -127,64 +127,6 @@ class CompositeValidator(RecordValidatorBase):
             record = dataclasses.replace(record, value=validator.strip_value(record))
         return record.value
 
-class PredicateValidator(RecordValidatorBase):
-    """
-    A general-purpose DHT validator that delegates all validation logic to a custom callable.
-
-    This is a minimal validator that can enforce any condition on the entire DHTRecord.
-    Useful for filtering keys, expiration time, value content, or any combination thereof.
-
-    Example:
-        def my_record_predicate(record: DHTRecord) -> bool:
-            now = time.time()
-
-            if not record.key.startswith(b"score:"):
-                logger.debug(f"Rejected record: key {record.key} does not start with b'score:'")
-                return False
-
-            if len(record.value) <= 10:
-                logger.debug(f"Rejected record: value length {len(record.value)} <= 10")
-                return False
-
-            if not (now <= record.expiration_time <= now + 3600):
-                logger.debug(f"Rejected record: expiration_time {record.expiration_time} outside next hour")
-                return False
-
-            return True
-
-        PredicateValidator(record_predicate=my_record_predicate)
-
-    This can be used to ensure keys match a specific format, or nodes are doing something within a certain period
-    of time in relation to the blockchain, i.e., ensuring a commit-reveal schema where the commit is submitted by the
-    first half of the epoch and the reveal is done on the second half of the epoch.
-
-    Attributes:
-        record_predicate (Callable[[DHTRecord], bool]): A user-defined function that receives a record and returns True if valid.
-    """
-
-    def __init__(
-        self,
-        record_predicate: Callable[[DHTRecord], bool] = lambda r: True,
-    ):
-        self.record_predicate = record_predicate
-
-    def validate(self, record: DHTRecord, type: DHTRecordRequestType) -> bool:
-        return self.record_predicate(record)
-
-    def sign_value(self, record: DHTRecord) -> bytes:
-        return record.value
-
-    def strip_value(self, record: DHTRecord) -> bytes:
-        return record.value
-
-    def merge_with(self, other: RecordValidatorBase) -> bool:
-        if not isinstance(other, PredicateValidator):
-            return False
-
-        # Ignore another KeyValidator instance (it doesn't make sense to have several
-        # instances of this class) and report successful merge
-        return True
-
 class HypertensorPredicateValidator(RecordValidatorBase):
     def __init__(self, record_predicate: Callable[[DHTRecord, DHTRecordRequestType], bool]):
         self.record_predicate = record_predicate
@@ -221,6 +163,11 @@ class HypertensorPredicateValidator(RecordValidatorBase):
         # Ignore another KeyValidator instance (it doesn't make sense to have several
         # instances of this class) and report successful merge
         return True
+
+    @property
+    def priority(self) -> int:
+        # Priority is less than SignatureValidator
+        return 9
 
 # class DHTPredicateValidator(RecordValidatorBase):
 #     """

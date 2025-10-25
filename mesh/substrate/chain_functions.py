@@ -121,7 +121,7 @@ class Hypertensor:
           block_number = _interface.get_block_number(block_hash)
           return block_number
       except SubstrateRequestException as e:
-        print("Failed to get query request: {}".format(e))
+        logger.error("Failed to get query request: {}".format(e))
 
     return make_query()
 
@@ -136,7 +136,7 @@ class Hypertensor:
           epoch = int(str(current_block)) // int(str(epoch_length))
           return epoch
       except SubstrateRequestException as e:
-        print("Failed to get query request: {}".format(e))
+        logger.error("Failed to get query request: {}".format(e))
 
     return make_query()
 
@@ -188,15 +188,14 @@ class Hypertensor:
 
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           if receipt.is_success:
-            print('✅ Success, triggered events:')
             for event in receipt.triggered_events:
                 print(f'* {event.value}')
           else:
-              print('⚠️ Extrinsic Failed: ', receipt.error_message)
+              logger.error(f'⚠️ Extrinsic Failed: {receipt.error_message}')
 
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     try:
       return submit_extrinsic()
@@ -239,15 +238,14 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
 
           if receipt.is_success:
-            print('✅ Success, triggered events:')
             for event in receipt.triggered_events:
                 print(f'* {event.value}')
           else:
-              print('⚠️ Extrinsic Failed: ', receipt.error_message)
+            logger.error(f'⚠️ Extrinsic Failed: {receipt.error_message}')
 
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -314,7 +312,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -351,7 +349,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -384,7 +382,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -444,7 +442,8 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
+        
 
     return submit_extrinsic()
 
@@ -507,7 +506,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -546,7 +545,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -585,7 +584,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -624,7 +623,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -667,7 +666,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -709,7 +708,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -737,7 +736,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -776,7 +775,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -818,7 +817,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -857,7 +856,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -898,7 +897,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -937,7 +936,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -976,7 +975,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -999,7 +998,7 @@ class Hypertensor:
           result = _interface.query('Network', 'SubnetNodesData', [subnet_id, subnet_node_id])
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1022,7 +1021,7 @@ class Hypertensor:
           result = _interface.query('Network', 'HotkeySubnetNodeId', [subnet_id, hotkey])
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1043,7 +1042,7 @@ class Hypertensor:
           result = _interface.query('Network', 'HotkeyOwner', [hotkey])
           return result.value['data']['free']
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1065,7 +1064,7 @@ class Hypertensor:
           result = _interface.query('Network', 'SubnetNodeIdHotkey', [subnet_id, hotkey])
           return result.value['data']['free']
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1086,7 +1085,7 @@ class Hypertensor:
           result = _interface.query('System', 'Account', [address])
           return result.value['data']['free']
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1109,7 +1108,7 @@ class Hypertensor:
           result = _interface.query('Network', 'AccountSubnetStake', [address, subnet_id])
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1130,7 +1129,7 @@ class Hypertensor:
           result = _interface.query('Network', 'SubnetPaths', [path])
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1151,7 +1150,7 @@ class Hypertensor:
           result = _interface.query('Network', 'SubnetsData', [id])
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1169,7 +1168,7 @@ class Hypertensor:
           result = _interface.query('Network', 'MaxSubnets')
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1187,7 +1186,7 @@ class Hypertensor:
           result = _interface.query('Network', 'MinSubnetNodes')
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1205,7 +1204,7 @@ class Hypertensor:
           result = _interface.query('Network', 'MinStakeBalance')
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1223,7 +1222,7 @@ class Hypertensor:
           result = _interface.query('Network', 'MaxSubnetNodes')
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1241,7 +1240,7 @@ class Hypertensor:
           result = _interface.query('Network', 'TxRateLimit')
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1259,7 +1258,7 @@ class Hypertensor:
           result = _interface.get_constant('Network', 'EpochLength')
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1283,7 +1282,7 @@ class Hypertensor:
           result = _interface.query('Network', 'SubnetElectedValidator', [subnet_id, epoch])
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1301,7 +1300,7 @@ class Hypertensor:
           result = _interface.query('Network', 'OverwatchEpochLengthMultiplier')
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1319,7 +1318,7 @@ class Hypertensor:
           result = _interface.query('Network', 'OverwatchCommitCutoffPercent')
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1344,7 +1343,7 @@ class Hypertensor:
           result = _interface.query('Network', 'SubnetConsensusSubmission', [subnet_id, epoch])
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1362,7 +1361,7 @@ class Hypertensor:
           result = _interface.query('Network', 'MinSubnetRegistrationBlocks')
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1379,7 +1378,7 @@ class Hypertensor:
           result = _interface.query('Network', 'MaxSubnetRegistrationBlocks')
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1395,7 +1394,7 @@ class Hypertensor:
           result = _interface.query('Network', 'MaxSubnetEntryInterval')
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1411,7 +1410,7 @@ class Hypertensor:
           result = _interface.query('Network', 'SubnetRegistrationEpochs')
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1438,7 +1437,6 @@ class Hypertensor:
             # Query directly (avoid context manager which closes socket)
             with self.interface as interface:
               result = interface.query('Network', 'SubnetSlot', [subnet_id])
-              print("result", result)
               return result
 
         except Exception as e:  # noqa: F841
@@ -1484,7 +1482,7 @@ class Hypertensor:
           )
           return data
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_rpc_request()
 
@@ -1504,7 +1502,7 @@ class Hypertensor:
           )
           return data
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_rpc_request()
 
@@ -1521,7 +1519,7 @@ class Hypertensor:
           )
           return data
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_rpc_request()
 
@@ -1541,7 +1539,7 @@ class Hypertensor:
           )
           return data
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_rpc_request()
 
@@ -1558,7 +1556,7 @@ class Hypertensor:
           )
           return data
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_rpc_request()
 
@@ -1584,7 +1582,7 @@ class Hypertensor:
           )
           return subnet_nodes_data
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_rpc_request()
 
@@ -1604,7 +1602,7 @@ class Hypertensor:
           )
           return data
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_rpc_request()
 
@@ -1624,7 +1622,7 @@ class Hypertensor:
           )
           return data
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_rpc_request()
 
@@ -1644,7 +1642,7 @@ class Hypertensor:
           )
           return data
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_rpc_request()
 
@@ -1664,7 +1662,7 @@ class Hypertensor:
           )
           return data
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_rpc_request()
 
@@ -1686,7 +1684,7 @@ class Hypertensor:
           )
           return data
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_rpc_request()
 
@@ -1708,7 +1706,7 @@ class Hypertensor:
           )
           return data
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_rpc_request()
 
@@ -1728,7 +1726,7 @@ class Hypertensor:
           result = _interface.query('Network', 'SubnetConsensusSubmission', [subnet_id, epoch])
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 
@@ -1774,7 +1772,7 @@ class Hypertensor:
           )
           return result['result']
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_rpc_request()
 
@@ -1801,7 +1799,7 @@ class Hypertensor:
           )
           return data
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_rpc_request()
 
@@ -1830,7 +1828,7 @@ class Hypertensor:
           )
           return data
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_rpc_request()
 
@@ -1859,7 +1857,7 @@ class Hypertensor:
           )
           return data
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_rpc_request()
 
@@ -1897,7 +1895,7 @@ class Hypertensor:
                 break
           return data
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_event_query()
 
@@ -2233,7 +2231,7 @@ class Hypertensor:
 
       return consensus_data
     except Exception as e:
-      print(e)
+      logger.error(f"Error get_consensus_data_formatted={e}", exc_info=True)
       return None
 
   def get_min_class_subnet_nodes_formatted(self, subnet_id: int, subnet_epoch: int, min_class: SubnetNodeClass) -> List["SubnetNodeInfo"]:
@@ -2290,7 +2288,7 @@ class Hypertensor:
           receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
           return receipt
       except SubstrateRequestException as e:
-        print("Failed to send: {}".format(e))
+        logger.error("Failed to send: {}".format(e))
 
     return submit_extrinsic()
 
@@ -2311,7 +2309,7 @@ class Hypertensor:
           result = _interface.query('Network', 'SubnetKeyTypes', [subnet_id])
           return result
       except SubstrateRequestException as e:
-        print("Failed to get rpc request: {}".format(e))
+        logger.error("Failed to get rpc request: {}".format(e))
 
     return make_query()
 

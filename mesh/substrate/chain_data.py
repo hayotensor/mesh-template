@@ -181,6 +181,8 @@ custom_rpc_type_registry = {
       "type": "struct",
       "type_mapping": [
         ["block", "u32"],
+        ["attestor_progress", "u128"],
+        ["reward_factor", "u128"],
         ["data", "Option<BoundedVec<u8, DefaultValidatorArgsLimit>>"]
       ]
     },
@@ -188,6 +190,9 @@ custom_rpc_type_registry = {
       "type": "struct",
       "type_mapping": [
         ["validator_id", "u32"],
+        ["block", "u32"],
+        ["validator_epoch_progress", "u128"],
+        ["validator_reward_factor", "u128"],
         ["attests", "BTreeMap<u32, AttestEntry>"],
         ["subnet_nodes", "Vec<SubnetNode<[u8; 20]>>"],
         ["prioritize_queue_node_id", "Option<u32>"],
@@ -200,6 +205,8 @@ custom_rpc_type_registry = {
       "type": "struct",
       "type_mapping": [
         ["validator_subnet_node_id", "u32"],
+        ["validator_epoch_progress", "u128"],
+        ["validator_reward_factor", "u128"],
         ["attestation_ratio", "u128"],
         ["weight_sum", "u128"],
         ["data_length", "u32"],
@@ -914,21 +921,31 @@ class ConsensusSubmissionData:
   Dataclass for subnet node info.
   """
   validator_subnet_node_id: int
+  validator_epoch_progress: int
+  validator_reward_factor: int
   attestation_ratio: int
   weight_sum: int
   data_length: int
   data: list
+  attests: list
   subnet_nodes: list
+  prioritize_queue_node_id: int
+  remove_queue_node_id: int
 
   @classmethod
   def fix_decoded_values(cls, data_decoded: Any) -> "ConsensusSubmissionData":
     """Fixes the values of the ConsensusSubmissionData object."""
     data_decoded["validator_subnet_node_id"] = data_decoded["validator_subnet_node_id"]
+    data_decoded["validator_epoch_progress"] = data_decoded["validator_epoch_progress"]
+    data_decoded["validator_reward_factor"] = data_decoded["validator_reward_factor"]
     data_decoded["attestation_ratio"] = data_decoded["attestation_ratio"]
     data_decoded["weight_sum"] = data_decoded["weight_sum"]
     data_decoded["data_length"] = data_decoded["data_length"]
     data_decoded["data"] = data_decoded["data"]
+    data_decoded["attests"] = data_decoded["attests"]
     data_decoded["subnet_nodes"] = data_decoded["subnet_nodes"]
+    data_decoded["prioritize_queue_node_id"] = data_decoded["prioritize_queue_node_id"]
+    data_decoded["remove_queue_node_id"] = data_decoded["remove_queue_node_id"]
 
     return cls(**data_decoded)
 
@@ -982,11 +999,16 @@ class ConsensusSubmissionData:
   def _get_null() -> "ConsensusSubmissionData":
     data = ConsensusSubmissionData(
       validator_subnet_node_id=0,
+      validator_epoch_progress=0,
+      validator_reward_factor=0,
       attestation_ratio=0,
       weight_sum=0,
       data_length=0,
       data=[],
+      attests=[],
       subnet_nodes=[],
+      prioritize_queue_node_id=0,
+      remove_queue_node_id=0,
     )
     return data
 
@@ -1067,6 +1089,7 @@ class ConsensusData:
   Dataclass for subnet node info.
   """
   validator_id: int
+  validator_epoch_progress: int
   attests: list
   subnet_nodes: list
   prioritize_queue_node_id: int | None

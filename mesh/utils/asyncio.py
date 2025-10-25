@@ -305,7 +305,7 @@ async def peek_first(async_gen: AsyncIterator[T]) -> Tuple[T | None, AsyncIterat
     try:
         first_item = await anext(async_gen)
     except StopAsyncIteration:
-        return None, async_gen  # nothing to peek
+        return None, async_gen
 
     class PeekableGen:
         def __init__(self, first, gen):

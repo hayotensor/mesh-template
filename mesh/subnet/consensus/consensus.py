@@ -85,9 +85,7 @@ class Consensus(mp.Process):
 
         # Get each subnet node ID that is included onchain AND in the subnet
         included_nodes = self.hypertensor.get_min_class_subnet_nodes_formatted(self.subnet_id, current_epoch, SubnetNodeClass.Included)
-        print("included_nodes", included_nodes)
         subnet_node_ids = [n.subnet_node_id for n in included_nodes if PeerID.from_base58(n.peer_id) in node_peer_ids]
-        print("subnet_node_ids", subnet_node_ids)
 
         """
             {
@@ -288,7 +286,6 @@ class Consensus(mp.Process):
             try:
                 epoch_data = self.hypertensor.get_subnet_epoch_data(self.slot)
                 current_epoch = epoch_data.epoch
-                print("run_forever current_epoch", current_epoch)
 
                 if current_epoch != last_epoch:
                     """
@@ -305,7 +302,6 @@ class Consensus(mp.Process):
 
                 # Wait for either stop event or timeout based on remaining time
                 try:
-                    print("sleeping for epoch_data.seconds_remaining")
                     await asyncio.wait_for(
                         self._async_stop_event.wait(),
                         timeout=epoch_data.seconds_remaining
@@ -338,7 +334,6 @@ class Consensus(mp.Process):
         logger.info(f"[Consensus] epoch: {current_epoch}")
 
         scores = self.get_scores(current_epoch)
-        print("scores", scores)
 
         validator = None
         # Wait until validator is chosen

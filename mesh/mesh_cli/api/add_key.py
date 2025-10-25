@@ -1,6 +1,9 @@
 from argparse import ArgumentParser
 
 from mesh.mesh_cli.api.api_utils import add_api_key
+from mesh.utils import get_logger
+
+logger = get_logger(__name__)
 
 """
 mesh-add-api-key --owner <owner_name>
@@ -15,7 +18,7 @@ def main():
     if args.owner:
         add_api_key(args.owner, key=args.key, active=not args.inactive)
     else:
-        print("No action specified. Use --owner OWNER")
+        logger.info("No action specified. Use --owner OWNER")
 
 if __name__ == "__main__":
     main()

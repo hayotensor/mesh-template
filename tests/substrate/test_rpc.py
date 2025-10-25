@@ -11,6 +11,254 @@ from scalecodec.type_registry import load_type_registry_preset
 
 from mesh.substrate.chain_functions import Hypertensor, KeypairFrom
 
+# custom_rpc_type_registry = {
+#   "types": {
+#     "SubnetData": {
+#       "type": "struct",
+#       "type_mapping": [
+#         ["id", "u32"],
+#         ["name", "Vec<u8>"],
+#         ["repo", "Vec<u8>"],
+#         ["description", "Vec<u8>"],
+#         ["misc", "Vec<u8>"],
+#         ["state", "SubnetState"],
+#         ["start_epoch", "u32"],
+#       ],
+#     },
+#     "SubnetInfo": {
+#       "type": "struct",
+#       "type_mapping": [
+#         ["id", "u32"],
+#         ["name", "Vec<u8>"],
+#         ["repo", "Vec<u8>"],
+#         ["description", "Vec<u8>"],
+#         ["misc", "Vec<u8>"],
+#         ["state", "SubnetState"],
+#         ["start_epoch", "u32"],
+#         ["churn_limit", "u32"],
+#         ["min_stake", "u128"],
+#         ["max_stake", "u128"],
+#         ["queue_immunity_epochs", "u32"],
+#         ["target_node_registrations_per_epoch", "u32"],
+#         ["subnet_node_queue_epochs", "u32"],
+#         ["idle_classification_epochs", "u32"],
+#         ["included_classification_epochs", "u32"],
+#         ["delegate_stake_percentage", "u128"],
+#         ["node_burn_rate_alpha", "u128"],
+#         ["max_node_penalties", "u32"],
+#         ["initial_coldkeys", "Option<Vec<[u8; 20]>>"],
+#         ["max_registered_nodes", "u32"],
+#         ["owner", "Option<[u8; 20]>"],
+#         ["pending_owner", "Option<[u8; 20]>"],
+#         ["registration_epoch", "Option<u32>"],
+#         ["key_types", "BTreeSet<KeyType>"],
+#         ["slot_index", "Option<u32>"],
+#         ["penalty_count", "u32"],
+#         ["bootnode_access", "BTreeSet<[u8; 20]>"],
+#         ["bootnodes", "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>"],
+#         ["total_nodes", "u32"],
+#         ["total_active_nodes", "u32"],
+#         ["total_electable_nodes", "u32"],
+#         ["current_min_delegate_stake", "u128"]
+#       ],
+#     },
+#     "SubnetState": {
+#       "type": "enum",
+#       "value_list": [
+#         "Registered",
+#         "Active",
+#         "Paused",
+#       ],
+#     },
+#     "KeyType": {
+#       "type": "enum",
+#       "value_list": [
+#         "Rsa",
+#         "Ed25519",
+#         "Secp256k1",
+#         "Ecdsa",
+#       ],
+#     },
+#     "SubnetNode": {
+#       "type": "struct",
+#       "type_mapping": [
+#         ["id", "u32"],
+#         ["hotkey", "[u8; 20]"],
+#         ["peer_id", "OpaquePeerId"],
+#         ["bootnode_peer_id", "OpaquePeerId"],
+#         ["bootnode", "Option<BoundedVec<u8, DefaultMaxVectorLength>>"],
+#         ["client_peer_id", "OpaquePeerId"],
+#         ["classification", "SubnetNodeClassification"],
+#         ["delegate_reward_rate", "u128"],
+#         ["last_delegate_reward_rate_update", "u32"],
+#         ["unique", "Option<BoundedVec<u8, DefaultMaxVectorLength>>"],
+#         ["non_unique", "Option<BoundedVec<u8, DefaultMaxVectorLength>>"],
+#       ],
+#     },
+#     "SubnetNodeClassification": {
+#       "type": "struct",
+#       "type_mapping": [
+#         ["node_class", "SubnetNodeClass"],
+#         ["start_epoch", "u32"],
+#       ],
+#     },
+#     "SubnetNodeClass": {
+#       "type": "enum",
+#       "value_list": [
+#         "Registered",
+#         "Idle",
+#         "Included",
+#         "Validator",
+#       ],
+#     },
+#     "SubnetNodeConsensusData": {
+#       "type": "struct",
+#       "type_mapping": [
+#         ["subnet_node_id", "u32"],
+#         ["score", "u128"],
+#       ],
+#     },
+#     "RewardsData": {
+#       "type": "struct",
+#       "type_mapping": [
+#         ["overall_subnet_reward", "u128"],
+#         ["subnet_owner_reward", "u128"],
+#         ["subnet_rewards", "u128"],
+#         ["delegate_stake_rewards", "u128"],
+#         ["subnet_node_rewards", "u128"],
+#       ],
+#     },
+#     "SubnetNodeInfo": {
+#       "type": "struct",
+#       "type_mapping": [
+#         ["subnet_id", "u32"],
+#         ["subnet_node_id", "u32"],
+#         ["coldkey", "[u8; 20]"],
+#         ["hotkey", "[u8; 20]"],
+#         ["peer_id", "PeerId"],
+#         ["bootnode_peer_id", "PeerId"],
+#         ["client_peer_id", "PeerId"],
+#         ["bootnode", "Option<BoundedVec<u8, DefaultMaxVectorLength>>"],
+#         ["identity", "ColdkeyIdentityData"],
+#         ["classification", "SubnetNodeClassification"],
+#         ["delegate_reward_rate", "u128"],
+#         ["last_delegate_reward_rate_update", "u32"],
+#         ["unique", "Option<BoundedVec<u8, DefaultMaxVectorLength>>"],
+#         ["non_unique", "Option<BoundedVec<u8, DefaultMaxVectorLength>>"],
+#         ["stake_balance", "u128"],
+#         ["node_delegate_stake_balance", "u128"],
+#         ["penalties", "u32"],
+#         ["reputation", "Reputation"],
+#       ],
+#     },
+#     "Reputation": {
+#       "type": "struct",
+#       "type_mapping": [
+#         ["start_epoch", "u32"],
+#         ["score", "u128"],
+#         ["lifetime_node_count", "u32"],
+#         ["total_active_nodes", "u32"],
+#         ["total_increases", "u32"],
+#         ["total_decreases", "u32"],
+#         ["average_attestation", "u128"],
+#         ["last_validator_epoch", "u32"],
+#         ["ow_score", "u128"],
+#       ],
+#     },
+#     "ColdkeyIdentityData": {
+#       "type": "struct",
+#       "type_mapping": [
+#         ["name", "BoundedVec<u8, DefaultMaxVectorLength>"],
+#         ["url", "BoundedVec<u8, DefaultMaxUrlLength>"],
+#         ["image", "BoundedVec<u8, DefaultMaxUrlLength>"],
+#         ["discord", "BoundedVec<u8, DefaultMaxSocialIdLength>"],
+#         ["x", "BoundedVec<u8, DefaultMaxSocialIdLength>"],
+#         ["telegram", "BoundedVec<u8, DefaultMaxSocialIdLength>"],
+#         ["github", "BoundedVec<u8, DefaultMaxUrlLength>"],
+#         ["hugging_face", "BoundedVec<u8, DefaultMaxUrlLength>"],
+#         ["description", "BoundedVec<u8, DefaultMaxVectorLength>"],
+#         ["misc", "BoundedVec<u8, DefaultMaxVectorLength>"],
+#       ],
+#     },
+#     "AttestEntry": {
+#       "type": "struct",
+#       "type_mapping": [
+#         ["block", "u32"],
+#         ["data", "Option<BoundedVec<u8, DefaultValidatorArgsLimit>>"]
+#       ]
+#     },
+#     "ConsensusData": {
+#       "type": "struct",
+#       "type_mapping": [
+#         ["validator_id", "u32"],
+#         ["validator_epoch_progress", "u128"],
+#         ["attests", "BTreeMap<u32, AttestEntry>"],
+#         ["subnet_nodes", "Vec<SubnetNode<[u8; 20]>>"],
+#         ["prioritize_queue_node_id", "Option<u32>"],
+#         ["remove_queue_node_id", "Option<u32>"],
+#         ["data", "Vec<SubnetNodeConsensusData>"],
+#         ["args", "Option<BoundedVec<u8, DefaultValidatorArgsLimit>>"],
+#       ],
+#     },
+#     "ConsensusSubmissionData": {
+#       "type": "struct",
+#       "type_mapping": [
+#         ["validator_subnet_node_id", "u32"],
+#         ["attestation_ratio", "u128"],
+#         ["weight_sum", "u128"],
+#         ["data_length", "u32"],
+#         ["data", "Vec<SubnetNodeConsensusData>"],
+#         ["attests", "BTreeMap<u32, AttestEntry>"],
+#         ["subnet_nodes", "Vec<SubnetNode<[u8; 20]>>"],
+#         ["prioritize_queue_node_id", "Option<u32>"],
+#         ["remove_queue_node_id", "Option<u32>"],
+#       ],
+#     },
+#     "AllSubnetBootnodes": {
+#       "type": "struct",
+#       "type_mapping": [
+#         ["bootnodes", "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>"],
+#         ["node_bootnodes", "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>"],
+#       ],
+#     },
+#     "SubnetNodeStakeInfo": {
+#       "type": "struct",
+#       "type_mapping": [
+#         ["subnet_id", "Option<u32>"],
+#         ["subnet_node_id", "Option<u32>"],
+#         ["hotkey", "[u8; 20]"],
+#         ["balance", "u128"],
+#       ],
+#     },
+#     "DelegateStakeInfo": {
+#       "type": "struct",
+#       "type_mapping": [
+#         ["subnet_id", "u32"],
+#         ["shares", "u128"],
+#         ["balance", "u128"],
+#       ],
+#     },
+#     "NodeDelegateStakeInfo": {
+#       "type": "struct",
+#       "type_mapping": [
+#         ["subnet_id", "u32"],
+#         ["subnet_node_id", "u32"],
+#         ["shares", "u128"],
+#         ["balance", "u128"],
+#       ],
+#     },
+#     "PeerId": "Vec<u8>",
+#     "BoundedVec<u8, DefaultMaxVectorLength>": "Vec<u8>",
+#     "BoundedVec<u8, DefaultMaxUrlLength>": "Vec<u8>",
+#     "BoundedVec<u8, DefaultMaxSocialIdLength>": "Vec<u8>",
+#     "BoundedVec<u8, DefaultValidatorArgsLimit>": "Vec<u8>",
+#     "Option<BoundedVec<u8, DefaultMaxVectorLength>>": "Option<Vec<u8>>",
+#     "Option<BoundedVec<u8, DefaultMaxUrlLength>>": "Option<Vec<u8>>",
+#     "Option<BoundedVec<u8, DefaultMaxSocialIdLength>>": "Option<Vec<u8>>",
+#     "Option<BoundedVec<u8, DefaultValidatorArgsLimit>>": "Option<Vec<u8>>",
+#     "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>": "Vec<u8>",
+#   }
+# }
 custom_rpc_type_registry = {
   "types": {
     "SubnetData": {
@@ -184,6 +432,8 @@ custom_rpc_type_registry = {
       "type": "struct",
       "type_mapping": [
         ["block", "u32"],
+        ["attestor_progress", "u128"],
+        ["reward_factor", "u128"],
         ["data", "Option<BoundedVec<u8, DefaultValidatorArgsLimit>>"]
       ]
     },
@@ -191,6 +441,9 @@ custom_rpc_type_registry = {
       "type": "struct",
       "type_mapping": [
         ["validator_id", "u32"],
+        ["block", "u32"],
+        ["validator_epoch_progress", "u128"],
+        ["validator_reward_factor", "u128"],
         ["attests", "BTreeMap<u32, AttestEntry>"],
         ["subnet_nodes", "Vec<SubnetNode<[u8; 20]>>"],
         ["prioritize_queue_node_id", "Option<u32>"],
@@ -203,6 +456,8 @@ custom_rpc_type_registry = {
       "type": "struct",
       "type_mapping": [
         ["validator_subnet_node_id", "u32"],
+        ["validator_epoch_progress", "u128"],
+        ["validator_reward_factor", "u128"],
         ["attestation_ratio", "u128"],
         ["weight_sum", "u128"],
         ["data_length", "u32"],
@@ -247,6 +502,9 @@ custom_rpc_type_registry = {
       ],
     },
     "PeerId": "Vec<u8>",
+    "BTreeSet<KeyType>": "Vec<KeyType>",
+    "BTreeSet<[u8; 20]>": "Vec<[u8; 20]>",
+    "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>": "Vec<BoundedVec<u8, DefaultMaxVectorLength>>",  # Not just Vec<u8>
     "BoundedVec<u8, DefaultMaxVectorLength>": "Vec<u8>",
     "BoundedVec<u8, DefaultMaxUrlLength>": "Vec<u8>",
     "BoundedVec<u8, DefaultMaxSocialIdLength>": "Vec<u8>",
@@ -255,7 +513,6 @@ custom_rpc_type_registry = {
     "Option<BoundedVec<u8, DefaultMaxUrlLength>>": "Option<Vec<u8>>",
     "Option<BoundedVec<u8, DefaultMaxSocialIdLength>>": "Option<Vec<u8>>",
     "Option<BoundedVec<u8, DefaultValidatorArgsLimit>>": "Option<Vec<u8>>",
-    "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>": "Vec<u8>",
   }
 }
 
@@ -268,79 +525,79 @@ hypertensor = Hypertensor(LOCAL_RPC, "0x5fb92d6e98884f76de468fa3f6278f8807c48beb
 # pytest tests/substrate/test_rpc.py::test_get_subnet_info -rP
 
 def test_get_subnet_info():
-    debug_custom_rpc_type_registry = {
-      "types": {
-        "SubnetInfo": {
-          "type": "struct",
-          "type_mapping": [
-            ["id", "u32"],
-            ["name", "Vec<u8>"],
-            ["repo", "Vec<u8>"],
-            ["description", "Vec<u8>"],
-            ["misc", "Vec<u8>"],
-            ["state", "SubnetState"],
-            ["start_epoch", "u32"],
-            ["churn_limit", "u32"],
-            ["min_stake", "u128"],
-            ["max_stake", "u128"],
-            ["queue_immunity_epochs", "u32"],
-            ["target_node_registrations_per_epoch", "u32"],
-            ["subnet_node_queue_epochs", "u32"],
-            ["idle_classification_epochs", "u32"],
-            ["included_classification_epochs", "u32"],
-            ["delegate_stake_percentage", "u128"],
-            ["node_burn_rate_alpha", "u128"],
-            ["max_node_penalties", "u32"],
-            ["initial_coldkeys", "Option<Vec<[u8; 20]>>"],
-            ["max_registered_nodes", "u32"],
-            ["owner", "Option<[u8; 20]>"],
-            ["pending_owner", "Option<[u8; 20]>"],
-            ["registration_epoch", "Option<u32>"],
-            ["key_types", "BTreeSet<KeyType>"],
-            ["slot_index", "Option<u32>"],
-            ["penalty_count", "u32"],
-            ["bootnode_access", "BTreeSet<[u8; 20]>"],
-            ["bootnodes", "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>"],
-            ["total_nodes", "u32"],
-            ["total_active_nodes", "u32"],
-            ["total_electable_nodes", "u32"],
-            ["current_min_delegate_stake", "u128"]
-          ],
-        },
-        "SubnetState": {
-          "type": "enum",
-          "value_list": [
-            "Registered",
-            "Active",
-            "Paused",
-          ],
-        },
-        "KeyType": {
-          "type": "enum",
-          "value_list": [
-            "Rsa",
-            "Ed25519",
-            "Secp256k1",
-            "Ecdsa",
-          ],
-        },
-        "BTreeSet<KeyType>": "Vec<KeyType>",
-        "BTreeSet<[u8; 20]>": "Vec<[u8; 20]>",
-        "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>": "Vec<BoundedVec<u8, DefaultMaxVectorLength>>",  # Not just Vec<u8>
-        "BoundedVec<u8, DefaultMaxVectorLength>": "Vec<u8>",
-        "BoundedVec<u8, DefaultMaxUrlLength>": "Vec<u8>",
-        "BoundedVec<u8, DefaultMaxSocialIdLength>": "Vec<u8>",
-        "BoundedVec<u8, DefaultValidatorArgsLimit>": "Vec<u8>",
-        "Option<BoundedVec<u8, DefaultMaxVectorLength>>": "Option<Vec<u8>>",
-        "Option<BoundedVec<u8, DefaultMaxUrlLength>>": "Option<Vec<u8>>",
-        "Option<BoundedVec<u8, DefaultMaxSocialIdLength>>": "Option<Vec<u8>>",
-        "Option<BoundedVec<u8, DefaultValidatorArgsLimit>>": "Option<Vec<u8>>",
-      }
-    }
+    # debug_custom_rpc_type_registry = {
+    #   "types": {
+    #     "SubnetInfo": {
+    #       "type": "struct",
+    #       "type_mapping": [
+    #         ["id", "u32"],
+    #         ["name", "Vec<u8>"],
+    #         ["repo", "Vec<u8>"],
+    #         ["description", "Vec<u8>"],
+    #         ["misc", "Vec<u8>"],
+    #         ["state", "SubnetState"],
+    #         ["start_epoch", "u32"],
+    #         ["churn_limit", "u32"],
+    #         ["min_stake", "u128"],
+    #         ["max_stake", "u128"],
+    #         ["queue_immunity_epochs", "u32"],
+    #         ["target_node_registrations_per_epoch", "u32"],
+    #         ["subnet_node_queue_epochs", "u32"],
+    #         ["idle_classification_epochs", "u32"],
+    #         ["included_classification_epochs", "u32"],
+    #         ["delegate_stake_percentage", "u128"],
+    #         ["node_burn_rate_alpha", "u128"],
+    #         ["max_node_penalties", "u32"],
+    #         ["initial_coldkeys", "Option<Vec<[u8; 20]>>"],
+    #         ["max_registered_nodes", "u32"],
+    #         ["owner", "Option<[u8; 20]>"],
+    #         ["pending_owner", "Option<[u8; 20]>"],
+    #         ["registration_epoch", "Option<u32>"],
+    #         ["key_types", "BTreeSet<KeyType>"],
+    #         ["slot_index", "Option<u32>"],
+    #         ["penalty_count", "u32"],
+    #         ["bootnode_access", "BTreeSet<[u8; 20]>"],
+    #         ["bootnodes", "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>"],
+    #         ["total_nodes", "u32"],
+    #         ["total_active_nodes", "u32"],
+    #         ["total_electable_nodes", "u32"],
+    #         ["current_min_delegate_stake", "u128"]
+    #       ],
+    #     },
+    #     "SubnetState": {
+    #       "type": "enum",
+    #       "value_list": [
+    #         "Registered",
+    #         "Active",
+    #         "Paused",
+    #       ],
+    #     },
+    #     "KeyType": {
+    #       "type": "enum",
+    #       "value_list": [
+    #         "Rsa",
+    #         "Ed25519",
+    #         "Secp256k1",
+    #         "Ecdsa",
+    #       ],
+    #     },
+    #     "BTreeSet<KeyType>": "Vec<KeyType>",
+    #     "BTreeSet<[u8; 20]>": "Vec<[u8; 20]>",
+    #     "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>": "Vec<BoundedVec<u8, DefaultMaxVectorLength>>",  # Not just Vec<u8>
+    #     "BoundedVec<u8, DefaultMaxVectorLength>": "Vec<u8>",
+    #     "BoundedVec<u8, DefaultMaxUrlLength>": "Vec<u8>",
+    #     "BoundedVec<u8, DefaultMaxSocialIdLength>": "Vec<u8>",
+    #     "BoundedVec<u8, DefaultValidatorArgsLimit>": "Vec<u8>",
+    #     "Option<BoundedVec<u8, DefaultMaxVectorLength>>": "Option<Vec<u8>>",
+    #     "Option<BoundedVec<u8, DefaultMaxUrlLength>>": "Option<Vec<u8>>",
+    #     "Option<BoundedVec<u8, DefaultMaxSocialIdLength>>": "Option<Vec<u8>>",
+    #     "Option<BoundedVec<u8, DefaultValidatorArgsLimit>>": "Option<Vec<u8>>",
+    #   }
+    # }
 
     rpc_runtime_config = RuntimeConfiguration()
     rpc_runtime_config.update_type_registry(load_type_registry_preset("legacy"))
-    rpc_runtime_config.update_type_registry(debug_custom_rpc_type_registry)
+    rpc_runtime_config.update_type_registry(custom_rpc_type_registry)
 
     with hypertensor.interface as _interface:
         result = _interface.rpc_request(
@@ -833,6 +1090,7 @@ class ConsensusData:
   Dataclass for subnet node info.
   """
   validator_id: int
+  validator_epoch_progress: int
   attests: list
   subnet_nodes: list
   prioritize_queue_node_id: int | None

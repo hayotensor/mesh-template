@@ -30,14 +30,6 @@ class MockValidatorScores:
   peer_id: str
   score: int
 
-# RSA subkey for records (protected records requiring signing/validating)
+# RSA or Ed25519 subkey for records (protected records requiring signing/validating)
 def get_consensus_subkey(record_validator: SignatureValidator) -> bytes:
-  return record_validator.local_public_key
-
-# RSA subkey for records (protected records requiring signing/validating)
-def get_consensus_subkey_rsa(record_validator: SignatureValidator) -> bytes:
-  return record_validator.local_public_key
-
-# Ed25519 subkey for records (protected records requiring signing/validating)
-def get_consensus_subkey_ed25519(record_validator: SignatureValidator) -> bytes:
   return record_validator.local_public_key

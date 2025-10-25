@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import multiprocessing as mp
 import threading
 import time
 from typing import Dict, List, Optional
@@ -14,7 +13,7 @@ from mesh.subnet.utils.mock_commit_reveal import MockHypertensorCommitReveal
 from mesh.substrate.chain_functions import Hypertensor
 from mesh.substrate.mock.chain_functions import MockHypertensor
 from mesh.utils.authorizers.auth import SignatureAuthorizer
-from mesh.utils.authorizers.pos_auth_v2 import ProofOfStakeAuthorizer
+from mesh.utils.authorizers.pos_auth import ProofOfStakeAuthorizer
 from mesh.utils.data_structures import ServerClass, ServerInfo, ServerState
 from mesh.utils.dht import declare_node_sig, get_node_infos_sig
 from mesh.utils.key import get_private_key
@@ -103,7 +102,7 @@ class Server:
                 self.hypertensor,
                 min_class=1,
             )
-            self.pos_authorizer = ProofOfStakeAuthorizer(self.signature_authorizer, pk, pos)
+            self.pos_authorizer = ProofOfStakeAuthorizer(self.signature_authorizer, pos)
         else:
             logger.info("Skipping PoS - proof-of-stake, using signature authorization only. If starting in production, make sure to use PoS")
             # For testing purposes, at minimum require signatures
@@ -241,63 +240,6 @@ class ModuleAnnouncerThread(threading.Thread):
             self.join(timeout=5)
         logger.info("Module shut down successfully")
 
-
-# class ConsensusThread(threading.Thread):
-#     def __init__(
-#         self,
-#         dht: DHT,
-#         server_info: ServerInfo,
-#         subnet_id: int,
-#         subnet_node_id: int,
-#         record_validator: RecordValidatorBase,
-#         hypertensor: Hypertensor,
-#         start: bool = True,
-#     ):
-#         super().__init__()
-#         self.dht = dht
-#         self.server_info = server_info
-#         self.subnet_id = subnet_id
-#         self.subnet_node_id = subnet_node_id
-#         self.signature_validator = record_validator
-#         self.hypertensor = hypertensor
-#         self.event = threading.Event()
-#         self.consensus = None
-#         self.validator = None
-
-#         if start:
-#             self.start()
-
-#     def run(self) -> None:
-#         """
-#         Add any other logic the Consensus class requires to run,
-#         such as differ node role classes, etc.
-
-#         See template implementation
-#         """
-
-#         self.consensus = ConsensusWithThread(
-#             dht=self.dht,
-#             subnet_id=self.subnet_id,
-#             subnet_node_id=self.subnet_node_id,
-#             record_validator=self.signature_validator,
-#             hypertensor=self.hypertensor,
-#             skip_activate_subnet=False,
-#             start=True,
-#         )
-
-#         logger.info("Starting consensus")
-
-#     def shutdown(self):
-#         # if self.consensus is not None:
-#         #     self.consensus.shutdown()
-
-#         if self.validator is not None:
-#             self.validator.shutdown()
-
-#         # self.join()
-#         if self.is_alive():
-#             self.join(timeout=5)
-
 class ConsensusThread():
     def __init__(
         self,
@@ -348,10 +290,6 @@ class ConsensusThread():
 
         if self.validator is not None:
             self.validator.shutdown()
-
-        # # self.join()
-        # if self.is_alive():
-        #     self.join(timeout=5)
 
 class ModuleHeartbeatThread(threading.Thread):
     """Periodically announces server is live before expiration of storage, visible to all DHT peers"""
@@ -440,10 +378,6 @@ class ModuleHeartbeatThread(threading.Thread):
 
     def announce(self, state: ServerState) -> None:
         self.server_info.state = state
-        # self.trigger.set()
-        # if state == ServerState.OFFLINE:
-        #     self.join()
-
         self.trigger.set()
         if state == ServerState.OFFLINE:
             if self.is_alive():
@@ -456,8 +390,6 @@ class ModuleHeartbeatThread(threading.Thread):
             uid="node",
             latest=True
         )
-
-        print("module_infos", module_infos)
         if len(module_infos) == 0:
             return
         middle_servers = {info.peer_id for info in module_infos}
