@@ -1,9 +1,7 @@
 import dataclasses
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Callable, Iterable, Optional
-
-from mesh.substrate.chain_functions import Hypertensor
+from typing import Callable, Iterable
 
 
 @dataclasses.dataclass(init=True, repr=True, frozen=True)

@@ -7,8 +7,8 @@ from mesh.utils.authorizers.auth import (
     SignatureAuthorizer,
 )
 from mesh.utils.crypto import (
-    Ed25519PrivateKey,
-    RSAPrivateKey,
+    Ed25519PublicKey,
+    RSAPublicKey,
 )
 from mesh.utils.logging import get_logger
 from mesh.utils.proof_of_stake import ProofOfStake
@@ -16,12 +16,6 @@ from mesh.utils.proof_of_stake import ProofOfStake
 logger = get_logger(__name__)
 
 class ProofOfStakeAuthorizer(AuthorizerBase):
-    """
-    Implements a proof-of-stake authorization protocol using RSA and Ed25519 keys
-    Checks the Hypertensor network for nodes ``peer_id`` is staked.
-    The ``peer_id`` is retrieved using the RSA or Ed25519 public key
-    """
-
     def __init__(
         self,
         signature_authorizer: SignatureAuthorizer,
@@ -34,7 +28,7 @@ class ProofOfStakeAuthorizer(AuthorizerBase):
     async def sign_request(
         self,
         request: AuthorizedRequestBase,
-        service_public_key: Optional[Ed25519PrivateKey | RSAPrivateKey]
+        service_public_key: Optional[Ed25519PublicKey | RSAPublicKey]
     ) -> None:
         await self.signature_authorizer.sign_request(request, service_public_key)
 
@@ -43,6 +37,7 @@ class ProofOfStakeAuthorizer(AuthorizerBase):
         if not valid:
             return False
 
+        # Verify proof of stake
         try:
             proof_of_stake = self.pos.proof_of_stake(client_public_key)
             if not proof_of_stake:

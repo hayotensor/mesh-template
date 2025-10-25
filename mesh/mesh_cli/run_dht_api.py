@@ -64,7 +64,6 @@ Example:
                         "throughput":1.0,
                         "public_name":null,
                         "version":"1.0.0",
-                        "inference_rps":null,
                         "using_relay":false,
                         "next_pings":{}},
                         "expiration_time":1759202593.575971

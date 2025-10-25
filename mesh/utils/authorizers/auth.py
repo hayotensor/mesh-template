@@ -42,7 +42,7 @@ class AuthorizedResponseBase:
 class AuthorizerBase(ABC):
     @abstractmethod
     async def sign_request(
-        self, request: AuthorizedRequestBase, service_public_key: Optional[Ed25519PrivateKey | RSAPrivateKey]
+        self, request: AuthorizedRequestBase, service_public_key: Optional[Ed25519PublicKey | RSAPublicKey]
     ) -> None: ...
 
     @abstractmethod
@@ -80,10 +80,10 @@ class SignatureAuthorizer(AuthorizerBase):
         return f"{access_token.username} {access_token.public_key} {access_token.expiration_time}".encode()
 
     @property
-    def local_public_key(self) -> Ed25519PrivateKey | RSAPrivateKey:
+    def local_public_key(self) -> Ed25519PublicKey | RSAPublicKey:
         return self._local_public_key
 
-    async def sign_request(self, request: AuthorizedRequestBase, service_public_key: Optional[Ed25519PrivateKey | RSAPrivateKey]) -> None:
+    async def sign_request(self, request: AuthorizedRequestBase, service_public_key: Optional[Ed25519PublicKey | RSAPublicKey]) -> None:
         auth = request.auth
 
         local_access_token = await self.get_token()

@@ -29,11 +29,6 @@ def get_mock_reveal_key(epoch: int) -> str:
 def get_mock_consensus_key(epoch: int) -> str:
     return f"consensus_epoch_{epoch}"
 
-"""
-Store something by the 15% progress of the epoch
-"""
-CONSENSUS_STORE_DEADLINE = 0.15
-
 # peer commit-reveal epoch percentage elapsed deadlines
 COMMIT_DEADLINE = 0.5
 REVEAL_DEADLINE = 0.6
@@ -58,7 +53,6 @@ The following is an example predicate validator.
 This predicate validator ensures:
 
 - heatbeat (under "node" key) can be stored at any time, with a maximum expiration of 1.1 epochs
-- consensus can only be stored within the 0-15% progress span of the epoch, with a maximum expiration of 2 epochs
 - commits can only be stored within the 15-50% progress span of the epoch, with a maximum expiration of 2 epochs
 - reveals can only be stored within the 50-60% progress span on the epoch, with a maximum expiration of 2 epochs
 """
@@ -75,19 +69,18 @@ class MockHypertensorCommitReveal:
     def __init__(self, hypertensor: Hypertensor, subnet_id: int):
         self.hypertensor = hypertensor
         self.subnet_id = subnet_id
-
         # Store any data required for logic
         self.slot: int | None = None
-        self._epoch_data: Optional[EpochData] = None
-        self._peer_store_tracker = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
-        # Stores per peer per epoch
+        # Maximum number of stores per key type, see `valid_keys` in `_get_key_type`
         self.per_peer_epoch_limits = {
             "node": 100,
-            "consensus": 1,
             "commit": 1,
             "reveal": 1,
         }
+
+        # Track the number of key stores per peer, per epoch
+        self._peer_store_tracker = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
         # Store `self.slot`
         self._ensure_slot()
@@ -100,11 +93,13 @@ class MockHypertensorCommitReveal:
         return self.slot
 
     def epoch_data(self) -> EpochData:
+        """Returns the current epoch data"""
         return self.hypertensor.get_subnet_epoch_data(self._ensure_slot())
 
     def _has_exceeded_store_limit(self, peer_id: str, key_type: str, epoch: int) -> bool:
         """Check if the peer has already hit their per-epoch limit for this key type."""
         limit = self.per_peer_epoch_limits.get(key_type, 1)
+        logger.debug(f"Current peer epoch limit {limit}")
         count = self._peer_store_tracker[epoch][key_type][peer_id]
         logger.debug(f"Current node key count {count}")
         if count >= limit:
@@ -130,9 +125,13 @@ class MockHypertensorCommitReveal:
             e for e in self._peer_store_tracker.keys()
             if e < current_epoch - self.MAX_EPOCH_HISTORY
         ]
+
         for e in old_epochs:
             del self._peer_store_tracker[e]
-            logger.debug(f"Cleaned up tracking data for old epoch {e}")
+            logger.debug(
+                f"Current epoch: {current_epoch} "
+                f"Cleaned up tracking data for old epoch {e}"
+            )
 
     def _get_key_type(self, record: DHTRecord, current_epoch: int) -> Optional[int]:
         """
@@ -144,8 +143,6 @@ class MockHypertensorCommitReveal:
         valid_keys = {
             # Heartbeat
             DHTID.generate(source="node").to_bytes(): "node",
-            # ⸺ 0-15%
-            DHTID.generate(source=f"consensus_epoch_{current_epoch}").to_bytes(): "consensus",
             # ⸺ 15-50%
             DHTID.generate(source=f"commit_epoch_{current_epoch}").to_bytes(): "commit",
             # ⸺ 50-60%
@@ -154,22 +151,27 @@ class MockHypertensorCommitReveal:
 
         return valid_keys.get(record.key, None)
 
+    def _store_to_db(self, record: DHTRecord, current_epoch: int) -> None:
+        """Archive data"""
+        ...
+
     def __call__(self, record: DHTRecord, type: DHTRecordRequestType) -> bool:
         """
         Callable interface
 
         This is the logic that will run to validate all GET/POST DHT records
 
-        Note: If any peers change this, it is very likely they will become out of consensus as
-              its data will mismatch others. For example, if a node stores data that others will
-              not store, they will be out of sync and have bad data.
+        Note: If any peers change this, they will likely become out of consensus as its data will
+              mismatch others. For example, if a node stores data that others will not store, they
+              will be out of sync and have bad data.
+
               See on-chain subnet node reputations for how nodes are removed when they go below the
               subnets minimum node reputation
         """
         try:
             # Get caller peer ID
             # This also ensures the record has a public key as a subkey
-            # NOTE: To use this `SignatureValidator` must be implemented with priority
+            # NOTE: To use this, `SignatureValidator` must be implemented with priority=10
             caller_peer_id = extract_peer_id_from_record_validator(record.subkey)
             if caller_peer_id is None:
                 return False
@@ -185,14 +187,15 @@ class MockHypertensorCommitReveal:
             current_epoch = epoch_data.epoch
             percent_complete = epoch_data.percent_complete # Get progress of epoch for commit-reveal phases
 
-            logger.debug(f"{caller_peer_id} is storing data at slot {self.slot}, epoch={current_epoch}")
+            logger.debug(f"{caller_peer_id} is storing data at slot={self.slot}, epoch={current_epoch}")
 
             # Clean up old keys
             self._cleanup_old_epochs(current_epoch)
 
             # Get valid key type
             key_type = self._get_key_type(record, current_epoch)
-            logger.debug(f"key_type: {key_type}")
+            logger.debug(f"key_type={key_type}")
+
             if key_type is None:
                 return False
 
@@ -203,25 +206,24 @@ class MockHypertensorCommitReveal:
             dht_time = get_dht_time()
 
             """
-            Logic here can be extended to account for any conditions, such as requiring only specific
-            on-chain node classifications to allow to store data into the DHT outside of the "node"
-            heartbeat, etc.
+            Logic here can be extended to account for any conditions
+
+            In this mock class:
+
+            "node": The heartbeat can be stored up to 100 time per epoch
+            "commit": Must be stored by the 50% elapsed of the epoch, 1 time per epoch
+            "reveal": Must be stored between 50%-60% elapsed of the epoch, 1 time per epoch
             """
 
             # DEADLINES AND EXPIRATIONS
             if key_type == "node":
+                print("Heartbeat record", record)
                 max_expiration = dht_time + MAX_HEART_BEAT_TIME
                 if record.expiration_time > max_expiration:
                     return False
 
-            elif key_type == "consensus":
-                if percent_complete > CONSENSUS_STORE_DEADLINE:
-                    return False
-                if record.expiration_time > dht_time + MAX_CONSENSUS_TIME:
-                    return False
-
             elif key_type == "commit":
-                if percent_complete <= CONSENSUS_STORE_DEADLINE or percent_complete > COMMIT_DEADLINE:
+                if percent_complete > COMMIT_DEADLINE:
                     return False
                 if record.expiration_time > dht_time + MAX_COMMIT_TIME:
                     return False
