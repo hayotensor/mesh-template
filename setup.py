@@ -13,6 +13,7 @@ from pkg_resources import parse_requirements, parse_version
 from setuptools import find_packages, setup
 from setuptools.command.build_py import build_py
 from setuptools.command.develop import develop
+from setuptools.command.egg_info import egg_info
 
 P2PD_VERSION = "v0.5.0.hivemind1"
 
@@ -40,10 +41,11 @@ def sha256(path):
 def proto_compile(output_path):
     from grpc_tools import protoc
 
-    proto_files = glob.glob("mesh/proto/*.proto")
+    proto_path = os.path.join(here, "mesh", "proto")
+    proto_files = glob.glob(os.path.join(proto_path, "*.proto"))
     result = protoc.main([
         "grpc_tools.protoc",
-        "--proto_path=mesh/proto",
+        f"--proto_path={proto_path}",
         f"--python_out={output_path}",
         *proto_files,
     ])
@@ -131,14 +133,38 @@ class BuildPy(build_py):
             download_p2p_daemon()
 
         super().run()
-
-        proto_compile(os.path.join(self.build_lib, "mesh", "proto"))
+        print("Compiling proto files")
+        proto_output_path = os.path.join(self.build_lib, "mesh", "proto")
+        os.makedirs(proto_output_path, exist_ok=True)
+        proto_compile(proto_output_path)
 
 
 class Develop(develop):
     def run(self):
-        self.reinitialize_command("build_py", build_lib=here)
+        # Ensure build_lib is set to the current directory for editable installs
+        build_py_cmd = self.get_finalized_command("build_py")
+        build_py_cmd.build_lib = here
         self.run_command("build_py")
+        
+        # Also compile proto files directly for editable installs
+        # This ensures they're compiled even if build_py doesn't run as expected
+        print("Compiling proto files for editable install")
+        proto_output_path = os.path.join(here, "mesh", "proto")
+        os.makedirs(proto_output_path, exist_ok=True)
+        proto_compile(proto_output_path)
+        
+        super().run()
+
+
+class EggInfo(egg_info):
+    """Custom egg_info command that compiles proto files.
+    This is called even with PEP 517 editable installs."""
+    def run(self):
+        print("EGG_INFO: Compiling proto files")
+        proto_output_path = os.path.join(here, "mesh", "proto")
+        os.makedirs(proto_output_path, exist_ok=True)
+        proto_compile(proto_output_path)
+        
         super().run()
 
 
@@ -165,7 +191,7 @@ extras["all"] = extras["dev"] + extras["docs"] + extras["bitsandbytes"]
 setup(
     name="mesh",
     version=version_string,
-    cmdclass={"build_py": BuildPy, "develop": Develop},
+    cmdclass={"build_py": BuildPy, "develop": Develop, "egg_info": EggInfo},
     description="Decentralized Artificial Intelligence App Template",
     long_description="Decentralized Artificial Intelligence App Template for building on top of Hypertensor.",
     author="Learning@home & contributors",
