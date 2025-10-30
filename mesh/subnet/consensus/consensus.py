@@ -98,12 +98,10 @@ class Consensus(mp.Process):
             }
 
             Is the expected format on-chain
+
+            We use asdict() when submitting
         """
         consensus_score_list = [
-            # {
-            #     "subnet_node_id": node_id,
-            #     "score": int(1e18)
-            # }
             SubnetNodeConsensusData(
                 subnet_node_id=node_id,
                 score=int(1e18)
@@ -112,9 +110,6 @@ class Consensus(mp.Process):
         ]
 
         return consensus_score_list
-
-    def _get_attestation_ratio(self, consensus_data: ConsensusData):
-        return len(consensus_data.attests) / len(consensus_data.subnet_nodes)
 
     async def run_activate_subnet(self):
         """
@@ -293,7 +288,6 @@ class Consensus(mp.Process):
         logger.info(f"[Consensus] epoch: {current_epoch}")
 
         scores = self.get_scores(current_epoch - 1)
-        print("scores", scores)
 
         if scores is None:
             return
