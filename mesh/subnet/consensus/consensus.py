@@ -1,12 +1,16 @@
 import asyncio
+from dataclasses import asdict
 import multiprocessing as mp
 from typing import Any, List
 
 from mesh import DHT, PeerID
 from mesh.dht.validation import RecordValidatorBase
-from mesh.substrate.chain_data import ConsensusData
+from mesh.subnet.consensus.utils import compare_consensus_data, did_node_attest
+from mesh.substrate.chain_data import ConsensusData, SubnetNodeConsensusData
 from mesh.substrate.chain_functions import Hypertensor, SubnetNodeClass
 from mesh.substrate.config import BLOCK_SECS
+from mesh.substrate.mock.chain_functions import MockHypertensor
+from mesh.substrate.mock.local_chain_functions import LocalMockHypertensor
 from mesh.utils import get_logger
 from mesh.utils.asyncio import switch_to_uvloop
 from mesh.utils.dht import get_node_infos_sig
@@ -62,7 +66,7 @@ class Consensus(mp.Process):
         validator = self.hypertensor.get_rewards_validator(self.subnet_id, epoch)
         return validator
 
-    def get_scores(self, current_epoch: int) -> List[Any]:
+    def get_scores(self, current_epoch: int) -> List[SubnetNodeConsensusData]:
         """
         Fill in a way to get scores on each node
 
@@ -96,78 +100,18 @@ class Consensus(mp.Process):
             Is the expected format on-chain
         """
         consensus_score_list = [
-            {
-                "subnet_node_id": node_id,
-                "score": int(1e18)
-            }
+            # {
+            #     "subnet_node_id": node_id,
+            #     "score": int(1e18)
+            # }
+            SubnetNodeConsensusData(
+                subnet_node_id=node_id,
+                score=int(1e18)
+            )
             for node_id in subnet_node_ids
         ]
 
         return consensus_score_list
-
-    def compare_consensus_data(self, my_data, validator_data, epoch: int) -> bool:
-        """
-        Compare the current epochs elected validator consensus submission to our own
-
-        Must have 100% accuracy to return True
-        """
-        # if validator submitted no data, and we have also found the subnet is broken
-        if len(validator_data) == 0 and len(my_data) == 0:
-            self.previous_epoch_data = []
-            return True
-
-        # Convert validator_data to a set
-        validator_data_set = set(frozenset(d.items()) for d in validator_data)
-
-        # Convert my_data to a set
-        my_data_set = set(frozenset(d.items()) for d in my_data)
-
-        success = validator_data_set == my_data_set
-
-        if not success:
-            """
-            # Cases
-
-            Case 1: Node leaves DHT before validator submit consensus and returns before attestation.
-                    - Validator data does not include node, Attestors data will include node, creating a mismatch.
-            Case 2: Node leaves DHT after validator submits consensus.
-                    - Validator data does include node, Attestors data does not include node, creating a mismatch.
-
-            # Solution
-
-            We check our previous epochs data, if successfully attested, to find symmetry with the validators data.
-
-            * If none of these solutions work, we assume the validator is being dishonest or is faulty
-            """
-            if not success and self.previous_epoch_data is not None:
-                dif = validator_data_set.symmetric_difference(my_data_set)
-                success = dif.issubset(self.previous_epoch_data)
-            elif not success and self.previous_epoch_data is None:
-                """
-                If this is the nodes first epoch after a restart of the node, check last epochs consensus data
-                """
-                consensus_data = self.hypertensor.get_consensus_data_formatted(self.subnet_id, epoch - 1)
-                if consensus_data is None:  # noqa: E711
-                    success = False
-                else:
-                    previous_epoch_validator_data = consensus_data.data
-                    # This is a backup so we ensure the data was super majority attested to use it
-                    if previous_epoch_validator_data is not None and previous_epoch_validator_data != None:  # noqa: E711
-                        attestation_ratio = self._get_attestation_ratio(consensus_data)
-                        if attestation_ratio < 0.66:
-                            # TODO: Check
-                            success = False
-                        else:
-                            """
-                            'ConsensusData' object is not iterable Error here
-                            """
-                            previous_epoch_data_onchain = set(frozenset(d.items()) for d in previous_epoch_validator_data)
-                            dif = validator_data_set.symmetric_difference(my_data_set)
-                            success = dif.issubset(previous_epoch_data_onchain)
-
-        self.previous_epoch_data = my_data_set
-
-        return success
 
     def _get_attestation_ratio(self, consensus_data: ConsensusData):
         return len(consensus_data.attests) / len(consensus_data.subnet_nodes)
@@ -242,8 +186,6 @@ class Consensus(mp.Process):
         Included nodes cannot be the elected validator or attest but must take part in consensus
         and be included in the consensus data to graduate to a Validator classed node
         """
-        logger.info("run_is_node_validator")
-
         last_epoch = None
         while not self.stop.is_set():
             epoch_data = self.hypertensor.get_subnet_epoch_data(self.slot)
@@ -279,12 +221,29 @@ class Consensus(mp.Process):
         """
         self._async_stop_event = asyncio.Event()
         last_epoch = None
+        started = False
 
-        logger.info("✅ Starting consensus")
+        logger.info("About to begin consensus")
 
         while not self.stop.is_set() and not self._async_stop_event.is_set():
             try:
                 epoch_data = self.hypertensor.get_subnet_epoch_data(self.slot)
+
+                # Start on fresh epoch
+                if started is False:
+                    started = True
+                    try:
+                        logger.info("Starting consensus on next epoch")
+                        await asyncio.wait_for(
+                            self._async_stop_event.wait(),
+                            timeout=epoch_data.seconds_remaining
+                        )
+                        break  # Stop event was set
+                    except asyncio.TimeoutError:
+                        continue  # Timeout reached, continue to next iteration
+                else:
+                    logger.info("✅ Starting consensus")
+
                 current_epoch = epoch_data.epoch
 
                 if current_epoch != last_epoch:
@@ -333,7 +292,11 @@ class Consensus(mp.Process):
         """
         logger.info(f"[Consensus] epoch: {current_epoch}")
 
-        scores = self.get_scores(current_epoch)
+        scores = self.get_scores(current_epoch - 1)
+        print("scores", scores)
+
+        if scores is None:
+            return
 
         validator = None
         # Wait until validator is chosen
@@ -381,9 +344,9 @@ class Consensus(mp.Process):
 
                 Any successful epoch following will remove these penalties on the subnet
                 """
-                self.hypertensor.propose_attestation(self.subnet_id, data=scores)
+                self.hypertensor.propose_attestation(self.subnet_id, data=[asdict(s) for s in scores])
             else:
-                self.hypertensor.propose_attestation(self.subnet_id, data=scores)
+                self.hypertensor.propose_attestation(self.subnet_id, data=[asdict(s) for s in scores])
 
         elif validator is not None:
             logger.info(f"🗳️ Acting as attestor/voter for epoch {current_epoch}")
@@ -396,7 +359,8 @@ class Consensus(mp.Process):
                 epoch_data = self.hypertensor.get_subnet_epoch_data(self.slot)
                 _current_epoch = epoch_data.epoch
 
-                if _current_epoch != current_epoch:
+                # If next epoch or validator took too long, move onto next steps
+                if _current_epoch != current_epoch or epoch_data.percent_complete > 0.15:
                     break
 
                 if consensus_data is None or consensus_data == None:  # noqa: E711
@@ -408,20 +372,22 @@ class Consensus(mp.Process):
                 """
                 Get all of the hosters inference outputs they stored to the DHT
                 """
-                if self.compare_consensus_data(scores, validator_data, current_epoch):
-                    # Check if we already attested
-                    already_attested = False
-                    for id, _ in consensus_data.attests:
-                        if id == self.subnet_node_id:
-                            already_attested = True
-                            break
+                
+                self.previous_epoch_data = None
+                if 1.0 == compare_consensus_data(my_data=scores, validator_data=validator_data):
+                    # Update previous epoch to current epoch data
+                    self.previous_epoch_data = scores
 
-                    if already_attested:
+                    # Check if we already attested
+                    if did_node_attest(self.subnet_node_id, consensus_data):
                         logger.info("Already attested, moving to next epoch")
                         break
 
                     logger.info(f"✅ Elected validator's data matches for epoch {current_epoch}, attesting their data")
                     receipt = self.hypertensor.attest(self.subnet_id)
+                    if isinstance(self.hypertensor, MockHypertensor) or isinstance(self.hypertensor, LocalMockHypertensor): # don't check receipt if using mock
+                        return
+
                     if receipt.is_success:
                         break
                     else:

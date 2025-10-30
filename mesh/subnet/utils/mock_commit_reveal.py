@@ -217,7 +217,6 @@ class MockHypertensorCommitReveal:
 
             # DEADLINES AND EXPIRATIONS
             if key_type == "node":
-                print("Heartbeat record", record)
                 max_expiration = dht_time + MAX_HEART_BEAT_TIME
                 if record.expiration_time > max_expiration:
                     return False

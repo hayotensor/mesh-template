@@ -1012,13 +1012,17 @@ class ConsensusSubmissionData:
     )
     return data
 
-@dataclass
+@dataclass(frozen=True)
 class SubnetNodeConsensusData:
   """
   Dataclass for subnet node info.
   """
   subnet_node_id: int
   score: int
+
+  @classmethod
+  def serialize(cls, data_decoded: Any) -> "SubnetNodeConsensusData":
+      return cls(**data_decoded.serialize())
 
   @classmethod
   def fix_decoded_values(cls, data_decoded: Any) -> "SubnetNodeConsensusData":
@@ -1094,7 +1098,7 @@ class ConsensusData:
   subnet_nodes: list
   prioritize_queue_node_id: int | None
   remove_queue_node_id: int | None
-  data: list | None
+  data: list
   args: list | None
 
   @classmethod
