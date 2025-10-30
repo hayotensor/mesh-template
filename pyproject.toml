@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "grpcio-tools"]
+build-backend = "setuptools.build_meta:__legacy__"
+
 [tool.coverage.run]
 concurrency = ["thread", "multiprocessing"]
 omit = ["mesh/proto/*"]
