@@ -63,6 +63,13 @@ of [Go toolchain](https://golang.org/doc/install) (1.15 or 1.16 are supported).
 
 # Documentation
 
+## .env
+Create an `.env` file for the environmental variables.
+```
+touch .env
+```
+Fill out the `.env` file with the necessary variables from `.env.example`.
+
 ## Keys
 
 The template currently allows RSA and Ed25519 key types and is interoperable between the two.
@@ -137,6 +144,15 @@ mesh-dht \
 --announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
 --identity_path alith.id
 ```
+##### Update `PUBLIC_INITIAL_PEERS`
+
+Once you run it, look at the outputs and find the following line:
+
+```bash
+Mon 00 01:23:45.678 [INFO] Running a DHT instance. To connect other peers to this one, use --initial_peers /ip4/YOUR_ADDRESS_HERE/tcp/31337/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj
+```
+
+Once the bootnode is deployed, copy the `/ip4/YOUR_ADDRESS_HERE/tcp/31337/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj` into the `PUBLIC_INITIAL_PEERS` in the `.env` file.
 
 #### Start Bootnode and Join Subnet
 ##### This joins an existing subnets and runs a bootnode.
@@ -165,6 +181,16 @@ mesh-server-mock \
 --subnet_id 1 --subnet_node_id 1
 ```
 
+##### Update `PUBLIC_INITIAL_PEERS`
+
+Once you run it, look at the outputs and find the following line:
+
+```bash
+Mon 00 01:23:45.678 [INFO] Running a DHT instance. To connect other peers to this one, use --initial_peers /ip4/YOUR_ADDRESS_HERE/tcp/31337/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj
+```
+
+Once the bootnode is deployed, copy the `/ip4/YOUR_ADDRESS_HERE/tcp/31337/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj` into the `PUBLIC_INITIAL_PEERS` in the `.env` file.
+
 #### Join DHT / Start Node
 ```bash
 mesh-server-mock \
@@ -191,6 +217,15 @@ mesh-server-mock \
     --no_blockchain_rpc \
     --new_swarm
 ```
+##### Update `PUBLIC_INITIAL_PEERS`
+
+Once you run it, look at the outputs and find the following line:
+
+```bash
+Mon 00 01:23:45.678 [INFO] Running a DHT instance. To connect other peers to this one, use --initial_peers /ip4/YOUR_ADDRESS_HERE/tcp/31337/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj
+```
+
+Once the bootnode is deployed, copy the `/ip4/YOUR_ADDRESS_HERE/tcp/31337/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj` into the `PUBLIC_INITIAL_PEERS` in the `.env` file.
 
 #### Start Node 2
 ```bash
