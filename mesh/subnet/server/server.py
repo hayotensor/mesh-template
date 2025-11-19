@@ -282,8 +282,6 @@ class ConsensusThread():
             start=True,
         )
 
-        logger.info("Starting consensus")
-
     def shutdown(self):
         if self.consensus is not None:
             self.consensus.shutdown()

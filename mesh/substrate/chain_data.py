@@ -26,6 +26,7 @@ custom_rpc_type_registry = {
       "type": "struct",
       "type_mapping": [
         ["id", "u32"],
+        ["friendly_id", "Option<u32>"],
         ["name", "Vec<u8>"],
         ["repo", "Vec<u8>"],
         ["description", "Vec<u8>"],
@@ -37,26 +38,43 @@ custom_rpc_type_registry = {
         ["max_stake", "u128"],
         ["queue_immunity_epochs", "u32"],
         ["target_node_registrations_per_epoch", "u32"],
+        ["node_registrations_this_epoch", "u32"],
         ["subnet_node_queue_epochs", "u32"],
         ["idle_classification_epochs", "u32"],
         ["included_classification_epochs", "u32"],
         ["delegate_stake_percentage", "u128"],
+        ["last_delegate_stake_rewards_update", "u32"],
         ["node_burn_rate_alpha", "u128"],
-        ["max_node_penalties", "u32"],
-        ["initial_coldkeys", "Option<Vec<[u8; 20]>>"],
+        ["current_node_burn_rate", "u128"],
+        ["initial_coldkeys", "Option<BTreeMap<[u8; 20], u32>>"],
+        ["initial_coldkey_data", "Option<BTreeMap<[u8; 20], u32>>"],
         ["max_registered_nodes", "u32"],
         ["owner", "Option<[u8; 20]>"],
         ["pending_owner", "Option<[u8; 20]>"],
         ["registration_epoch", "Option<u32>"],
+        ["prev_pause_epoch", "u32"],
         ["key_types", "BTreeSet<KeyType>"],
         ["slot_index", "Option<u32>"],
-        ["penalty_count", "u32"],
+        ["slot_assignment", "Option<u32>"],
+        ["subnet_node_min_weight_decrease_reputation_threshold", "u128"],
+        ["reputation", "u128"],
+        ["min_subnet_node_reputation", "u128"],
+        ["absent_decrease_reputation_factor", "u128"],
+        ["included_increase_reputation_factor", "u128"],
+        ["below_min_weight_decrease_reputation_factor", "u128"],
+        ["non_attestor_decrease_reputation_factor", "u128"],
+        ["non_consensus_attestor_decrease_reputation_factor", "u128"],
+        ["validator_absent_subnet_node_reputation_factor", "u128"],
+        ["validator_non_consensus_subnet_node_reputation_factor", "u128"],
         ["bootnode_access", "BTreeSet<[u8; 20]>"],
         ["bootnodes", "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>"],
         ["total_nodes", "u32"],
         ["total_active_nodes", "u32"],
         ["total_electable_nodes", "u32"],
-        ["current_min_delegate_stake", "u128"]
+        ["current_min_delegate_stake", "u128"],
+        ["total_subnet_stake", "u128"],
+        ["total_subnet_delegate_stake_shares", "u128"],
+        ["total_subnet_delegate_stake_balance", "u128"]
       ],
     },
     "SubnetState": {
@@ -143,9 +161,13 @@ custom_rpc_type_registry = {
         ["unique", "Option<BoundedVec<u8, DefaultMaxVectorLength>>"],
         ["non_unique", "Option<BoundedVec<u8, DefaultMaxVectorLength>>"],
         ["stake_balance", "u128"],
+        ["total_node_delegate_stake_shares", "u128"],
         ["node_delegate_stake_balance", "u128"],
-        ["penalties", "u32"],
-        ["reputation", "Reputation"],
+        ["coldkey_reputation", "Reputation"],
+        ["subnet_node_reputation", "u128"],
+        ["node_slot_index", "Option<u32>"],
+        ["consecutive_idle_epochs", "u32"],
+        ["consecutive_included_epochs", "u32"],
       ],
     },
     "Reputation": {
@@ -250,10 +272,21 @@ custom_rpc_type_registry = {
         ["balance", "u128"],
       ],
     },
+    "RegistrationSubnetData": {
+      "type": "struct",
+      "type_mapping": [
+        ["name", "Vec<u8>"],
+        ["repo", "Vec<u8>"],
+        ["description", "Vec<u8>"],
+        ["misc", "Vec<u8>"],
+        ["initial_coldkeys", "BTreeMap<[u8; 20], u32>"],
+        ["key_types", "BTreeSet<KeyType>"],
+      ],
+    },
     "PeerId": "Vec<u8>",
     "BTreeSet<KeyType>": "Vec<KeyType>",
     "BTreeSet<[u8; 20]>": "Vec<[u8; 20]>",
-    "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>": "Vec<BoundedVec<u8, DefaultMaxVectorLength>>",  # Not just Vec<u8>
+    "BTreeSet<BoundedVec<u8, DefaultMaxVectorLength>>": "Vec<BoundedVec<u8, DefaultMaxVectorLength>>",
     "BoundedVec<u8, DefaultMaxVectorLength>": "Vec<u8>",
     "BoundedVec<u8, DefaultMaxUrlLength>": "Vec<u8>",
     "BoundedVec<u8, DefaultMaxSocialIdLength>": "Vec<u8>",
@@ -262,6 +295,9 @@ custom_rpc_type_registry = {
     "Option<BoundedVec<u8, DefaultMaxUrlLength>>": "Option<Vec<u8>>",
     "Option<BoundedVec<u8, DefaultMaxSocialIdLength>>": "Option<Vec<u8>>",
     "Option<BoundedVec<u8, DefaultValidatorArgsLimit>>": "Option<Vec<u8>>",
+    "AccountId20": "[u8; 20]",
+    "BTreeMap<[u8; 20], u32>": "Vec<([u8; 20], u32)>",
+    "BTreeMap<AccountId20, u32>": "Vec<([u8; 20], u32)>",
   }
 }
 
@@ -335,13 +371,25 @@ def from_scale_encoding_using_type_string(
 
     as_scale_bytes = scalecodec.ScaleBytes(as_bytes)
 
-  rpc_runtime_config = RuntimeConfiguration()
-  rpc_runtime_config.update_type_registry(load_type_registry_preset("legacy"))
-  rpc_runtime_config.update_type_registry(custom_rpc_type_registry)
+  rpc_runtime_config = get_runtime_config()
 
   obj = rpc_runtime_config.create_scale_object(type_string, data=as_scale_bytes)
 
   return obj.decode()
+
+def get_runtime_config() -> RuntimeConfiguration:
+  """
+  Returns the runtime configuration with custom types registered.
+
+  Returns:
+    RuntimeConfiguration: The runtime configuration.
+  """
+  rpc_runtime_config = RuntimeConfiguration()
+  rpc_runtime_config.update_type_registry(load_type_registry_preset("legacy"))
+  rpc_runtime_config.update_type_registry(custom_rpc_type_registry)
+  rpc_runtime_config.create_scale_object('BTreeMap<[u8; 20], u32>')
+
+  return rpc_runtime_config
 
 @dataclass
 class SubnetData:
@@ -434,6 +482,7 @@ class SubnetInfo:
   Dataclass for subnet node info.
   """
   id: int
+  friendly_id: int
   name: str
   repo: str
   description: str
@@ -445,31 +494,49 @@ class SubnetInfo:
   max_stake: int
   queue_immunity_epochs: int
   target_node_registrations_per_epoch: int
+  node_registrations_this_epoch: int
   subnet_node_queue_epochs: int
   idle_classification_epochs: int
   included_classification_epochs: int
   delegate_stake_percentage: int
+  last_delegate_stake_rewards_update: int
   node_burn_rate_alpha: int
-  max_node_penalties: int
+  current_node_burn_rate: int
   initial_coldkeys: list
+  initial_coldkey_data: list
   max_registered_nodes: int
   owner: str
   pending_owner: str
   registration_epoch: int
+  prev_pause_epoch: int
   key_types: list
   slot_index: int
-  penalty_count: int
+  slot_assignment: int
+  subnet_node_min_weight_decrease_reputation_threshold: int
+  reputation: int
+  min_subnet_node_reputation: int
+  absent_decrease_reputation_factor: int
+  included_increase_reputation_factor: int
+  below_min_weight_decrease_reputation_factor: int
+  non_attestor_decrease_reputation_factor: int
+  non_consensus_attestor_decrease_reputation_factor: int
+  validator_absent_subnet_node_reputation_factor: int
+  validator_non_consensus_subnet_node_reputation_factor: int
   bootnode_access: list
   bootnodes: list
   total_nodes: int
   total_active_nodes: int
   total_electable_nodes: int
   current_min_delegate_stake: int
+  total_subnet_stake: int
+  total_subnet_delegate_stake_shares: int
+  total_subnet_delegate_stake_balance: int
 
   @classmethod
   def fix_decoded_values(cls, data_decoded: Any) -> "SubnetInfo":
     """Fixes the values of the SubnetInfo object."""
     data_decoded["id"] = data_decoded["id"]
+    data_decoded["friendly_id"] = data_decoded["friendly_id"]
     data_decoded["name"] = data_decoded["name"]
     data_decoded["repo"] = data_decoded["repo"]
     data_decoded["description"] = data_decoded["description"]
@@ -481,26 +548,43 @@ class SubnetInfo:
     data_decoded["max_stake"] = data_decoded["max_stake"]
     data_decoded["queue_immunity_epochs"] = data_decoded["queue_immunity_epochs"]
     data_decoded["target_node_registrations_per_epoch"] = data_decoded["target_node_registrations_per_epoch"]
+    data_decoded["node_registrations_this_epoch"] = data_decoded["node_registrations_this_epoch"]
     data_decoded["subnet_node_queue_epochs"] = data_decoded["subnet_node_queue_epochs"]
     data_decoded["idle_classification_epochs"] = data_decoded["idle_classification_epochs"]
     data_decoded["included_classification_epochs"] = data_decoded["included_classification_epochs"]
     data_decoded["delegate_stake_percentage"] = data_decoded["delegate_stake_percentage"]
+    data_decoded["last_delegate_stake_rewards_update"] = data_decoded["last_delegate_stake_rewards_update"]
     data_decoded["node_burn_rate_alpha"] = data_decoded["node_burn_rate_alpha"]
-    data_decoded["max_node_penalties"] = data_decoded["max_node_penalties"]
+    data_decoded["current_node_burn_rate"] = data_decoded["current_node_burn_rate"]
     data_decoded["initial_coldkeys"] = data_decoded["initial_coldkeys"]
+    data_decoded["initial_coldkey_data"] = data_decoded["initial_coldkey_data"]
     data_decoded["max_registered_nodes"] = data_decoded["max_registered_nodes"]
     data_decoded["owner"] = data_decoded["owner"]
     data_decoded["pending_owner"] = data_decoded["pending_owner"]
     data_decoded["registration_epoch"] = data_decoded["registration_epoch"]
+    data_decoded["prev_pause_epoch"] = data_decoded["prev_pause_epoch"]
     data_decoded["key_types"] = data_decoded["key_types"]
     data_decoded["slot_index"] = data_decoded["slot_index"]
-    data_decoded["penalty_count"] = data_decoded["penalty_count"]
+    data_decoded["slot_assignment"] = data_decoded["slot_assignment"]
+    data_decoded["subnet_node_min_weight_decrease_reputation_threshold"] = data_decoded["subnet_node_min_weight_decrease_reputation_threshold"]
+    data_decoded["reputation"] = data_decoded["reputation"]
+    data_decoded["min_subnet_node_reputation"] = data_decoded["min_subnet_node_reputation"]
+    data_decoded["absent_decrease_reputation_factor"] = data_decoded["absent_decrease_reputation_factor"]
+    data_decoded["included_increase_reputation_factor"] = data_decoded["included_increase_reputation_factor"]
+    data_decoded["below_min_weight_decrease_reputation_factor"] = data_decoded["below_min_weight_decrease_reputation_factor"]
+    data_decoded["non_attestor_decrease_reputation_factor"] = data_decoded["non_attestor_decrease_reputation_factor"]
+    data_decoded["non_consensus_attestor_decrease_reputation_factor"] = data_decoded["non_consensus_attestor_decrease_reputation_factor"]
+    data_decoded["validator_absent_subnet_node_reputation_factor"] = data_decoded["validator_absent_subnet_node_reputation_factor"]
+    data_decoded["validator_non_consensus_subnet_node_reputation_factor"] = data_decoded["validator_non_consensus_subnet_node_reputation_factor"]
     data_decoded["bootnode_access"] = data_decoded["bootnode_access"]
     data_decoded["bootnodes"] = data_decoded["bootnodes"]
     data_decoded["total_nodes"] = data_decoded["total_nodes"]
     data_decoded["total_active_nodes"] = data_decoded["total_active_nodes"]
     data_decoded["total_electable_nodes"] = data_decoded["total_electable_nodes"]
     data_decoded["current_min_delegate_stake"] = data_decoded["current_min_delegate_stake"]
+    data_decoded["total_subnet_stake"] = data_decoded["total_subnet_stake"]
+    data_decoded["total_subnet_delegate_stake_shares"] = data_decoded["total_subnet_delegate_stake_shares"]
+    data_decoded["total_subnet_delegate_stake_balance"] = data_decoded["total_subnet_delegate_stake_balance"]
 
     return cls(**data_decoded)
 
@@ -554,7 +638,8 @@ class SubnetInfo:
   @staticmethod
   def _get_null() -> "SubnetInfo":
     subnet_info = SubnetInfo(
-      id="",
+      id=0,
+      friendly_id=0,
       name="",
       repo="",
       description="",
@@ -566,26 +651,43 @@ class SubnetInfo:
       max_stake=0,
       queue_immunity_epochs=0,
       target_node_registrations_per_epoch=0,
+      node_registrations_this_epoch=0,
       subnet_node_queue_epochs=0,
       idle_classification_epochs=0,
       included_classification_epochs=0,
       delegate_stake_percentage=0,
+      last_delegate_stake_rewards_update=0,
       node_burn_rate_alpha=0,
-      max_node_penalties=0,
-      initial_coldkeys=0,
+      current_node_burn_rate=0,
+      initial_coldkeys=[],
+      initial_coldkey_data=[],
       max_registered_nodes=0,
       owner="000000000000000000000000000000000000000000000000",
       pending_owner="000000000000000000000000000000000000000000000000",
       registration_epoch=0,
+      prev_pause_epoch=0,
       key_types=0,
       slot_index=0,
-      penalty_count=0,
-      bootnode_access=0,
-      bootnodes=0,
+      slot_assignment=0,
+      subnet_node_min_weight_decrease_reputation_threshold=0,
+      reputation=0,
+      min_subnet_node_reputation=0,
+      absent_decrease_reputation_factor=0,
+      included_increase_reputation_factor=0,
+      below_min_weight_decrease_reputation_factor=0,
+      non_attestor_decrease_reputation_factor=0,
+      non_consensus_attestor_decrease_reputation_factor=0,
+      validator_absent_subnet_node_reputation_factor=0,
+      validator_non_consensus_subnet_node_reputation_factor=0,
+      bootnode_access=[],
+      bootnodes=[],
       total_nodes=0,
       total_active_nodes=0,
       total_electable_nodes=0,
-      current_min_delegate_stake=0
+      current_min_delegate_stake=0,
+      total_subnet_stake=0,
+      total_subnet_delegate_stake_shares=0,
+      total_subnet_delegate_stake_balance=0,
     )
     return subnet_info
 
@@ -712,9 +814,13 @@ class SubnetNodeInfo:
   unique: str
   non_unique: str
   stake_balance: int
+  total_node_delegate_stake_shares: int
   node_delegate_stake_balance: int
-  penalties: int
-  reputation: dict
+  coldkey_reputation: dict
+  subnet_node_reputation: int
+  node_slot_index: int
+  consecutive_idle_epochs: int
+  consecutive_included_epochs: int
 
   @classmethod
   def fix_decoded_values(cls, data_decoded: Any) -> "SubnetNodeInfo":
@@ -734,9 +840,13 @@ class SubnetNodeInfo:
     data_decoded["unique"] = data_decoded["unique"]
     data_decoded["non_unique"] = data_decoded["non_unique"]
     data_decoded["stake_balance"] = data_decoded["stake_balance"]
+    data_decoded["total_node_delegate_stake_shares"] = data_decoded["total_node_delegate_stake_shares"]
     data_decoded["node_delegate_stake_balance"] = data_decoded["node_delegate_stake_balance"]
-    data_decoded["penalties"] = data_decoded["penalties"]
-    data_decoded["reputation"] = data_decoded["reputation"]
+    data_decoded["coldkey_reputation"] = data_decoded["coldkey_reputation"]
+    data_decoded["subnet_node_reputation"] = data_decoded["subnet_node_reputation"]
+    data_decoded["node_slot_index"] = data_decoded["node_slot_index"]
+    data_decoded["consecutive_idle_epochs"] = data_decoded["consecutive_idle_epochs"]
+    data_decoded["consecutive_included_epochs"] = data_decoded["consecutive_included_epochs"]
 
     return cls(**data_decoded)
 
@@ -804,9 +914,13 @@ class SubnetNodeInfo:
       unique="",
       non_unique="",
       stake_balance=0,
+      total_node_delegate_stake_shares=0,
       node_delegate_stake_balance=0,
-      penalties=0,
-      reputation=dict()
+      coldkey_reputation=dict(),
+      subnet_node_reputation=0,
+      node_slot_index=0,
+      consecutive_idle_epochs=0,
+      consecutive_included_epochs=0,
     )
     return subnet_node_info
 
@@ -1086,25 +1200,82 @@ class SubnetNodeConsensusData:
     )
     return data
 
+@dataclass
+class AttestEntry:
+    block: int
+    attestor_progress: int
+    reward_factor: int
+    data: list | None
+
+    @classmethod
+    def fix_decoded_values(cls, data_decoded: Any) -> "AttestEntry":
+        # data_decoded can be a SCALE object or a dict
+        if hasattr(data_decoded, "serialize"):
+            data_decoded = data_decoded.serialize()
+        return cls(
+            block=int(data_decoded["block"]),
+            attestor_progress=int(data_decoded["attestor_progress"]),
+            reward_factor=int(data_decoded["reward_factor"]),
+            data=data_decoded.get("data"),
+        )
+
+@dataclass
+class Attest:
+    attestor_id: int
+    entry: AttestEntry
+
+    @classmethod
+    def fix_decoded_values(cls, data_decoded: Any) -> "Attest":
+        # data_decoded is a tuple (attestor_id, dict)
+        attestor_id, entry_dict = data_decoded
+        entry = AttestEntry.fix_decoded_values(entry_dict)
+        return cls(attestor_id=int(attestor_id), entry=entry)
+
 
 @dataclass
 class ConsensusData:
-  """
-  Dataclass for subnet node info.
-  """
-  validator_id: int
-  validator_epoch_progress: int
-  attests: list
-  subnet_nodes: list
-  prioritize_queue_node_id: int | None
-  remove_queue_node_id: int | None
-  data: list
-  args: list | None
+    """
+    Dataclass for consensus data.
+    """
+    validator_id: int
+    block: int
+    validator_epoch_progress: int
+    validator_reward_factor: int
+    attests: List[Attest]
+    subnet_nodes: List[SubnetNode]
+    prioritize_queue_node_id: int | None
+    remove_queue_node_id: int | None
+    data: List[SubnetNodeConsensusData]
+    args: list | None
 
-  @classmethod
-  def fix_decoded_values(cls, data_decoded: Any) -> "ConsensusData":
-      """Converts substrate-interface SCALE object to ConsensusData dataclass."""
-      return cls(**data_decoded.serialize())
+    @classmethod
+    def fix_decoded_values(cls, data_decoded: Any) -> "ConsensusData":
+        serial = data_decoded.serialize() if hasattr(data_decoded, "serialize") else dict(data_decoded)
+
+        attests = [
+            Attest.fix_decoded_values(a) for a in serial.get("attests", [])
+        ]
+
+        subnet_nodes = [
+            SubnetNode.fix_decoded_values(sn) for sn in serial.get("subnet_nodes", [])
+        ]
+
+        data_field = [
+            SubnetNodeConsensusData.fix_decoded_values(d) for d in serial.get("data", [])
+        ]
+
+        return cls(
+            validator_id=int(serial["validator_id"]),
+            block=int(serial["block"]),
+            validator_epoch_progress=int(serial["validator_epoch_progress"]),
+            validator_reward_factor=int(serial["validator_reward_factor"]),
+            attests=attests,
+            subnet_nodes=subnet_nodes,
+            prioritize_queue_node_id=serial.get("prioritize_queue_node_id"),
+            remove_queue_node_id=serial.get("remove_queue_node_id"),
+            data=data_field,
+            args=serial.get("args"),
+        )
 
 @dataclass
 class AllSubnetBootnodes:

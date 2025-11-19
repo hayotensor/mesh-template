@@ -4,7 +4,7 @@ A framework for building open & decentralized AI projects
 
 ---
 This includes all the core components required to launch a decentralized AI application, including:
-- **[Kademlia DHT (KAD-DHT)][bittorrent]** – for scalable, decentralized storage and routing
+- **[Kademlia DHT (KAD-DHT)][bittorrent]** – for scalable, decentralized storage, routing, and communication
 - **Asyncio-based DHT Node** – designed for fast, concurrent communications
 - **DHT Protocol** – allows DHT nodes to request keys/neighbors from other DHT nodes, and manages routing tables
 - **DHT Record Storage** – decentralized key-value storage with support for versioned and validated records with customizable predicate extensions
@@ -16,6 +16,7 @@ This includes all the core components required to launch a decentralized AI appl
 - **Hypertensor Consensus** – Ready to run in parallel to the Hypertensor consensus mechanism
 - **Substrate Integration** – Connect to Hypertensor with an RPC endpoint
 - **Secure Communication** – support for Ed25519 and RSA authentication for communication
+- **Mock Local Database** – Test locally with a mocked database
 
 > 💡 **Focus on Logic, Not Plumbing**
 > The networking, cryptography, consensus, and storage layers are already handled. As a subnet builder, your only responsibility is to implement the application logic — the custom AI protocols and behaviors that live on top of the DHT.
@@ -72,6 +73,8 @@ Fill out the `.env` file with the necessary variables from `.env.example`.
 
 ## Keys
 
+There are 3 key types each node will need, a coldkey (blockchain account), a hotkey (blockchain account), and peer IDs (subnet identity).
+
 The template currently allows RSA and Ed25519 key types and is interoperable between the two.
 
 #### Generate coldkey (if needed)
@@ -86,13 +89,26 @@ The template currently allows RSA and Ed25519 key types and is interoperable bet
       - `bootstrap_peer_id`: (Optional usage) Peer ID to be used as a bootstrap node.
       - `client_peer_id`: (Optional usage) Peer ID to be used as a client. This is for those who want to build frontends to interact with the subnet.
 
-Example Private Key Generation
+The `bootstrap_peer_id` and `client_peer_id` are not required to be used as a peer, but they are required to be generated and stored on-chain when registering a node.
+
+<b>Example Private Key Generation</b>
+
+<b>RSA:</b>
 ```bash
 keygen \
 --path rsa-pk.key \
 --bootstrap_path rsa-bootstrap-pk.key \
 --client_path rsa-client-pk.key  \
 --key_type rsa
+```
+
+<b>Ed25519:</b>
+```bash
+keygen \
+--path ed-pk.key \
+--bootstrap_path ed-bootstrap-pk.key \
+--client_path ed-client-pk.key  \
+--key_type ed25519
 ```
 
 ## Register and Activate Subnet Node (on-chain)
@@ -125,38 +141,40 @@ activate-node --subnet_id 1
 ---
 ## Running Nodes
 
-- Replace port 31330 with your port of choice.
+- Replace port `31330` with your port of choice.
 - Replace `{your_ip}` with your IP.
-### Bootnode
-<b>Note</b>: To be verified to have a proof-of-stake in-subnet, use the bootnode private key generated during the <b>Generate peer private keys</b> step that the subnet node was registered with under the `bootnode_peer_id`.
 
-<b>Note</b>: Bootnodes are not required by subnet nodes and are expected to be managed by the subnet owner entity.
+### Run a Bootnode
 
 A bootnode is an entry point into a decentralized network and should be ran on its own server.
 
 Each subnet must have at least one public and running bootnode at all times for nodes to enter and for for Overwatch Nodes to validate a subnet. See documentation for more information.
 
-#### Start Bootnode and Start Subnet
-##### This starts an entirely new subnet and runs a bootnode
+<b>Note</b>: To be verified to have a proof-of-stake in-subnet, use the bootnode private key generated during the <b>Generate peer private keys</b> step that the subnet node was registered with under the `bootnode_peer_id`.
+
+<b>Note</b>: Bootnodes are not required by subnet nodes and are expected to be managed by the subnet owner entity.
+
+#### Start Bootnode
+
 ```bash
 mesh-dht \
 --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
 --announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
---identity_path alith.id
+--identity_path alith.id \
 ```
 ##### Update `PUBLIC_INITIAL_PEERS`
 
 Once you run it, look at the outputs and find the following line:
 
 ```bash
-Mon 00 01:23:45.678 [INFO] Running a DHT instance. To connect other peers to this one, use --initial_peers /ip4/YOUR_ADDRESS_HERE/tcp/31337/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj
+Mon 00 01:23:45.678 [INFO] Running a DHT instance. To connect other peers to this one, use --initial_peers /ip4/YOUR_ADDRESS_HERE/tcp/31330/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj
 ```
 
-Once the bootnode is deployed, copy the `/ip4/YOUR_ADDRESS_HERE/tcp/31337/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj` into the `PUBLIC_INITIAL_PEERS` in the `.env` file.
+Once the bootnode is deployed, copy the `/ip4/YOUR_ADDRESS_HERE/tcp/31330/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj` into the `PUBLIC_INITIAL_PEERS` in the `.env` file.
 
-#### Start Bootnode and Join Subnet
+#### Start Node and Join Subnet
 ##### This joins an existing subnets and runs a bootnode.
-- Get the bootnode multiaddresses from the subnets team or blockchain and add them to the `initial_peers` argument.
+- Get the bootnode multiaddresses from the subnets team or blockchain and add them to the `initial_peers` argument and replace `/ip4/{ip}/p2p/{peer_id}`. In this example, we use 2 bootnodes to connect to, but one is required.
 ```bash
 mesh-dht \
 --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
@@ -171,7 +189,8 @@ mesh-dht \
 
 #### Start DHT / Start Node
 
-This will start a new subnet (fresh swarm as initial node/bootnode and server in one)
+This will start a new subnet (fresh swarm as initial node/bootnode and server in one). It is <b>not</b> required to run a node as a bootnode together. Bootnodes should be treated as contact point for entry only.
+
 ```bash
 mesh-server-mock \
 --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
@@ -186,10 +205,10 @@ mesh-server-mock \
 Once you run it, look at the outputs and find the following line:
 
 ```bash
-Mon 00 01:23:45.678 [INFO] Running a DHT instance. To connect other peers to this one, use --initial_peers /ip4/YOUR_ADDRESS_HERE/tcp/31337/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj
+Mon 00 01:23:45.678 [INFO] Running a DHT instance. To connect other peers to this one, use --initial_peers /ip4/YOUR_ADDRESS_HERE/tcp/31330/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj
 ```
 
-Once the bootnode is deployed, copy the `/ip4/YOUR_ADDRESS_HERE/tcp/31337/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj` into the `PUBLIC_INITIAL_PEERS` in the `.env` file.
+Once the bootnode is deployed, copy the `/ip4/YOUR_ADDRESS_HERE/tcp/31330/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj` into the `PUBLIC_INITIAL_PEERS` in the `.env` file.
 
 #### Join DHT / Start Node
 ```bash
@@ -205,8 +224,9 @@ mesh-server-mock \
 Start a mesh locally with 3 nodes and no requirement for a blockchain connection:
 
 #### Start the bootnode as a server 
-(this is a node that as a bootnode and a server)
-<b>Note:</b> In production, a bootnode should not be ran as a server.
+This is a node that as a bootnode and a server, although this is not recommended for production.
+
+<b>Note:</b> In production, a bootnode should <b>not</b> be ran as a server.
 
 ```bash
 mesh-server-mock \
@@ -253,6 +273,9 @@ mesh-server-mock \
 - `dorothy.id`
 - `ethan.id`
 - `faith.id`
+
+<b>Note:</b> Ensure each peer has its own unique `subnet_node_id` and `port`.
+
 ---
 ## Running Nodes Locally With Local Blockchain
 

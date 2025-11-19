@@ -86,6 +86,7 @@ def main():
     parser.add_argument("--local_rpc", action="store_true", help="[Testing] Run in local RPC mode, uses LOCAL_RPC")
     parser.add_argument("--phrase", type=str, required=False, help="[Testing] Coldkey phrase that controls actions which include funds, such as registering, and staking")
     parser.add_argument("--private_key", type=str, required=False, help="[Testing] Hypertensor blockchain private key")
+    parser.add_argument("--use_chain_bootnodes", action="store_true", help="Use bootnodes from the chain")
 
     # fmt:on
     args = vars(parser.parse_args())
@@ -116,6 +117,7 @@ def main():
         announce_maddrs = [f"/ip4/{public_ip}/tcp/{port}"]
 
     args["startup_timeout"] = args.pop("daemon_startup_timeout")
+    use_chain_bootnodes = args.pop("use_chain_bootnodes")
 
     file_limit = args.pop("increase_file_limit")
     if file_limit:
@@ -134,11 +136,10 @@ def main():
             hypertensor = Hypertensor(rpc, private_key, KeypairFrom.PRIVATE_KEY)
             keypair = Keypair.create_from_private_key(private_key, crypto_type=KeypairType.ECDSA)
             hotkey = keypair.ss58_address
-            logger.info("hotkey", hotkey)
+            logger.info(f"hotkey: {hotkey}")
         else:
             hypertensor = Hypertensor(rpc, PHRASE)
     else:
-        # hypertensor = MockHypertensor()
         peer_id = get_peer_id_from_identity_path(args["identity_path"])
         reset_db = False
         if args["new_swarm"]:
@@ -156,7 +157,7 @@ def main():
         )
 
     # Auto get the onchain bootnodes
-    if isinstance(hypertensor, Hypertensor):
+    if use_chain_bootnodes and isinstance(hypertensor, Hypertensor):
         bootnodes = hypertensor.get_bootnodes_formatted(subnet_id)
         if bootnodes is not None:
             args["initial_peers"] = bootnodes

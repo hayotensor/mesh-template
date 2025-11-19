@@ -1,12 +1,12 @@
 import asyncio
-from dataclasses import asdict
 import multiprocessing as mp
-from typing import Any, List
+from dataclasses import asdict
+from typing import List
 
 from mesh import DHT, PeerID
 from mesh.dht.validation import RecordValidatorBase
-from mesh.subnet.consensus.utils import compare_consensus_data, did_node_attest
-from mesh.substrate.chain_data import ConsensusData, SubnetNodeConsensusData
+from mesh.subnet.consensus.utils import compare_consensus_data, did_node_attest, is_validator_or_attestor
+from mesh.substrate.chain_data import SubnetNodeConsensusData
 from mesh.substrate.chain_functions import Hypertensor, SubnetNodeClass
 from mesh.substrate.config import BLOCK_SECS
 from mesh.substrate.mock.chain_functions import MockHypertensor
@@ -35,7 +35,6 @@ class Consensus(mp.Process):
         self.subnet_node_id = subnet_node_id
         self.hypertensor = hypertensor
         self.record_validator = record_validator
-        self.previous_epoch_data: int | None = None
         self.is_subnet_active: bool = False
         self.skip_activate_subnet = skip_activate_subnet
         self.slot: int | None = None # subnet epoch slot, set in `run_activate_subnet`
@@ -46,19 +45,25 @@ class Consensus(mp.Process):
             self.start()
 
     def run(self):
-        loop = switch_to_uvloop()
-        stop = asyncio.Event()
-        loop.add_reader(self._inner_pipe.fileno(), stop.set)
-
         try:
-            loop.run_until_complete(self._main_loop())
-        except KeyboardInterrupt:
-            logger.debug("Caught KeyboardInterrupt, shutting down")
+            loop = switch_to_uvloop()
+            stop = asyncio.Event()
+            loop.add_reader(self._inner_pipe.fileno(), stop.set)
+
+            try:
+                loop.run_until_complete(self._main_loop())
+                print("Consensus run_until_complete")
+            except KeyboardInterrupt:
+                logger.debug("Caught KeyboardInterrupt, shutting down")
+        except Exception as e:
+            logger.error(f"Consensus run exception: {e}", exc_info=True)
 
     async def _main_loop(self):
         if not await self.run_activate_subnet():
+            print("Consensus not await self.run_activate_subnet")
             return
         if not await self.run_is_node_validator():
+            print("Consensus not await self.run_is_node_validator")
             return
         await self.run_forever()
 
@@ -271,7 +276,7 @@ class Consensus(mp.Process):
         """
         At the start of each epoch, we check if we are validator
 
-        Scores are likely generated and rooted from the `run_forever` function, although, anything use cases are possible
+        Scores are likely generated and rooted from the `run_forever` function, although, any use cases are possible
 
         We start by:
             - Getting scores
@@ -344,7 +349,8 @@ class Consensus(mp.Process):
 
         elif validator is not None:
             logger.info(f"🗳️ Acting as attestor/voter for epoch {current_epoch}")
-            consensus_data = None
+            consensus_data = None # Fetch one time once not None
+            _is_validator_or_attestor = False # Check only once
             while not self.stop.is_set():
                 # Check consensus data exists in case attest fails
                 if consensus_data is None or consensus_data == None:  # noqa: E711
@@ -366,15 +372,21 @@ class Consensus(mp.Process):
                 """
                 Get all of the hosters inference outputs they stored to the DHT
                 """
-                
-                self.previous_epoch_data = None
+
                 if 1.0 == compare_consensus_data(my_data=scores, validator_data=validator_data):
-                    # Update previous epoch to current epoch data
-                    self.previous_epoch_data = scores
+                    # Check if we can attest
+                    # This is important in case a node sets emergency validators
+                    if not _is_validator_or_attestor:
+                        _is_validator_or_attestor = is_validator_or_attestor(self.hypertensor, self.subnet_id, self.subnet_node_id)
+                        # If False, break
+                        # If True, check once
+                        if not _is_validator_or_attestor:
+                            logger.debug("Not attestor or validator")
+                            break
 
                     # Check if we already attested
                     if did_node_attest(self.subnet_node_id, consensus_data):
-                        logger.info("Already attested, moving to next epoch")
+                        logger.debug("Already attested, moving to next epoch")
                         break
 
                     logger.info(f"✅ Elected validator's data matches for epoch {current_epoch}, attesting their data")

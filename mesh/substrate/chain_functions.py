@@ -1,7 +1,10 @@
+import binascii
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, List, Optional
 
+from scalecodec.base import RuntimeConfiguration
+from scalecodec.types import CompactU32, Map
 from substrateinterface import ExtrinsicReceipt, Keypair, KeypairType, SubstrateInterface
 from substrateinterface.exceptions import SubstrateRequestException
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
@@ -17,6 +20,7 @@ from mesh.substrate.chain_data import (
   SubnetNode,
   SubnetNodeInfo,
   SubnetNodeStakeInfo,
+  get_runtime_config,
 )
 from mesh.substrate.config import BLOCK_SECS
 from mesh.utils import get_logger
@@ -98,9 +102,10 @@ def subnet_node_class_to_enum(name: str) -> SubnetNodeClass:
     return SubnetNodeClass[name]
 
 class Hypertensor:
-  def __init__(self, url: str, phrase: str, keypair_from: Optional[KeypairFrom] = None):
+  def __init__(self, url: str, phrase: str, keypair_from: Optional[KeypairFrom] = None, runtime_config: Optional[RuntimeConfiguration] = None):
     self.url = url
-    self.interface: SubstrateInterface = SubstrateInterface(url=url)
+    # self.interface: SubstrateInterface = SubstrateInterface(url=url)
+    self.interface: SubstrateInterface = SubstrateInterface(url=url, runtime_config=runtime_config)
     if keypair_from is None:
       self.keypair = Keypair.create_from_mnemonic(phrase, crypto_type=KeypairType.ECDSA)
       self.hotkey = self.keypair.ss58_address
@@ -251,51 +256,71 @@ class Hypertensor:
 
   def register_subnet(
     self,
-    hotkey: str,
     max_cost: int,
     name: str,
     repo: str,
     description: str,
     misc: str,
-    churn_limit: int,
     min_stake: int,
     max_stake: int,
     delegate_stake_percentage: int,
-    subnet_node_queue_epochs: int,
-    idle_classification_epochs: int,
-    included_classification_epochs: int,
-    max_node_penalties: int,
-    max_registered_nodes: int,
-    initial_coldkeys: list,
+    initial_coldkeys: Any,
     key_types: list,
     bootnodes: list,
   ) -> ExtrinsicReceipt:
     """
     Register subnet node and stake
     """
+    _orig_process_encode = Map.process_encode
+
+    # A temporary patch for using BTreeMap encoding for initial_coldkeys
+    # Assumption is that there is a metadata version mismatch causing the issue
+    # See: `scalecodec/types.py`
+    def _patched_process_encode(self, value):
+        if type(value) is not list:
+            raise ValueError("value should be a list of tuples e.g.: [('1', 2), ('23', 24), ('28', 30), ('45', 80)]")
+
+        element_count_compact = CompactU32()
+        element_count_compact.encode(len(value))
+
+        data = element_count_compact.data
+
+        # Force key/value map types
+        self.map_key = "[u8; 20]"
+        self.map_value = "u32"
+
+        for item_key, item_value in value:
+            key_obj = self.runtime_config.create_scale_object(
+                type_string=self.map_key, metadata=self.metadata
+            )
+
+            data += key_obj.encode(item_key)
+
+            value_obj = self.runtime_config.create_scale_object(
+                type_string=self.map_value, metadata=self.metadata
+            )
+
+            data += value_obj.encode(item_value)
+
+        return data
+
+    Map.process_encode = _patched_process_encode
 
     # compose call
     call = self.interface.compose_call(
       call_module='Network',
       call_function='register_subnet',
       call_params={
-        'hotkey': hotkey,
         'max_cost': max_cost,
         'subnet_data': {
           'name': name.encode(),
           'repo': repo.encode(),
           'description': description.encode(),
           'misc': misc.encode(),
-          'churn_limit': churn_limit,
           'min_stake': min_stake,
           'max_stake': max_stake,
           'delegate_stake_percentage': delegate_stake_percentage,
-          'subnet_node_queue_epochs': subnet_node_queue_epochs,
-          'idle_classification_epochs': idle_classification_epochs,
-          'included_classification_epochs': included_classification_epochs,
-          'max_node_penalties': max_node_penalties,
-          'max_registered_nodes': max_registered_nodes,
-          'initial_coldkeys': sorted(set(initial_coldkeys)),
+          'initial_coldkeys': initial_coldkeys,
           'key_types': sorted(set(key_types)),
           'bootnodes': sorted(set(bootnodes)),
         }
@@ -304,6 +329,8 @@ class Hypertensor:
 
     # create signed extrinsic
     extrinsic = self.interface.create_signed_extrinsic(call=call, keypair=self.keypair)
+
+    Map.process_encode = _orig_process_encode
 
     @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
     def submit_extrinsic():
@@ -443,7 +470,6 @@ class Hypertensor:
           return receipt
       except SubstrateRequestException as e:
         logger.error("Failed to send: {}".format(e))
-        
 
     return submit_extrinsic()
 
@@ -1455,6 +1481,26 @@ class Hypertensor:
         logger.warning(f"get_subnet_slot={e}", exc_info=True)
         return None
 
+  def get_consensus_data(
+    self,
+    subnet_id: int,
+    epoch: int
+  ):
+    """
+    Query an epochs consesnus submission
+    """
+
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_query():
+      try:
+        with self.interface as _interface:
+          result = _interface.query('Network', 'SubnetConsensusSubmission', [subnet_id, epoch])
+          return result
+      except SubstrateRequestException as e:
+        logger.error("Failed to get rpc request: {}".format(e))
+
+    return make_query()
+
   """
   RPC
   """
@@ -1710,26 +1756,6 @@ class Hypertensor:
 
     return make_rpc_request()
 
-  def get_consensus_data(
-    self,
-    subnet_id: int,
-    epoch: int
-  ):
-    """
-    Query an epochs consesnus submission
-    """
-
-    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
-    def make_query():
-      try:
-        with self.interface as _interface:
-          result = _interface.query('Network', 'SubnetConsensusSubmission', [subnet_id, epoch])
-          return result
-      except SubstrateRequestException as e:
-        logger.error("Failed to get rpc request: {}".format(e))
-
-    return make_query()
-
   def proof_of_stake(
     self,
     subnet_id: int,
@@ -1770,7 +1796,7 @@ class Hypertensor:
               min_class
             ]
           )
-          return result['result']
+          return result
       except SubstrateRequestException as e:
         logger.error("Failed to get rpc request: {}".format(e))
 
@@ -1853,6 +1879,26 @@ class Hypertensor:
             params=[
               subnet_id,
               subnet_epoch
+            ]
+          )
+          return data
+      except SubstrateRequestException as e:
+        logger.error("Failed to get rpc request: {}".format(e))
+
+    return make_rpc_request()
+
+  def get_validators_and_attestors(
+    self,
+    subnet_id: int,
+  ):
+    @retry(wait=wait_fixed(BLOCK_SECS+1), stop=stop_after_attempt(4))
+    def make_rpc_request():
+      try:
+        with self.interface as _interface:
+          data = _interface.rpc_request(
+            method='network_getValidatorsAndAttestors',
+            params=[
+              subnet_id,
             ]
           )
           return data
@@ -2020,6 +2066,23 @@ class Hypertensor:
       subnet_node = SubnetNodeInfo.from_vec_u8(result["result"])
 
       return subnet_node
+    except Exception:
+      return None
+
+  def get_validators_and_attestors_formatted(self, subnet_id: int) -> Optional[List["SubnetNodeInfo"]]:
+    """
+    Get formatted list of subnet nodes classified as Validator
+
+    :param subnet_id: subnet ID
+
+    :returns: List of subnet node IDs
+    """
+    try:
+      result = self.get_validators_and_attestors(subnet_id)
+
+      subnet_nodes = SubnetNodeInfo.list_from_vec_u8(result["result"])
+
+      return subnet_nodes
     except Exception:
       return None
 
@@ -2251,7 +2314,8 @@ class Hypertensor:
           node for node in subnet_nodes
           if subnet_node_class_to_enum(node.classification['node_class']).value >= min_class.value and node.classification['start_epoch'] <= subnet_epoch
       ]
-    except Exception:
+    except Exception as e:
+      logger.error(f"Error get_min_class_subnet_nodes_formatted={e}", exc_info=True)
       return []
 
   def update_bootnodes(
