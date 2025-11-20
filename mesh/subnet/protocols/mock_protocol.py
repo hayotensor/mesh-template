@@ -12,10 +12,10 @@ from mesh.compression.serialization import deserialize_torch_tensor, serialize_t
 from mesh.p2p import P2P, P2PContext, PeerID, ServicerBase
 from mesh.proto import dht_pb2, inference_protocol_pb2, runtime_pb2
 from mesh.substrate.chain_functions import Hypertensor
-from mesh.utils import get_logger
 from mesh.utils.asyncio import switch_to_uvloop
 from mesh.utils.authorizers.auth import AuthorizerBase, AuthRole, AuthRPCWrapperStreamer
 from mesh.utils.key import extract_rsa_peer_id_from_ssh
+from mesh.utils.logging import configure_subprocess_logging, get_logger
 from mesh.utils.mpfuture import MPFuture
 from mesh.utils.serializer import MSGPackSerializer
 
@@ -23,7 +23,6 @@ logger = get_logger(__name__)
 
 
 class MockProtocol(mp.context.ForkProcess, ServicerBase):
-
     """
     Add child process variables here
 
@@ -47,7 +46,7 @@ class MockProtocol(mp.context.ForkProcess, ServicerBase):
         self.subnet_id = subnet_id
         self.peer_id = dht.peer_id
         self.node_id = dht.node_id
-        self.node_info = dht_pb2.NodeInfo(node_id=self.node_id.to_bytes()) # used in key authorizer
+        self.node_info = dht_pb2.NodeInfo(node_id=self.node_id.to_bytes())  # used in key authorizer
         self.balanced, self.shutdown_timeout = balanced, shutdown_timeout
         self._p2p = None
         self.authorizer = authorizer
@@ -62,6 +61,10 @@ class MockProtocol(mp.context.ForkProcess, ServicerBase):
             self.run_in_background(await_ready=True)
 
     def run(self):
+        configure_subprocess_logging()
+
+        self.logger = get_logger(__name__)
+
         torch.set_num_threads(1)
         loop = switch_to_uvloop()
         stop = asyncio.Event()
@@ -72,7 +75,7 @@ class MockProtocol(mp.context.ForkProcess, ServicerBase):
                 self._p2p = await self.dht.replicate_p2p()
                 """Add rpc_* methods from this class to the P2P servicer"""
                 if self.authorizer is not None:
-                    logger.info("Adding P2P handlers with authorizer")
+                    self.logger.info("Adding P2P handlers with authorizer")
                     await self.add_p2p_handlers(
                         self._p2p,
                         AuthRPCWrapperStreamer(self, AuthRole.SERVICER, self.authorizer),
@@ -99,7 +102,7 @@ class MockProtocol(mp.context.ForkProcess, ServicerBase):
                     """
                 self.ready.set_result(None)
             except Exception as e:
-                logger.debug(e, exc_info=True)
+                self.logger.debug(e, exc_info=True)
                 self.ready.set_exception(e)
 
             try:
@@ -110,7 +113,7 @@ class MockProtocol(mp.context.ForkProcess, ServicerBase):
         try:
             loop.run_until_complete(_run())
         except KeyboardInterrupt:
-            logger.debug("Caught KeyboardInterrupt, shutting down")
+            self.logger.debug("Caught KeyboardInterrupt, shutting down")
 
     def run_in_background(self, await_ready: bool = True, timeout: Optional[float] = None) -> None:
         """
@@ -123,9 +126,7 @@ class MockProtocol(mp.context.ForkProcess, ServicerBase):
         if self.is_alive():
             self.join(self.shutdown_timeout)
             if self.is_alive():
-                logger.warning(
-                    "MockProtocol did not shut down within the grace period; terminating it the hard way"
-                )
+                logger.warning("MockProtocol did not shut down within the grace period; terminating it the hard way")
                 self.terminate()
         else:
             logger.warning("MockProtocol shutdown had no effect, the process is already dead")
@@ -141,10 +142,7 @@ class MockProtocol(mp.context.ForkProcess, ServicerBase):
 
     @classmethod
     def get_server_stub(
-        cls,
-        p2p: P2P,
-        peer: PeerID,
-        authorizer: Optional[AuthorizerBase] = None
+        cls, p2p: P2P, peer: PeerID, authorizer: Optional[AuthorizerBase] = None
     ) -> "InferenceProtocolStub":  # type: ignore # noqa: F821
         """
         Get a stub that sends requests to a given peer.
@@ -166,7 +164,7 @@ class MockProtocol(mp.context.ForkProcess, ServicerBase):
         result = {
             "version": mesh.__version__,
             "dht_client_mode": self.dht.client_mode,
-            "role": "server" if not self.client else "client"
+            "role": "server" if not self.client else "client",
         }
 
         return runtime_pb2.NodeData(serialized_info=MSGPackSerializer.dumps(result))
@@ -194,7 +192,7 @@ class MockProtocol(mp.context.ForkProcess, ServicerBase):
                         tensor = deserialize_torch_tensor(tensor_bytes)
                         yield tensor
         except Exception as e:
-            logger.error(f"MockProtocol failed to stream from {peer}: {e}", exc_info=True)
+            self.logger.error(f"MockProtocol failed to stream from {peer}: {e}", exc_info=True)
             return
 
     def should_process_inference(self, tensor: torch.Tensor) -> bool:
@@ -230,5 +228,5 @@ class MockProtocol(mp.context.ForkProcess, ServicerBase):
                 peer=self.node_info,
                 dht_time=get_dht_time(),
                 output=str(token_tensor.item()),
-                tensors=[serialize_torch_tensor(token_tensor)]
+                tensors=[serialize_torch_tensor(token_tensor)],
             )

@@ -11,7 +11,8 @@ from mesh.dht.node import DEFAULT_NUM_WORKERS, DHTNode
 from mesh.dht.routing import DHTID, DHTKey, DHTValue, Subkey
 from mesh.dht.validation import CompositeValidator, RecordValidatorBase
 from mesh.p2p import P2P, PeerID
-from mesh.utils import MPFuture, get_logger, switch_to_uvloop
+from mesh.utils import MPFuture, switch_to_uvloop
+from mesh.utils.logging import configure_subprocess_logging, get_logger
 from mesh.utils.multiaddr import Multiaddr
 from mesh.utils.timed_storage import DHTExpiration, ValueWithExpiration
 
@@ -89,6 +90,9 @@ class DHT(mp.context.ForkProcess):
 
     def run(self) -> None:
         """Serve DHT forever. This function will not return until DHT node is shut down"""
+        configure_subprocess_logging()
+
+        self.logger = get_logger(__name__)
 
         loop = switch_to_uvloop()
         pipe_semaphore = asyncio.Semaphore(value=0)
@@ -113,7 +117,7 @@ class DHT(mp.context.ForkProcess):
                 )
             except Exception as e:
                 # Loglevel is DEBUG since normally the exception is propagated to the caller
-                logger.debug(e, exc_info=True)
+                self.logger.debug(e, exc_info=True)
                 self._ready.set_exception(e)
                 return
             self._ready.set_result(None)
@@ -128,7 +132,7 @@ class DHT(mp.context.ForkProcess):
                 try:
                     method, args, kwargs = self._inner_pipe.recv()
                 except (OSError, ConnectionError, RuntimeError) as e:
-                    logger.exception(e)
+                    self.logger.exception(e)
                     await asyncio.sleep(self._node.protocol.wait_timeout)
                     continue
                 task = asyncio.create_task(getattr(self, method)(*args, **kwargs))
@@ -265,7 +269,7 @@ class DHT(mp.context.ForkProcess):
         try:
             future.set_result(await coro(self, self._node))
         except BaseException as e:
-            logger.exception("Caught an exception when running a coroutine:")
+            self.logger.exception("Caught an exception when running a coroutine:")
             future.set_exception(e)
 
     def add_validators(self, record_validators: Iterable[RecordValidatorBase]) -> None:

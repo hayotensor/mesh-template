@@ -1,4 +1,6 @@
 import logging
+import logging.handlers
+import multiprocessing as mp
 import os
 import sys
 import threading
@@ -40,6 +42,11 @@ class HandlerMode(Enum):
 _init_lock = threading.RLock()
 _current_mode = HandlerMode.IN_MESH
 _default_handler = None
+
+# Multiprocessing logging support
+_log_queue = None
+_queue_listener = None
+_is_subprocess = False
 
 
 class _DisableIfNoColors(type):
@@ -209,3 +216,103 @@ def python_level_to_golog(level: str) -> str:
     if level == "WARNING":
         return "WARN"
     return level
+
+
+def setup_mp_logging() -> mp.Queue:
+    """
+    Set up multiprocessing-safe logging in the parent/main process.
+
+    Call this ONCE in the main process before spawning child processes.
+    Returns the log queue that should be passed to child processes.
+
+    Example:
+        # In main process
+        log_queue = setup_mp_logging()
+
+        # Pass log_queue to child processes via constructor
+        consensus = Consensus(dht=dht, log_queue=log_queue, ...)
+    """
+    global _log_queue, _queue_listener
+
+    if _queue_listener is not None:
+        # Already set up
+        return _log_queue
+
+    _initialize_if_necessary()
+
+    # Create queue for subprocess log messages
+    _log_queue = mp.Queue()
+
+    # Create listener that processes logs from the queue
+    # Use the existing _default_handler to maintain formatting
+    _queue_listener = logging.handlers.QueueListener(_log_queue, _default_handler, respect_handler_level=True)
+    _queue_listener.start()
+
+    return _log_queue
+
+
+def configure_subprocess_logging(log_queue: Optional[mp.Queue] = None) -> None:
+    """
+    Configure logging for a subprocess to send logs through a queue.
+
+    Call this at the START of any subprocess's run() method.
+
+    Args:
+        log_queue: The queue returned by setup_mp_logging() in the parent.
+                   If None, uses the global _log_queue.
+
+    Example:
+        class Consensus(mp.Process):
+            def __init__(self, log_queue, ...):
+                self.log_queue = log_queue
+
+            def run(self):
+                configure_subprocess_logging(self.log_queue)
+                # Now logging works safely!
+                logger = get_logger(__name__)
+                logger.info("Hello from subprocess")
+    """
+    global _is_subprocess, _log_queue
+
+    if log_queue is None:
+        log_queue = _log_queue
+
+    if log_queue is None:
+        raise ValueError(
+            "log_queue is None. You must call setup_mp_logging() in the parent "
+            "process and pass the queue to the subprocess."
+        )
+
+    # Remove all inherited handlers (they have corrupted locks)
+    root = logging.getLogger()
+    for handler in list(root.handlers):
+        handler.close()
+        root.removeHandler(handler)
+
+    # Remove handlers from all existing loggers
+    for logger_name in list(logging.Logger.manager.loggerDict.keys()):
+        logger_obj = logging.getLogger(logger_name)
+        if isinstance(logger_obj, logging.Logger):
+            logger_obj.handlers.clear()
+
+    # Add QueueHandler to send logs to parent process
+    queue_handler = logging.handlers.QueueHandler(log_queue)
+    root.addHandler(queue_handler)
+    root.setLevel(loglevel)
+
+    # Mark that we're in a subprocess
+    _is_subprocess = True
+
+
+def shutdown_mp_logging() -> None:
+    """
+    Shut down the multiprocessing logging queue listener.
+
+    Call this in the main process when shutting down, AFTER all
+    child processes have terminated.
+    """
+    global _queue_listener
+
+    if _queue_listener is not None:
+        _queue_listener.stop()
+        _queue_listener = None
