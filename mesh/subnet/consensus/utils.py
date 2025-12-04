@@ -22,21 +22,17 @@ def compare_consensus_data(
     accuracy = float(len(intersection) / len(union))
     return accuracy
 
+
 def get_attestation_ratio(consensus_data: ConsensusData):
     return len(consensus_data.attests) / len(consensus_data.subnet_nodes)
 
-# def did_node_attest(subnet_node_id: int, consensus_data: ConsensusData):
-#     for item in consensus_data.attests:
-#         for id, _ in item.items():
-#             if id == subnet_node_id:
-#                 return True
-#     return False
 
 def did_node_attest(subnet_node_id: int, consensus_data: ConsensusData) -> bool:
     for attest in consensus_data.attests:
         if attest.attestor_id == subnet_node_id:
             return True
     return False
+
 
 def is_validator_or_attestor(hypertensor: Hypertensor, subnet_id: int, subnet_node_id: int) -> bool:
     validators_and_attestors = hypertensor.get_validators_and_attestors_formatted(subnet_id)
@@ -47,6 +43,7 @@ def is_validator_or_attestor(hypertensor: Hypertensor, subnet_id: int, subnet_no
         if item.subnet_node_id == subnet_node_id:
             return True
     return False
+
 
 def get_peers_node_id(peer_id: PeerID, subnet_nodes_info: List[SubnetNodeInfo]) -> Optional[int]:
     """Return the subnet_node_id for the given peer_id, or None if not found."""

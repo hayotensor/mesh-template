@@ -1,6 +1,7 @@
 """
 Utilities for declaring and retrieving active model layers using a shared DHT.
 """
+
 from __future__ import annotations
 
 import math
@@ -13,12 +14,27 @@ from mesh.dht.routing import DHTKey
 from mesh.dht.validation import RecordValidatorBase
 from mesh.p2p import PeerID
 from mesh.utils import DHTExpiration, MPFuture, get_dht_time, get_logger
-from mesh.utils.data_structures import NodeHeartbeat, RemoteInfo, RemoteModuleInfo, ServerInfo, ServerState
+from mesh.utils.data_structures import (
+    DHTRecordInfo,
+    DHTRecordPlain,
+    NodeHeartbeat,
+    RemoteInfo,
+    RemoteModuleInfo,
+    ServerInfo,
+    ServerState,
+)
 from mesh.utils.key import (
     extract_peer_id_from_record_validator,
 )
 
 logger = get_logger(__name__)
+
+"""
+Only use for testing and development
+
+Use `declare_node_sig` for production
+"""
+
 
 def declare_node(
     dht: DHT,
@@ -44,10 +60,11 @@ def declare_node(
             key=key,
             subkey=dht.peer_id.to_base58(),
             server_info=server_info,
-            expiration_time=expiration_time
+            expiration_time=expiration_time,
         ),
         return_future=not wait,
     )
+
 
 async def _store_node(
     dht: DHT,
@@ -65,9 +82,10 @@ async def _store_node(
         num_workers=32,
     )
 
+
 def get_node_infos(
     dht: DHT,
-    uid: Any, # type: ignore
+    uid: Any,  # type: ignore
     expiration_time: Optional[DHTExpiration] = None,
     *,
     latest: bool = False,
@@ -83,10 +101,11 @@ def get_node_infos(
         return_future=return_future,
     )
 
+
 async def _get_node_infos(
     dht: DHT,
     node: DHTNode,
-    uid: Any, # type: ignore
+    uid: Any,  # type: ignore
     expiration_time: Optional[DHTExpiration],
     latest: bool,
 ) -> List[RemoteModuleInfo]:
@@ -96,7 +115,7 @@ async def _get_node_infos(
     elif expiration_time is None:
         expiration_time = get_dht_time()
     num_workers = 1 if dht.num_workers is None else 1
-    found: Dict[Any, DHTValue] = await node.get_many([uid], expiration_time, num_workers=num_workers) # type: ignore
+    found: Dict[Any, DHTValue] = await node.get_many([uid], expiration_time, num_workers=num_workers)  # type: ignore
 
     if found[uid] is None:
         return []
@@ -111,13 +130,9 @@ async def _get_node_infos(
         peers.append(PeerID.from_base58(subkey))
         server_info = ServerInfo.from_tuple(values.value)
 
-        modules.append(
-            RemoteModuleInfo(
-                peer_id=PeerID.from_base58(subkey),
-                server=server_info
-            )
-        )
+        modules.append(RemoteModuleInfo(peer_id=PeerID.from_base58(subkey), server=server_info))
     return modules
+
 
 def store_data(
     dht: DHT,
@@ -131,6 +146,7 @@ def store_data(
         partial(_store_data, key=key, subkey=subkey, value=data, expiration_time=expiration_time),
         return_future=False,
     )
+
 
 async def _store_data(
     dht: DHT,
@@ -147,6 +163,7 @@ async def _store_data(
         expiration_time=expiration_time,
         num_workers=32,
     )
+
 
 def get_many_data(
     dht: DHT,
@@ -166,6 +183,7 @@ def get_many_data(
         return_future=return_future,
     )
 
+
 async def _get_data(
     dht: DHT,
     node: DHTNode,
@@ -184,9 +202,7 @@ only allows max expiration entries so the records don't
 last forever
 """
 
-"""
-RSA
-"""
+
 def declare_node_sig(
     dht: DHT,
     key: DHTKey,
@@ -210,10 +226,11 @@ def declare_node_sig(
             key=key,
             server_info=server_info,
             expiration_time=expiration_time,
-            record_validator=record_validator
+            record_validator=record_validator,
         ),
         return_future=not wait,
     )
+
 
 async def _declare_declare_node_sig(
     dht: DHT,
@@ -223,7 +240,11 @@ async def _declare_declare_node_sig(
     expiration_time: DHTExpiration,
     record_validator: Optional[SignatureValidator] = None,
 ) -> Dict[Any, bool]:
-    subkey = dht.peer_id.to_base58() if record_validator is None else dht.peer_id.to_base58().encode() + record_validator.local_public_key
+    subkey = (
+        dht.peer_id.to_base58()
+        if record_validator is None
+        else dht.peer_id.to_base58().encode() + record_validator.local_public_key
+    )
 
     return await node.store(
         key=key,
@@ -232,6 +253,7 @@ async def _declare_declare_node_sig(
         expiration_time=expiration_time,
         num_workers=32,
     )
+
 
 def get_node_infos_sig(
     dht: DHT,
@@ -251,6 +273,7 @@ def get_node_infos_sig(
         ),
         return_future=return_future,
     )
+
 
 async def _get_node_infos_sig(
     dht: DHT,
@@ -279,14 +302,71 @@ async def _get_node_infos_sig(
         peers.append(caller_peer_id)
         server_info = ServerInfo.from_tuple(values.value)
 
-        modules.append(
-            RemoteModuleInfo(
+        modules.append(RemoteModuleInfo(peer_id=caller_peer_id, server=server_info))
+
+    return modules
+
+
+def get_dht_records(
+    dht: DHT,
+    uid: Any,
+    expiration_time: Optional[DHTExpiration] = None,
+    *,
+    latest: bool = False,
+    return_future: bool = False,
+    record_validator: Optional[SignatureValidator] = None,
+) -> Union[List[RemoteModuleInfo], MPFuture]:
+    return dht.run_coroutine(
+        partial(
+            _get_dht_records,
+            uid=uid,
+            expiration_time=expiration_time,
+            latest=latest,
+        ),
+        return_future=return_future,
+    )
+
+
+async def _get_dht_records(
+    dht: DHT,
+    node: DHTNode,
+    uid: Any,
+    expiration_time: Optional[DHTExpiration],
+    latest: bool,
+    record_validator: Optional[SignatureValidator] = None,
+) -> List[RemoteModuleInfo]:
+    if latest:
+        assert expiration_time is None, "You should define either `expiration_time` or `latest`, not both"
+        expiration_time = math.inf
+    elif expiration_time is None:
+        expiration_time = get_dht_time()
+    num_workers = 1 if dht.num_workers is None else 1
+    found: Dict[Any, DHTValue] = await node.get_many([uid], expiration_time, num_workers=num_workers)
+
+    if found[uid] is None:
+        return []
+    peers = []
+    inner_dict = found[uid].value
+
+    records: List[DHTRecordInfo] = []
+    for subkey, values in inner_dict.items():
+        caller_peer_id = extract_peer_id_from_record_validator(subkey)
+        peers.append(caller_peer_id)
+
+        records.append(
+            DHTRecordInfo(
                 peer_id=caller_peer_id,
-                server=server_info
+                record=DHTRecordPlain(
+                    key=uid,
+                    subkey=subkey,
+                    value=values.value,
+                    expiration_time=values.expiration_time,
+                ),
             )
         )
 
-    return modules
+    return records
+
 
 def get_node_heartbeats(
     dht: DHT,
@@ -306,6 +386,7 @@ def get_node_heartbeats(
         ),
         return_future=return_future,
     )
+
 
 async def _get_node_heartbeats(
     dht: DHT,
@@ -335,14 +416,11 @@ async def _get_node_heartbeats(
         server_info = ServerInfo.from_tuple(values.value)
 
         modules.append(
-            NodeHeartbeat(
-                peer_id=caller_peer_id,
-                server=server_info,
-                expiration_time=values.expiration_time
-            )
+            NodeHeartbeat(peer_id=caller_peer_id, server=server_info, expiration_time=values.expiration_time)
         )
 
     return modules
+
 
 """
 Get routing table, used for testing
@@ -350,6 +428,8 @@ Get routing table, used for testing
 If you want to force update the routing table, see how it's
 done in `mesh_cli/run_dht.py`
 """
+
+
 def get_routing_table(
     dht: DHT,
     *,
@@ -361,6 +441,7 @@ def get_routing_table(
         ),
         return_future=return_future,
     )
+
 
 async def _get_routing_table(
     dht: DHT,

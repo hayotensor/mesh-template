@@ -295,25 +295,22 @@ Once the subnet is activated, consensus will begin on the following epoch betwee
 With Alith's coldkey as the owner and with Alith, Baltathar, Charleth, and Dorothy as the initial coldkeys:
 ```bash
 register-subnet \
-  --max_cost 100.00 \
-  --name subnet-1 \
-  --repo github.com/subnet-1 \
-  --description "artificial intelligence" \
-  --misc "cool subnet" \
-  --churn_limit 64 \
-  --min_stake 100.00 \
-  --max_stake  1000.00 \
-  --delegate_stake_percentage 0.1 \
-  --subnet_node_queue_epochs 10 \
-  --idle_classification_epochs 10 \
-  --included_classification_epochs 10 \
-  --max_node_penalties 10 \
-  --initial_coldkeys "0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac" "0x3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0" "0x798d4Ba9baf0064Ec19eB4F0a1a45785ae9D6DFc" "0x773539d4Ac0e786233D90A233654ccEE26a613D9" \
-  --max_registered_nodes 10 \
-  --key_types "Rsa" \
-  --bootnodes "test_bootnode" \
-  --private_key "0x5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133" \
-  --local_rpc
+--max_cost 100.00 \
+--name subnet-1 \
+--repo github.com/subnet-1 \
+--description "artificial intelligence" \
+--misc "cool subnet" \
+--min_stake 100.00 \
+--max_stake  1000.00 \
+--delegate_stake_percentage 0.1 \
+--initial_coldkey 0xf24FF3a9CF04c71Dbc94D0b566f7A27B94566cac 1 \
+--initial_coldkey 0x3Cd0A705a2DC65e5b1E1205896BaA2be8A07c6e0 1 \
+--initial_coldkey 0x798d4Ba9baf0064Ec19eB4F0a1a45785ae9D6DFc 1 \
+--initial_coldkey 0x773539d4Ac0e786233D90A233654ccEE26a613D9 1 \
+--key_types "Rsa" \
+--bootnodes "p2p/127.0.0.1/tcp" \
+--private_key "0x5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133" \
+--local_rpc
 ```
 #### Register a node:
 <b>Note:</b> The client peer ID, bootnode peer ID, and bootnode are only for testing purposes. In production, the client peer ID and bootnode peer ID should be generated beforehand and each have its own identity paths (the bootnode will be derived from the bootnode peer ID if utilized). The client and bootnode peer ID are required on-chain but not required to be used off-chain in the subnet. The bootnode is optional.

@@ -1,21 +1,31 @@
 import asyncio
 import time
-from abc import ABC
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, Optional
 
 from mesh import PeerID
-from mesh.utils.authorizers.auth import AuthorizedRequestBase, AuthorizedResponseBase, AuthorizerBase
-from mesh.utils.crypto import Ed25519PrivateKey, RSAPrivateKey, load_public_key_from_bytes
+from mesh.utils.authorizers.auth import (
+    AuthorizedRequestBase,
+    AuthorizedResponseBase,
+    AuthorizerBase,
+    SignatureAuthorizer,
+)
+from mesh.utils.crypto import (
+    Ed25519PublicKey,
+    RSAPublicKey,
+    load_public_key_from_bytes,
+)
 from mesh.utils.logging import get_logger
+from mesh.utils.peer_id import get_peer_id_from_pubkey
 
 logger = get_logger(__name__)
 
 
 class ThreatLevel(Enum):
     """Threat levels for progressive response"""
+
     NORMAL = 0
     SUSPICIOUS = 1
     MODERATE = 2
@@ -26,6 +36,7 @@ class ThreatLevel(Enum):
 @dataclass
 class RateLimitConfig:
     """Configuration for rate limiting"""
+
     max_requests_per_second: int = 10
     max_requests_per_minute: int = 100
     max_requests_per_hour: int = 1000
@@ -56,24 +67,24 @@ class RateLimitAuthorizer(AuthorizerBase):
     Usage:
         signature_auth = SignatureAuthorizer(private_key)
         rate_limited_auth = RateLimitAuthorizer(
-            inner_authorizer=signature_auth,
+            signature_authorizer=signature_auth,
             config=RateLimitConfig(max_requests_per_second=5)
         )
     """
 
     def __init__(
         self,
-        inner_authorizer: AuthorizerBase,
+        signature_authorizer: SignatureAuthorizer,
         config: Optional[RateLimitConfig] = None,
-        ip_ban_callback: Optional[callable] = None
+        ip_ban_callback: Optional[callable] = None,
     ):
         """
         Args:
-            inner_authorizer: The underlying authorizer (e.g., SignatureAuthorizer)
+            signature_authorizer: The underlying signature authorizer (e.g., SignatureAuthorizer)
             config: Rate limiting configuration
             ip_ban_callback: Optional callback function to ban IPs, signature: callback(peer_id: PeerID, reason: str)
         """
-        self.inner_authorizer = inner_authorizer
+        self.signature_authorizer = signature_authorizer
         self.config = config or RateLimitConfig()
         self.ip_ban_callback = ip_ban_callback
 
@@ -93,42 +104,42 @@ class RateLimitAuthorizer(AuthorizerBase):
 
         self._lock = asyncio.Lock()
 
-    @property
-    def local_public_key(self):
-        """Delegate to inner authorizer if it has this property."""
-        if hasattr(self.inner_authorizer, 'local_public_key'):
-            return self.inner_authorizer.local_public_key
-        return None
-
     async def sign_request(
-        self,
-        request: AuthorizedRequestBase,
-        service_public_key: Optional[Ed25519PrivateKey | RSAPrivateKey]
+        self, request: AuthorizedRequestBase, service_public_key: Optional[Ed25519PublicKey | RSAPublicKey]
     ) -> None:
-        """
-        Sign a request using the inner authorizer.
-        No rate limiting on outgoing requests (we're the client).
-        """
-        await self.inner_authorizer.sign_request(request, service_public_key)
+        await self.signature_authorizer.sign_request(request, service_public_key)
 
     async def validate_request(self, request: AuthorizedRequestBase) -> bool:
-        """
-        Validate an incoming request with rate limiting.
-
-        This is called on the SERVICER side to check if we should accept
-        a request from a peer.
-        """
-        # Extract peer ID from the request's auth info
-        try:
-            peer_public_key_bytes = request.auth.client_access_token.public_key
-            client_public_key = load_public_key_from_bytes(peer_public_key_bytes)
-            # Create a pseudo peer_id from public key (you may need to adjust this)
-            peer_id = self._public_key_to_peer_id(client_public_key)
-        except Exception as e:
-            logger.warning(f"Failed to extract peer ID from request: {e}")
+        client_public_key, current_time, nonce, valid = await self.signature_authorizer.do_validate_request(request)
+        if not valid:
             return False
 
-        # Check rate limits FIRST
+        """
+        # To verify proof of stake here:
+        #     - Add `pos: ProofOfStake` to `__init__`
+
+        # NOTE: If the protocol the rate limiter authorizer is used in touches the DHT, such as storing
+        # records to the DHT Records, the authorizer used for the DHT/DHTProtocol will be triggered
+        # anyway. Therefor if the DHT uses the POS authorizer, using the POS logic here is not required.
+
+        # If the protocol the rate limiter authorizer is used in is only used for requests, such as
+        # requesting for another peer to run inference, verifying a peers proof of stake may be a good
+        # idea depending on the use case.
+
+        try:
+            proof_of_stake = self.pos.proof_of_stake(client_public_key)
+            if not proof_of_stake:
+                return False
+        except Exception as e:
+            logger.debug(f"Proof of stake failed, validate_request={e}", exc_info=True)
+            return False
+        """
+
+        peer_id: Optional[PeerID] = get_peer_id_from_pubkey(client_public_key)
+        if peer_id is None:
+            logger.debug(f"PeerID is None with public_key={client_public_key}")
+            return False
+
         is_allowed, reason = await self._check_rate_limit(peer_id)
         if not is_allowed:
             logger.warning(f"Rate limit blocked request from peer: {reason}")
@@ -136,36 +147,28 @@ class RateLimitAuthorizer(AuthorizerBase):
             return False
 
         # Then validate with inner authorizer
-        is_valid = await self.inner_authorizer.validate_request(request)
+        is_valid = await self.signature_authorizer.validate_request(request)
 
         if not is_valid:
             # Auth failed - record as suspicious
             await self._record_violation(peer_id, "Authentication failed")
             return False
 
+        self.signature_authorizer._recent_nonces.store(
+            nonce, None, current_time + self.signature_authorizer._MAX_CLIENT_SERVICER_TIME_DIFF.total_seconds() * 3
+        )
+
         return True
 
-    async def sign_response(
-        self,
-        response: AuthorizedResponseBase,
-        request: AuthorizedRequestBase
-    ) -> None:
-        """
-        Sign a response using the inner authorizer.
-        No rate limiting on outgoing responses.
-        """
-        await self.inner_authorizer.sign_response(response, request)
+    async def sign_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> None:
+        await self.signature_authorizer.sign_response(response, request)
 
-    async def validate_response(
-        self,
-        response: AuthorizedResponseBase,
-        request: AuthorizedRequestBase
-    ) -> bool:
+    async def validate_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> bool:
         """
         Validate a response using the inner authorizer.
         No rate limiting on incoming responses (we're the client).
         """
-        return await self.inner_authorizer.validate_response(response, request)
+        return await self.signature_authorizer.validate_response(response, request)
 
     # ========================================================================
     # Rate Limiting Implementation
@@ -206,9 +209,7 @@ class RateLimitAuthorizer(AuthorizerBase):
             long_count = len(requests)
 
             # Detect threats
-            is_threat, reason, threat_level = self._detect_threat(
-                peer_id, short_count, medium_count, long_count
-            )
+            is_threat, reason, threat_level = self._detect_threat(peer_id, short_count, medium_count, long_count)
 
             if is_threat:
                 await self._handle_threat(peer_id, threat_level, reason)
@@ -221,18 +222,16 @@ class RateLimitAuthorizer(AuthorizerBase):
             return True, None
 
     def _detect_threat(
-        self,
-        peer_id: PeerID,
-        short_count: int,
-        medium_count: int,
-        long_count: int
+        self, peer_id: PeerID, short_count: int, medium_count: int, long_count: int
     ) -> tuple[bool, Optional[str], ThreatLevel]:
         """Detect threat level based on request patterns."""
         max_rate = self.config.max_requests_per_second
 
         # CRITICAL: Extreme violation
-        if (short_count > max_rate * self.config.ip_ban_threshold or
-            self.violation_counts[peer_id] >= self.config.ip_ban_violation_count):
+        if (
+            short_count > max_rate * self.config.ip_ban_threshold
+            or self.violation_counts[peer_id] >= self.config.ip_ban_violation_count
+        ):
             return True, f"Critical: {short_count} req/s", ThreatLevel.CRITICAL
 
         # HIGH: Severe violation
@@ -358,5 +357,5 @@ class RateLimitAuthorizer(AuthorizerBase):
             "threat_distribution": {
                 level.name: sum(1 for l in self.peer_threat_levels.values() if l == level)  # noqa: E741
                 for level in ThreatLevel
-            }
+            },
         }

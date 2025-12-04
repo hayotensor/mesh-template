@@ -258,7 +258,6 @@ class DHTProtocol(ServicerBase):
                 )
                 continue
 
-            # if not self._validate_record(key, tag, value_bytes, expiration_time):
             if not self._validate_record(key, tag, value_bytes, expiration_time, DHTRecordRequestType.POST):
                 response.store_ok.append(False)
                 continue

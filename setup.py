@@ -145,14 +145,14 @@ class Develop(develop):
         build_py_cmd = self.get_finalized_command("build_py")
         build_py_cmd.build_lib = here
         self.run_command("build_py")
-        
+
         # Also compile proto files directly for editable installs
         # This ensures they're compiled even if build_py doesn't run as expected
         print("Compiling proto files for editable install")
         proto_output_path = os.path.join(here, "mesh", "proto")
         os.makedirs(proto_output_path, exist_ok=True)
         proto_compile(proto_output_path)
-        
+
         super().run()
 
 
@@ -164,7 +164,7 @@ class EggInfo(egg_info):
         proto_output_path = os.path.join(here, "mesh", "proto")
         os.makedirs(proto_output_path, exist_ok=True)
         proto_compile(proto_output_path)
-        
+
         super().run()
 
 

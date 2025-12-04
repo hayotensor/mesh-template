@@ -15,20 +15,15 @@ from mesh.utils.proof_of_stake import ProofOfStake
 
 logger = get_logger(__name__)
 
+
 class ProofOfStakeAuthorizer(AuthorizerBase):
-    def __init__(
-        self,
-        signature_authorizer: SignatureAuthorizer,
-        pos: ProofOfStake
-    ):
+    def __init__(self, signature_authorizer: SignatureAuthorizer, pos: ProofOfStake):
         super().__init__()
         self.signature_authorizer = signature_authorizer
         self.pos = pos
 
     async def sign_request(
-        self,
-        request: AuthorizedRequestBase,
-        service_public_key: Optional[Ed25519PublicKey | RSAPublicKey]
+        self, request: AuthorizedRequestBase, service_public_key: Optional[Ed25519PublicKey | RSAPublicKey]
     ) -> None:
         await self.signature_authorizer.sign_request(request, service_public_key)
 
@@ -38,6 +33,7 @@ class ProofOfStakeAuthorizer(AuthorizerBase):
             return False
 
         # Verify proof of stake
+        # Allow requests only by staked nodes
         try:
             proof_of_stake = self.pos.proof_of_stake(client_public_key)
             if not proof_of_stake:
@@ -61,6 +57,7 @@ class ProofOfStakeAuthorizer(AuthorizerBase):
             return False
 
         # Verify proof of stake
+        # Respond only to staked nodes
         try:
             proof_of_stake = self.pos.proof_of_stake(service_public_key)
             if not proof_of_stake:

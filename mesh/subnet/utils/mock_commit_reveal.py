@@ -20,14 +20,18 @@ Hypertensor predicate validator
 Verified allowable keys, schemas, epoch relationships, and commit-reveal schemes.
 """
 
+
 def get_mock_commit_key(epoch: int) -> str:
     return f"commit_epoch_{epoch}"
+
 
 def get_mock_reveal_key(epoch: int) -> str:
     return f"reveal_epoch_{epoch}"
 
+
 def get_mock_consensus_key(epoch: int) -> str:
     return f"consensus_epoch_{epoch}"
+
 
 # peer commit-reveal epoch percentage elapsed deadlines
 COMMIT_DEADLINE = 0.5
@@ -38,10 +42,10 @@ Expiration validations
 
 Add expirations for each key stored
 """
-MAX_HEART_BEAT_TIME = BLOCK_SECS * EPOCH_LENGTH * 1.1   # Max 1.1 epochs
-MAX_CONSENSUS_TIME = BLOCK_SECS * EPOCH_LENGTH * 2      # Max 2 epochs
-MAX_COMMIT_TIME = BLOCK_SECS * EPOCH_LENGTH * 2         # Max 2 epochs
-MAX_REVEAL_TIME = BLOCK_SECS * EPOCH_LENGTH * 2         # Max 2 epochs
+MAX_HEART_BEAT_TIME = BLOCK_SECS * EPOCH_LENGTH * 1.1  # Max 1.1 epochs
+MAX_CONSENSUS_TIME = BLOCK_SECS * EPOCH_LENGTH * 2  # Max 2 epochs
+MAX_COMMIT_TIME = BLOCK_SECS * EPOCH_LENGTH * 2  # Max 2 epochs
+MAX_REVEAL_TIME = BLOCK_SECS * EPOCH_LENGTH * 2  # Max 2 epochs
 
 """
 This is a mock predicate validator (see dht/validator.py) for the HypertensorPredicateValidator
@@ -62,9 +66,10 @@ and in all custom protocols, all calls between peers, including
 GET/PUT DHT records will already have the `ProofOfStakeAuthorizer`
 in between the calls.
 """
-class MockHypertensorCommitReveal:
 
-    MAX_EPOCH_HISTORY = 5 # How many epochs to store peer epoch history before clean up
+
+class MockHypertensorCommitReveal:
+    MAX_EPOCH_HISTORY = 5  # How many epochs to store peer epoch history before clean up
 
     def __init__(self, hypertensor: Hypertensor, subnet_id: int):
         self.hypertensor = hypertensor
@@ -85,7 +90,6 @@ class MockHypertensorCommitReveal:
         # Store `self.slot`
         self._ensure_slot()
 
-    # Create any functions required for the logic
     def _ensure_slot(self):
         if self.slot is None:
             subnet_info = self.hypertensor.get_formatted_subnet_info(self.subnet_id)
@@ -104,8 +108,7 @@ class MockHypertensorCommitReveal:
         logger.debug(f"Current node key count {count}")
         if count >= limit:
             logger.debug(
-                f"Peer {peer_id} exceeded store limit for {key_type} (epoch {epoch}, "
-                f"count={count}, limit={limit})"
+                f"Peer {peer_id} exceeded store limit for {key_type} (epoch {epoch}, count={count}, limit={limit})"
             )
             return True
         return False
@@ -114,24 +117,15 @@ class MockHypertensorCommitReveal:
         """Increment peer store counter after a successful PUT."""
         self._peer_store_tracker[epoch][key_type][peer_id] += 1
         new_count = self._peer_store_tracker[epoch][key_type][peer_id]
-        logger.debug(
-            f"Recorded store for {peer_id} → {key_type} @ epoch {epoch} "
-            f"(new count={new_count})"
-        )
+        logger.debug(f"Recorded store for {peer_id} → {key_type} @ epoch {epoch} (new count={new_count})")
 
     def _cleanup_old_epochs(self, current_epoch: int):
         """Remove records older than MAX_EPOCH_HISTORY epochs."""
-        old_epochs = [
-            e for e in self._peer_store_tracker.keys()
-            if e < current_epoch - self.MAX_EPOCH_HISTORY
-        ]
+        old_epochs = [e for e in self._peer_store_tracker.keys() if e < current_epoch - self.MAX_EPOCH_HISTORY]
 
         for e in old_epochs:
             del self._peer_store_tracker[e]
-            logger.debug(
-                f"Current epoch: {current_epoch} "
-                f"Cleaned up tracking data for old epoch {e}"
-            )
+            logger.debug(f"Current epoch: {current_epoch} Cleaned up tracking data for old epoch {e}")
 
     def _get_key_type(self, record: DHTRecord, current_epoch: int) -> Optional[int]:
         """
@@ -185,7 +179,7 @@ class MockHypertensorCommitReveal:
             # Get `EpochData`
             epoch_data = self.epoch_data()
             current_epoch = epoch_data.epoch
-            percent_complete = epoch_data.percent_complete # Get progress of epoch for commit-reveal phases
+            percent_complete = epoch_data.percent_complete  # Get progress of epoch for commit-reveal phases
 
             logger.debug(f"{caller_peer_id} is storing data at slot={self.slot}, epoch={current_epoch}")
 

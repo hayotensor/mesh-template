@@ -245,9 +245,6 @@ class ModuleAnnouncerThread(threading.Thread):
         self.dht_announcer.announce(ServerState.OFFLINE)
         logger.info("Announced to the DHT that we are exiting")
 
-        # self.join()
-        # logger.info("Module shut down successfully")
-
         if self.is_alive() and threading.current_thread() is not self:
             self.join(timeout=5)
         logger.info("Module shut down successfully")

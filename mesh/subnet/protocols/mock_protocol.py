@@ -24,7 +24,7 @@ logger = get_logger(__name__)
 
 class MockProtocol(mp.context.ForkProcess, ServicerBase):
     """
-    Add child process variables here
+    Add child process variables here, such as:
 
     _async_model: AsyncInferenceServer
     """

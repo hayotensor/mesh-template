@@ -21,13 +21,12 @@ from mesh.dht import DHT, DHTNode
 from mesh.dht.crypto import SignatureValidator
 from mesh.mesh_cli.api.api_utils import get_active_keys, load_api_keys
 from mesh.substrate.chain_functions import Hypertensor, KeypairFrom
-from mesh.substrate.mock.chain_functions import MockHypertensor
 from mesh.substrate.mock.local_chain_functions import LocalMockHypertensor
 from mesh.utils.authorizers.auth import SignatureAuthorizer
 from mesh.utils.authorizers.pos_auth import ProofOfStakeAuthorizer
-from mesh.utils.dht import get_node_heartbeats
+from mesh.utils.dht import get_dht_records, get_node_heartbeats
 from mesh.utils.key import get_peer_id_from_identity_path, get_private_key
-from mesh.utils.logging import get_logger, use_mesh_log_handler
+from mesh.utils.logging import get_logger, setup_mp_logging, use_mesh_log_handler
 from mesh.utils.networking import log_visible_maddrs
 from mesh.utils.p2p_utils import extract_peer_ip_info, get_peers_ips
 from mesh.utils.proof_of_stake import ProofOfStake
@@ -35,9 +34,11 @@ from mesh.utils.proof_of_stake import ProofOfStake
 use_mesh_log_handler("in_root_logger")
 logger = get_logger(__name__)
 
-load_dotenv(os.path.join(Path.cwd(), '.env'))
+setup_mp_logging()
 
-PHRASE = os.getenv('PHRASE')
+load_dotenv(os.path.join(Path.cwd(), ".env"))
+
+PHRASE = os.getenv("PHRASE")
 
 dht: DHT = None
 
@@ -112,6 +113,7 @@ server {
 API_KEY_NAME = "X-API-Key"
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
+
 async def get_api_key(api_key_header: str = Security(api_key_header)):
     api_keys: set[str] = load_api_keys()
     active_keys = get_active_keys(api_keys)
@@ -119,13 +121,18 @@ async def get_api_key(api_key_header: str = Security(api_key_header)):
         return api_key_header
     raise HTTPException(status_code=HTTP_403_FORBIDDEN, detail="Invalid or missing API Key")
 
-app = FastAPI()
-# Limiter for API key
-key_limiter = Limiter(key_func=lambda request: request.state.api_key)
-# Limiter for IP
-ip_limiter = Limiter(key_func=lambda request: request.client.host)
-app.state.limiter = key_limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+try:
+    app = FastAPI()
+    # Limiter for API key
+    key_limiter = Limiter(key_func=lambda request: request.state.api_key)
+    # Limiter for IP
+    ip_limiter = Limiter(key_func=lambda request: request.client.host)
+    app.state.limiter = key_limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+except Exception as e:
+    logger.error(f"Failed to initialize FastAPI app: {e}")
+
 
 # Middleware to attach api_key to request.state
 @app.middleware("http")
@@ -133,6 +140,7 @@ async def attach_api_key(request: Request, call_next):
     api_key = request.query_params.get("api_key") or request.headers.get("x-api-key")
     request.state.api_key = api_key
     return await call_next(request)
+
 
 def serialize_object(obj):
     """Recursively serialize objects to JSON-compatible formats"""
@@ -145,11 +153,11 @@ def serialize_object(obj):
         return obj
 
     # Handle peer_id specifically (libp2p ID objects)
-    if hasattr(obj, '_b58_str'):
+    if hasattr(obj, "_b58_str"):
         return obj._b58_str  # Return the base58 string representation
 
     # Handle enums
-    if hasattr(obj, 'value') and hasattr(obj, 'name'):
+    if hasattr(obj, "value") and hasattr(obj, "name"):
         return obj.name
 
     # Handle lists/tuples
@@ -161,11 +169,11 @@ def serialize_object(obj):
         return {key: serialize_object(value) for key, value in obj.items()}
 
     # Handle objects with __dict__ (most custom classes)
-    if hasattr(obj, '__dict__'):
+    if hasattr(obj, "__dict__"):
         result = {}
         for key, value in obj.__dict__.items():
             # Skip private/internal attributes
-            if key.startswith('_'):
+            if key.startswith("_"):
                 continue
             result[key] = serialize_object(value)
         return result
@@ -173,23 +181,17 @@ def serialize_object(obj):
     # Fallback to string representation
     return str(obj)
 
+
 @app.get("/get_heartbeat")
 @ip_limiter.limit("5/minute")
 @key_limiter.limit("5/minute")
-async def get_heartbeat(
-    request: Request,
-    api_key: str = Depends(get_api_key)
-):
+async def get_heartbeat(request: Request, api_key: str = Depends(get_api_key)):
     """
     Query the DHT for the subnets heartbeats.
     """
     if dht is None:
         return {"error": "DHT not initialized"}
-    results = get_node_heartbeats(
-        dht,
-        uid="node",
-        latest=True
-    )
+    results = get_node_heartbeats(dht, uid="node", latest=True)
     if results:
         try:
             serialized_results = serialize_object(results)
@@ -199,13 +201,11 @@ async def get_heartbeat(
             return {"error": str(e)}
     return {"value": None}
 
+
 @app.get("/get_bootnodes")
 @ip_limiter.limit("5/minute")
 @key_limiter.limit("5/minute")
-async def get_bootnodes(
-    request: Request,
-    api_key: str = Depends(get_api_key)
-):
+async def get_bootnodes(request: Request, api_key: str = Depends(get_api_key)):
     """
     Query the DHT bootnodes.
     """
@@ -223,20 +223,24 @@ async def get_bootnodes(
 
     return {"value": None}
 
+
 @app.get("/get_peers_info")
 @ip_limiter.limit("5/minute")
 @key_limiter.limit("5/minute")
-async def get_peers_info(
-    request: Request,
-    api_key: str = Depends(get_api_key)
-):
+async def get_peers_info(request: Request, api_key: str = Depends(get_api_key)):
     """
     Query the DHT bootnodes.
     """
     if dht is None:
         return {"error": "DHT not initialized"}
 
-    peers_info = {str(peer.peer_id): {"location": extract_peer_ip_info(str(peer.addrs[0])), "multiaddrs": [str(multiaddr) for multiaddr in peer.addrs]} for peer in dht.run_coroutine(get_peers_ips)}
+    peers_info = {
+        str(peer.peer_id): {
+            "location": extract_peer_ip_info(str(peer.addrs[0])),
+            "multiaddrs": [str(multiaddr) for multiaddr in peer.addrs],
+        }
+        for peer in dht.run_coroutine(get_peers_ips)
+    }
     if peers_info:
         try:
             serialized_results = serialize_object(peers_info)
@@ -247,14 +251,35 @@ async def get_peers_info(
     return {"value": None}
 
 
+@app.get("/get_records")
+@ip_limiter.limit("5/minute")
+@key_limiter.limit("5/minute")
+async def get_records(request: Request, api_key: str = Depends(get_api_key)):
+    """
+    Query DHT records by key and return to the API caller
+    """
+    if dht is None:
+        return {"error": "DHT not initialized"}
+    results = get_dht_records(dht, uid="commit", latest=True)
+    if results:
+        try:
+            serialized_results = serialize_object(results)
+            return {"value": serialized_results}
+        except Exception as e:
+            logger.warning(f"Error returning heartbeat {e}", exc_info=True)
+            return {"error": str(e)}
+    return {"value": None}
 
 
 def run_api():
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
+
 """
 Bootnode
 """
+
+
 async def report_status(dht: DHT, node: DHTNode):
     logger.info(
         f"{len(node.protocol.routing_table.uid_to_peer_id) + 1} DHT nodes (including this one) "
@@ -314,10 +339,15 @@ def main():
     parser.add_argument(
         "--refresh_period", type=int, default=30, help="Period (in seconds) for fetching the keys from DHT"
     )
-    parser.add_argument('--subnet_id', type=int, required=False, default=None, help='Subnet ID running a node for ')
+    parser.add_argument("--subnet_id", type=int, required=False, default=None, help="Subnet ID running a node for ")
     parser.add_argument("--no_blockchain_rpc", action="store_true", help="[Testing] Run with no RPC")
     parser.add_argument("--local_rpc", action="store_true", help="[Testing] Run in local RPC mode, uses LOCAL_RPC")
-    parser.add_argument("--phrase", type=str, required=False, help="[Testing] Coldkey phrase that controls actions which include funds, such as registering, and staking")
+    parser.add_argument(
+        "--phrase",
+        type=str,
+        required=False,
+        help="[Testing] Coldkey phrase that controls actions which include funds, such as registering, and staking",
+    )
     parser.add_argument("--private_key", type=str, required=False, help="[Testing] Hypertensor blockchain private key")
 
     args = parser.parse_args()
@@ -330,9 +360,9 @@ def main():
 
     if no_blockchain_rpc is False:
         if local_rpc:
-            rpc = os.getenv('LOCAL_RPC')
+            rpc = os.getenv("LOCAL_RPC")
         else:
-            rpc = os.getenv('DEV_RPC')
+            rpc = os.getenv("DEV_RPC")
 
         if phrase is not None:
             hypertensor = Hypertensor(rpc, phrase)
@@ -359,13 +389,13 @@ def main():
         )
 
     pk = get_private_key(args.identity_path)
-
     signature_validator = SignatureValidator(pk)
-    record_validators=[signature_validator]
+    record_validators = [signature_validator]
 
     signature_authorizer = SignatureAuthorizer(pk)
 
     if hypertensor is not None:
+        print("Initializing PoS - proof-of-stake")
         logger.info("Initializing PoS - proof-of-stake")
         pos = ProofOfStake(
             subnet_id,
@@ -374,20 +404,12 @@ def main():
         )
         pos_authorizer = ProofOfStakeAuthorizer(signature_authorizer, pos)
     else:
+        print("Initializing sig authorizer")
         # For testing purposes, at minimum require signatures
         pos_authorizer = signature_authorizer
 
     global dht
-    # dht = DHT(
-    #     start=True,
-    #     initial_peers=args.initial_peers,
-    #     host_maddrs=args.host_maddrs,
-    #     announce_maddrs=args.announce_maddrs,
-    #     use_ipfs=args.use_ipfs,
-    #     identity_path=args.identity_path,
-    #     use_relay=args.use_relay,
-    #     use_auto_relay=args.use_auto_relay,
-    # )
+    print("starting DHT")
     dht = DHT(
         start=True,
         initial_peers=args.initial_peers,
@@ -398,7 +420,7 @@ def main():
         use_relay=args.use_relay,
         use_auto_relay=args.use_auto_relay,
         record_validators=record_validators,
-        **dict(authorizer=pos_authorizer)
+        **dict(authorizer=pos_authorizer),
     )
 
     log_visible_maddrs(dht.get_visible_maddrs(), only_p2p=args.use_ipfs)
