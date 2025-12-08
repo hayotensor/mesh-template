@@ -9,6 +9,10 @@ def compare_consensus_data(
     my_data: List[SubnetNodeConsensusData],
     validator_data: List[SubnetNodeConsensusData],
 ) -> float:
+    print("compare_consensus_data")
+    print("compare_consensus_data validator_data", validator_data)
+    print("compare_consensus_data my_data", my_data)
+
     validator_data_set = set(frozenset(validator_data))
     my_data_set = set(frozenset(my_data))
 

@@ -16,6 +16,7 @@ from fastapi.security import APIKeyHeader
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from starlette.status import HTTP_403_FORBIDDEN
+from substrateinterface import Keypair, KeypairType
 
 from mesh.dht import DHT, DHTNode
 from mesh.dht.crypto import SignatureValidator
@@ -24,7 +25,7 @@ from mesh.substrate.chain_functions import Hypertensor, KeypairFrom
 from mesh.substrate.mock.local_chain_functions import LocalMockHypertensor
 from mesh.utils.authorizers.auth import SignatureAuthorizer
 from mesh.utils.authorizers.pos_auth import ProofOfStakeAuthorizer
-from mesh.utils.dht import get_dht_records, get_node_heartbeats
+from mesh.utils.dht import get_node_heartbeats
 from mesh.utils.key import get_peer_id_from_identity_path, get_private_key
 from mesh.utils.logging import get_logger, setup_mp_logging, use_mesh_log_handler
 from mesh.utils.networking import log_visible_maddrs
@@ -251,13 +252,16 @@ async def get_peers_info(request: Request, api_key: str = Depends(get_api_key)):
     return {"value": None}
 
 
-@app.get("/get_records")
+"""
+Return a dictionary of arbitrary data the subnet uses to display
+to the public.
+
+For example: Return records from the DHT records
+
+@app.get("/get_arbitrary_data")
 @ip_limiter.limit("5/minute")
 @key_limiter.limit("5/minute")
-async def get_records(request: Request, api_key: str = Depends(get_api_key)):
-    """
-    Query DHT records by key and return to the API caller
-    """
+async def get_arbitrary_data(request: Request, api_key: str = Depends(get_api_key)):
     if dht is None:
         return {"error": "DHT not initialized"}
     results = get_dht_records(dht, uid="commit", latest=True)
@@ -269,6 +273,7 @@ async def get_records(request: Request, api_key: str = Depends(get_api_key)):
             logger.warning(f"Error returning heartbeat {e}", exc_info=True)
             return {"error": str(e)}
     return {"value": None}
+"""
 
 
 def run_api():
@@ -277,6 +282,13 @@ def run_api():
 
 """
 Bootnode
+
+mesh-dht \
+    --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
+    --announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
+    --identity_path bootnode.id
+
+Use `--no_blockchain_rpc` to run with no blockchain RPC.
 """
 
 
@@ -339,7 +351,7 @@ def main():
     parser.add_argument(
         "--refresh_period", type=int, default=30, help="Period (in seconds) for fetching the keys from DHT"
     )
-    parser.add_argument("--subnet_id", type=int, required=False, default=None, help="Subnet ID running a node for ")
+    parser.add_argument("--subnet_id", type=int, required=True, help="Subnet ID running a node for ")
     parser.add_argument("--no_blockchain_rpc", action="store_true", help="[Testing] Run with no RPC")
     parser.add_argument("--local_rpc", action="store_true", help="[Testing] Run in local RPC mode, uses LOCAL_RPC")
     parser.add_argument(
@@ -351,14 +363,13 @@ def main():
     parser.add_argument("--private_key", type=str, required=False, help="[Testing] Hypertensor blockchain private key")
 
     args = parser.parse_args()
-
     subnet_id = args.subnet_id
     no_blockchain_rpc = args.no_blockchain_rpc
     local_rpc = args.local_rpc
     phrase = args.phrase
     private_key = args.private_key
 
-    if no_blockchain_rpc is False:
+    if not no_blockchain_rpc:
         if local_rpc:
             rpc = os.getenv("LOCAL_RPC")
         else:
@@ -368,10 +379,12 @@ def main():
             hypertensor = Hypertensor(rpc, phrase)
         elif private_key is not None:
             hypertensor = Hypertensor(rpc, private_key, KeypairFrom.PRIVATE_KEY)
+            keypair = Keypair.create_from_private_key(private_key, crypto_type=KeypairType.ECDSA)
+            hotkey = keypair.ss58_address
+            logger.info(f"hotkey: {hotkey}")
         else:
             hypertensor = Hypertensor(rpc, PHRASE)
     else:
-        # hypertensor = MockHypertensor()
         peer_id = get_peer_id_from_identity_path(args.identity_path)
         reset_db = False
         if args.initial_peers:

@@ -17,6 +17,13 @@ logger = get_logger(__name__)
 
 
 class ProofOfStakeAuthorizer(AuthorizerBase):
+    """
+    Authorizer that validates requests and responses using proof of stake from the blockchain
+
+    *This should only be initialized one time and initialized in other classes that may use it to
+    ensure we aren't calling to the blockchain too many times.*
+    """
+
     def __init__(self, signature_authorizer: SignatureAuthorizer, pos: ProofOfStake):
         super().__init__()
         self.signature_authorizer = signature_authorizer

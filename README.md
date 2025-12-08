@@ -157,10 +157,10 @@ Each subnet must have at least one public and running bootnode at all times for 
 #### Start Bootnode
 
 ```bash
-mesh-dht \
+mesh-dht-api \
 --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
 --announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
---identity_path alith.id \
+--identity_path bootnode.id \
 ```
 ##### Update `PUBLIC_INITIAL_PEERS`
 
@@ -176,7 +176,7 @@ Once the bootnode is deployed, copy the `/ip4/YOUR_ADDRESS_HERE/tcp/31330/p2p/Qm
 ##### This joins an existing subnets and runs a bootnode.
 - Get the bootnode multiaddresses from the subnets team or blockchain and add them to the `initial_peers` argument and replace `/ip4/{ip}/p2p/{peer_id}`. In this example, we use 2 bootnodes to connect to, but one is required.
 ```bash
-mesh-dht \
+mesh-dht-api \
 --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
 --announce_maddrs /ip4/{your_ip} \
 --initial_peers /ip4/{ip}/p2p/{peer_id} /ip4/{ip}/p2p/{peer_id}
@@ -221,7 +221,9 @@ mesh-server-mock \
 ---
 
 ## Running Nodes Locally
-Start a mesh locally with 3 nodes and no requirement for a blockchain connection:
+Start a mesh locally with 3 nodes and **no requirement for a blockchain connection**:
+
+(See below on how to run the nodes with a blockchain connection locally)
 
 #### Start the bootnode as a server 
 This is a node that as a bootnode and a server, although this is not recommended for production.
@@ -315,13 +317,15 @@ register-subnet \
 #### Register a node:
 <b>Note:</b> The client peer ID, bootnode peer ID, and bootnode are only for testing purposes. In production, the client peer ID and bootnode peer ID should be generated beforehand and each have its own identity paths (the bootnode will be derived from the bootnode peer ID if utilized). The client and bootnode peer ID are required on-chain but not required to be used off-chain in the subnet. The bootnode is optional.
 
-Using Alith's coldkey private key:
+Using **Alith**'s coldkey private key:
+
+Note: We use the `bootnode.id` peer ID for Alith's bootnode peer ID so we can connect via the PoS mechanism when connecting to the bootnode.
 ```bash
 register-node \
   --subnet_id 1 \
   --hotkey 0x317D7a5a2ba5787A99BE4693Eb340a10C71d680b \
   --peer_id QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JB \
-  --bootnode_peer_id QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JC \
+  --bootnode_peer_id QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
   --bootnode /ip4/127.00.1/tcp/31330/p2p/QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JC \
   --client_peer_id QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JD \
   --delegate_reward_rate 0.125 \
@@ -330,19 +334,91 @@ register-node \
   --private_key "0x5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133" \
   --local_rpc
 ```
-Get the subnet node ID after registration
 
-#### Run a node
-Using Alith's hotkey private key:
+Register **Baltathar**'s subnet node.
+
+```bash
+register-node \
+--subnet_id 1 \
+--hotkey 0xc30fE91DE91a3FA79E42Dfe7a01917d0D92D99D7 \
+--peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG \
+--bootnode_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiH \
+--bootnode /ip4/127.00.1/tcp/31330/p2p/QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiH \
+--client_peer_id QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiI \
+--delegate_reward_rate 0.125 \
+--stake_to_be_added 100.00 \
+--max_burn_amount 100.00 \
+--private_key "0x8075991ce870b93a8870eca0c0f91913d12f47948ca0fd25b49c6fa7cdbeee8b" \
+--local_rpc
+```
+
+Register **Charleth**'s subnet node.
+
+```bash
+register-node \
+--subnet_id 1 \
+--hotkey 0x2f7703Ba9953d422294079A1CB32f5d2B60E38EB \
+--peer_id QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9 \
+--bootnode_peer_id QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta1 \
+--bootnode /ip4/127.00.1/tcp/31330/p2p/QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta1 \
+--client_peer_id QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta2 \
+--delegate_reward_rate 0.125 \
+--stake_to_be_added 100.00 \
+--max_burn_amount 100.00 \
+--private_key "0x0b6e18cafb6ed99687ec547bd28139cafdd2bffe70e6b688025de6b445aa5c5b" \
+--local_rpc
+```
+
+Get the subnet node ID after registrations.
+
+#### Run nodes
+(Replace the subnet ID and subnet node ID's if they differ from the example)
+
+Using **Alith**'s hotkey private key:
 ```bash
 mesh-server-mock \
     --host_maddrs /ip4/0.0.0.0/tcp/31331 /ip4/0.0.0.0/udp/31331/quic \
     --announce_maddrs /ip4/{your_ip}/tcp/31331 /ip4/{your_ip}/udp/31331/quic \
     --identity_path alith.id \
-    --subnet_id 1 --subnet_node_id 2 \
+    --subnet_id 1 --subnet_node_id 1 \
     --local_rpc \
     --private_key "0x51b7c50c1cd27de89a361210431e8f03a7ddda1a0c8c5ff4e4658ca81ac02720"
 ```
+
+Using **Baltathar**'s hotkey private key:
+```bash
+mesh-server-mock \
+    --host_maddrs /ip4/0.0.0.0/tcp/31332 /ip4/0.0.0.0/udp/31332/quic \
+    --announce_maddrs /ip4/{your_ip}/tcp/31332 /ip4/{your_ip}/udp/31332/quic \
+    --identity_path baltathar.id \
+    --subnet_id 1 --subnet_node_id 2 \
+    --local_rpc \
+    --private_key "0x6cbf451fc5850e75cd78055363725dcf8c80b3f1dfb9c29d131fece6dfb72490"
+```
+
+Using **Charleth**'s hotkey private key:
+```bash
+mesh-server-mock \
+    --host_maddrs /ip4/0.0.0.0/tcp/31333 /ip4/0.0.0.0/udp/31333/quic \
+    --announce_maddrs /ip4/{your_ip}/tcp/31333 /ip4/{your_ip}/udp/31333/quic \
+    --identity_path charleth.id \
+    --subnet_id 1 --subnet_node_id 3 \
+    --local_rpc \
+    --private_key "0x51b7c50c1cd27de89a361210431e8f03a7ddda1a0c8c5ff4e4658ca81ac02720"
+```
+
+Activate the subnet using the owners private key or through the [explorer](https://polkadot.js.org/apps/#/explorer). Using the explorer, navigate to extrinsics (**Developer > Extrinsics**), under "**submit the following extrinsic**" choose **network** and select the `activateSubnet(subnetId)` extrinsic.
+
+```bash
+activate-subnet \
+--subnet_id 1 \
+--private_key "0x5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133" \
+--local_rpc
+```
+
+Once activated, the subnet nodes will begin to run consensus on the following epoch.
+
+---
 
 ## Future
 

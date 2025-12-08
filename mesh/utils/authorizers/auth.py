@@ -54,6 +54,7 @@ class AuthorizerBase(ABC):
     @abstractmethod
     async def validate_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> bool: ...
 
+
 class SignatureAuthorizer(AuthorizerBase):
     def __init__(self, local_private_key: Ed25519PrivateKey | RSAPrivateKey):
         self._key_type = KeyType.RSA if isinstance(local_private_key, RSAPrivateKey) else KeyType.Ed25519
@@ -68,7 +69,7 @@ class SignatureAuthorizer(AuthorizerBase):
     async def get_token(self) -> AccessToken:
         # Uses the built in template ``AccessToken`` format
         token = AccessToken(
-            username='',
+            username="",
             public_key=self._local_public_key.to_bytes(),
             expiration_time=str(datetime.now(timezone.utc) + timedelta(minutes=1)),
         )
@@ -83,7 +84,9 @@ class SignatureAuthorizer(AuthorizerBase):
     def local_public_key(self) -> Ed25519PublicKey | RSAPublicKey:
         return self._local_public_key
 
-    async def sign_request(self, request: AuthorizedRequestBase, service_public_key: Optional[Ed25519PublicKey | RSAPublicKey]) -> None:
+    async def sign_request(
+        self, request: AuthorizedRequestBase, service_public_key: Optional[Ed25519PublicKey | RSAPublicKey]
+    ) -> None:
         auth = request.auth
 
         local_access_token = await self.get_token()
@@ -100,7 +103,9 @@ class SignatureAuthorizer(AuthorizerBase):
 
     _MAX_CLIENT_SERVICER_TIME_DIFF = timedelta(minutes=1)
 
-    async def do_validate_request(self, request: AuthorizedRequestBase) -> Tuple[RSAPublicKey | Ed25519PublicKey, float, bytes, bool]:
+    async def do_validate_request(
+        self, request: AuthorizedRequestBase
+    ) -> Tuple[RSAPublicKey | Ed25519PublicKey, float, bytes, bool]:
         """
         Returns:
             public key, current time, nonce, verified
@@ -139,9 +144,7 @@ class SignatureAuthorizer(AuthorizerBase):
         if not valid:
             return False
 
-        self._recent_nonces.store(
-            nonce, None, current_time + self._MAX_CLIENT_SERVICER_TIME_DIFF.total_seconds() * 3
-        )
+        self._recent_nonces.store(nonce, None, current_time + self._MAX_CLIENT_SERVICER_TIME_DIFF.total_seconds() * 3)
 
         return True
 
@@ -156,7 +159,9 @@ class SignatureAuthorizer(AuthorizerBase):
         assert auth.signature == b""
         auth.signature = self._local_private_key.sign(response.SerializeToString())
 
-    async def do_validate_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> Tuple[RSAPublicKey | Ed25519PublicKey, bool]:
+    async def do_validate_response(
+        self, response: AuthorizedResponseBase, request: AuthorizedRequestBase
+    ) -> Tuple[RSAPublicKey | Ed25519PublicKey, bool]:
         auth = response.auth
 
         service_public_key = load_public_key_from_bytes(auth.service_access_token.public_key)
@@ -192,6 +197,7 @@ class AuthRPCWrapper:
     Example: The AuthorizerBase can be used as a proof-of-stake mechanism connected to Hypertensor to ensure all nodes
     that communicate with each other are staked on-chain. For things such as entering the DHT or calling for inference.
     """
+
     def __init__(
         self,
         stub,
@@ -232,13 +238,14 @@ class AuthRPCWrapper:
 
         return wrapped_rpc
 
+
 class AuthRPCWrapperStreamer:
     def __init__(
         self,
         stub,
         role: AuthRole,
         authorizer: Optional[AuthorizerBase],
-        service_public_key: Optional[RSAPublicKey | Ed25519PublicKey] = None
+        service_public_key: Optional[RSAPublicKey | Ed25519PublicKey] = None,
     ):
         self._stub = stub
         self._role = role
@@ -256,6 +263,7 @@ class AuthRPCWrapperStreamer:
         service_public_key = object.__getattribute__(self, "_service_public_key")
 
         if inspect.isasyncgenfunction(method):
+
             @functools.wraps(method)
             async def wrapped_stream_rpc(request, *args, **kwargs):
                 if authorizer:
@@ -277,6 +285,7 @@ class AuthRPCWrapperStreamer:
 
             return wrapped_stream_rpc
         else:
+
             @functools.wraps(method)
             async def wrapped_unary_rpc(request, *args, **kwargs):
                 if authorizer:

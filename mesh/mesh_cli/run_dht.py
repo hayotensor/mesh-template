@@ -1,18 +1,37 @@
+import os
 from argparse import ArgumentParser
+from pathlib import Path
 from secrets import token_hex
 from signal import SIGINT, SIGTERM, signal, strsignal
 from threading import Event
 
+from dotenv import load_dotenv
+from substrateinterface import Keypair, KeypairType
+
 from mesh.dht import DHT, DHTNode
-from mesh.utils.logging import get_logger, use_mesh_log_handler
+from mesh.dht.crypto import SignatureValidator
+from mesh.substrate.chain_functions import Hypertensor, KeypairFrom
+from mesh.substrate.mock.local_chain_functions import LocalMockHypertensor
+from mesh.utils.authorizers.auth import SignatureAuthorizer
+from mesh.utils.authorizers.pos_auth import ProofOfStakeAuthorizer
+from mesh.utils.key import get_peer_id_from_identity_path, get_private_key
+from mesh.utils.logging import get_logger, setup_mp_logging, use_mesh_log_handler
 from mesh.utils.networking import log_visible_maddrs
+from mesh.utils.proof_of_stake import ProofOfStake
 
 use_mesh_log_handler("in_root_logger")
 logger = get_logger(__name__)
 
+setup_mp_logging()
+
+load_dotenv(os.path.join(Path.cwd(), ".env"))
+
+PHRASE = os.getenv("PHRASE")
+
 """
 Bootstrap node
 """
+
 
 async def report_status(dht: DHT, node: DHTNode):
     logger.info(
@@ -73,9 +92,85 @@ def main():
     parser.add_argument(
         "--refresh_period", type=int, default=30, help="Period (in seconds) for fetching the keys from DHT"
     )
+    parser.add_argument("--subnet_id", type=int, required=False, default=None, help="Subnet ID running a node for ")
+    parser.add_argument("--no_blockchain_rpc", action="store_true", help="[Testing] Run with no RPC")
+    parser.add_argument("--local_rpc", action="store_true", help="[Testing] Run in local RPC mode, uses LOCAL_RPC")
+    parser.add_argument(
+        "--phrase",
+        type=str,
+        required=False,
+        help="[Testing] Coldkey phrase that controls actions which include funds, such as registering, and staking",
+    )
+    parser.add_argument("--private_key", type=str, required=False, help="[Testing] Hypertensor blockchain private key")
 
     args = parser.parse_args()
+    subnet_id = args.subnet_id
+    no_blockchain_rpc = args.no_blockchain_rpc
+    local_rpc = args.local_rpc
+    phrase = args.phrase
+    private_key = args.private_key
 
+    if not no_blockchain_rpc:
+        if local_rpc:
+            rpc = os.getenv("LOCAL_RPC")
+        else:
+            rpc = os.getenv("DEV_RPC")
+
+        if phrase is not None:
+            hypertensor = Hypertensor(rpc, phrase)
+        elif private_key is not None:
+            hypertensor = Hypertensor(rpc, private_key, KeypairFrom.PRIVATE_KEY)
+            keypair = Keypair.create_from_private_key(private_key, crypto_type=KeypairType.ECDSA)
+            hotkey = keypair.ss58_address
+            logger.info(f"hotkey: {hotkey}")
+        else:
+            hypertensor = Hypertensor(rpc, PHRASE)
+    else:
+        peer_id = get_peer_id_from_identity_path(args.identity_path)
+        reset_db = False
+        if args.initial_peers:
+            # Reset when deploying a new swarm
+            reset_db = True
+        hypertensor = LocalMockHypertensor(
+            subnet_id=subnet_id,
+            peer_id=peer_id,
+            subnet_node_id=0,
+            coldkey="",
+            hotkey="",
+            bootnode_peer_id="",
+            client_peer_id="",
+            reset_db=reset_db,
+        )
+
+    pk = get_private_key(args.identity_path)
+    signature_validator = SignatureValidator(pk)
+    record_validators = [signature_validator]
+    signature_authorizer = SignatureAuthorizer(pk)
+
+    if hypertensor is not None:
+        print("Initializing PoS - proof-of-stake")
+        logger.info("Initializing PoS - proof-of-stake")
+        pos = ProofOfStake(
+            subnet_id,
+            hypertensor,
+            min_class=1,
+        )
+        pos_authorizer = ProofOfStakeAuthorizer(signature_authorizer, pos)
+    else:
+        print("Initializing sig authorizer")
+        # For testing purposes, at minimum require signatures
+        pos_authorizer = signature_authorizer
+
+    # dht = DHT(
+    #     start=True,
+    #     initial_peers=args.initial_peers,
+    #     host_maddrs=args.host_maddrs,
+    #     announce_maddrs=args.announce_maddrs,
+    #     use_ipfs=args.use_ipfs,
+    #     identity_path=args.identity_path,
+    #     use_relay=args.use_relay,
+    #     use_auto_relay=args.use_auto_relay,
+    # )
     dht = DHT(
         start=True,
         initial_peers=args.initial_peers,
@@ -85,7 +180,10 @@ def main():
         identity_path=args.identity_path,
         use_relay=args.use_relay,
         use_auto_relay=args.use_auto_relay,
+        record_validators=record_validators,
+        **dict(authorizer=pos_authorizer),
     )
+
     log_visible_maddrs(dht.get_visible_maddrs(), only_p2p=args.use_ipfs)
 
     exit_event = Event()

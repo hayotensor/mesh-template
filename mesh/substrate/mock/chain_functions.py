@@ -21,15 +21,8 @@ class MockHypertensor:
         now = time.time()
         return int(now // BLOCK_SECS)
 
-    def proof_of_stake(
-        self,
-        subnet_id: int,
-        peer_id: str,
-        min_class: int
-    ):
-        return {
-            "result": True
-        }
+    def proof_of_stake(self, subnet_id: int, peer_id: str, min_class: int):
+        return {"result": True}
 
     def get_epoch(self):
         current_block = self.get_block_number()
@@ -58,7 +51,7 @@ class MockHypertensor:
             blocks_elapsed=blocks_elapsed,
             blocks_remaining=blocks_remaining,
             seconds_elapsed=seconds_elapsed,
-            seconds_remaining=seconds_remaining
+            seconds_remaining=seconds_remaining,
         )
 
     def get_subnet_epoch_data(self, slot: int) -> EpochData:
@@ -74,15 +67,15 @@ class MockHypertensor:
         seconds_remaining = blocks_remaining * BLOCK_SECS
 
         return EpochData(
-        block=current_block,
-        epoch=epoch,
-        block_per_epoch=epoch_length,
-        seconds_per_epoch=epoch_length * BLOCK_SECS,
-        percent_complete=percent_complete,
-        blocks_elapsed=blocks_elapsed,
-        blocks_remaining=blocks_remaining,
-        seconds_elapsed=seconds_elapsed,
-        seconds_remaining=seconds_remaining
+            block=current_block,
+            epoch=epoch,
+            block_per_epoch=epoch_length,
+            seconds_per_epoch=epoch_length * BLOCK_SECS,
+            percent_complete=percent_complete,
+            blocks_elapsed=blocks_elapsed,
+            blocks_remaining=blocks_remaining,
+            seconds_elapsed=seconds_elapsed,
+            seconds_remaining=seconds_remaining,
         )
 
     def get_rewards_validator(self, subnet_id: int, epoch: int):
@@ -97,11 +90,7 @@ class MockHypertensor:
     ):
         return
 
-    def attest(
-        self,
-        subnet_id: int,
-        data: Optional[List[Any]] = None
-    ):
+    def attest(self, subnet_id: int, data: Optional[List[Any]] = None):
         return
 
     def get_subnet_included_nodes(self, subnet_id: int) -> List:
@@ -131,6 +120,7 @@ class MockHypertensor:
             state="Active",
             start_epoch=0,
             churn_limit=0,
+            churn_limit_multiplier=1,
             min_stake=0,
             max_stake=0,
             queue_immunity_epochs=10,
@@ -172,7 +162,9 @@ class MockHypertensor:
             non_unique=None,
         )
 
-    def get_min_class_subnet_nodes_formatted(self, subnet_id: int, subnet_epoch: int, min_class: SubnetNodeClass) -> List["SubnetNodeInfo"]:
+    def get_min_class_subnet_nodes_formatted(
+        self, subnet_id: int, subnet_epoch: int, min_class: SubnetNodeClass
+    ) -> List["SubnetNodeInfo"]:
         return [
             # alith.id
             SubnetNodeInfo(
@@ -193,7 +185,7 @@ class MockHypertensor:
                 stake_balance=0,
                 node_delegate_stake_balance=0,
                 penalties=0,
-                reputation=dict()
+                reputation=dict(),
             ),
             # baltathar.id
             SubnetNodeInfo(
@@ -214,7 +206,7 @@ class MockHypertensor:
                 stake_balance=0,
                 node_delegate_stake_balance=0,
                 penalties=0,
-                reputation=dict()
+                reputation=dict(),
             ),
             # charleth.id
             SubnetNodeInfo(
@@ -235,7 +227,7 @@ class MockHypertensor:
                 stake_balance=0,
                 node_delegate_stake_balance=0,
                 penalties=0,
-                reputation=dict()
+                reputation=dict(),
             ),
             # dorothy.id
             SubnetNodeInfo(
@@ -256,7 +248,7 @@ class MockHypertensor:
                 stake_balance=0,
                 node_delegate_stake_balance=0,
                 penalties=0,
-                reputation=dict()
+                reputation=dict(),
             ),
             # ethan.id
             SubnetNodeInfo(
@@ -277,7 +269,7 @@ class MockHypertensor:
                 stake_balance=0,
                 node_delegate_stake_balance=0,
                 penalties=0,
-                reputation=dict()
+                reputation=dict(),
             ),
             # faith.id
             SubnetNodeInfo(
@@ -298,7 +290,7 @@ class MockHypertensor:
                 stake_balance=0,
                 node_delegate_stake_balance=0,
                 penalties=0,
-                reputation=dict()
+                reputation=dict(),
             ),
             # bootnode.id
             SubnetNodeInfo(
@@ -319,8 +311,8 @@ class MockHypertensor:
                 stake_balance=0,
                 node_delegate_stake_balance=0,
                 penalties=0,
-                reputation=dict()
-            )
+                reputation=dict(),
+            ),
         ]
 
     def get_formatted_rewards_validator_info(self, subnet_id, epoch: int) -> Optional["SubnetNodeInfo"]:
@@ -342,7 +334,7 @@ class MockHypertensor:
             stake_balance=0,
             node_delegate_stake_balance=0,
             penalties=0,
-            reputation=dict()
+            reputation=dict(),
         )
 
     def get_consensus_data_formatted(self, subnet_id: int, epoch: int) -> Optional[ConsensusData]:
@@ -357,12 +349,7 @@ class MockHypertensor:
             validator_id=1,
             validator_epoch_progress=0,
             attests=[
-                {1: {
-                    "block": 0,
-                    "attestor_progress": 0,
-                    "reward_factor": int(1e18),
-                    "data": ""
-                }},
+                {1: {"block": 0, "attestor_progress": 0, "reward_factor": int(1e18), "data": ""}},
                 # {2: {
                 #     "block": 0,
                 #     "attestor_progress": 0,
@@ -387,12 +374,7 @@ class MockHypertensor:
                 #     "reward_factor": int(1e18),
                 #     "data": ""
                 # }},
-                {6: {
-                    "block": 0,
-                    "attestor_progress": 0,
-                    "reward_factor": int(1e18),
-                    "data": ""
-                }},
+                {6: {"block": 0, "attestor_progress": 0, "reward_factor": int(1e18), "data": ""}},
             ],
             subnet_nodes=[
                 SubnetNode(
@@ -491,15 +473,12 @@ class MockHypertensor:
                     last_delegate_reward_rate_update=0,
                     unique="",
                     non_unique="",
-                )
+                ),
             ],
             prioritize_queue_node_id=None,
             remove_queue_node_id=None,
             data=[
-                SubnetNodeConsensusData(
-                    subnet_node_id=1,
-                    score=int(1e18)
-                ),
+                SubnetNodeConsensusData(subnet_node_id=1, score=int(1e18)),
                 # SubnetNodeConsensusData(
                 #     subnet_node_id=2,
                 #     score=int(1e18)
@@ -516,10 +495,7 @@ class MockHypertensor:
                 #     subnet_node_id=5,
                 #     score=int(1e18)
                 # ),
-                SubnetNodeConsensusData(
-                    subnet_node_id=6,
-                    score=int(1e18)
-                ),
+                SubnetNodeConsensusData(subnet_node_id=6, score=int(1e18)),
             ],
             args=None,
         )
@@ -528,18 +504,11 @@ class MockHypertensor:
         consensus_data = []
         for filepath in glob.glob("server*.id"):
             _, _, public_bytes, _, _, peer_id = generate_rsa_private_key_file(filepath)
-            node = {
-                'peer_id': peer_id,
-                'score': int(1e18)
-            }
+            node = {"peer_id": peer_id, "score": int(1e18)}
             consensus_data.append(node)
-    
+
     def get_subnet_registration_epochs(self, subnet_id: int):
         return 10
 
-    def get_reward_result_event(
-        self,
-        target_subnet_id: int,
-        epoch: int
-    ):
+    def get_reward_result_event(self, target_subnet_id: int, epoch: int):
         return target_subnet_id, int(1e18)

@@ -20,6 +20,7 @@ from mesh.utils import get_logger
 
 logger = get_logger(__name__)
 
+
 class LocalMockHypertensor:
     def __init__(
         self,
@@ -32,7 +33,6 @@ class LocalMockHypertensor:
         client_peer_id: str,
         reset_db: bool = False,
     ):
-
         self.subnet_id = subnet_id
         self.peer_id = peer_id
         self.subnet_node_id = subnet_node_id
@@ -61,10 +61,7 @@ class LocalMockHypertensor:
                     client_peer_id=self.client_peer_id,
                     bootnode="",
                     identity="",
-                    classification={
-                        "node_class": "Validator",
-                        "start_epoch": self.get_epoch()
-                    },
+                    classification={"node_class": "Validator", "start_epoch": self.get_epoch()},
                     delegate_reward_rate=0,
                     last_delegate_reward_rate_update=0,
                     unique="",
@@ -72,7 +69,7 @@ class LocalMockHypertensor:
                     stake_balance=int(1e18),
                     node_delegate_stake_balance=0,
                     penalties=0,
-                    coldkey_reputation=int(1e18)
+                    coldkey_reputation=int(1e18),
                 ),
             )
 
@@ -89,12 +86,15 @@ class LocalMockHypertensor:
             "validator_id": self.subnet_node_id,
             "validator_epoch_progress": 0,
             "attests": [
-                {node["subnet_node_id"]: {
-                    "block": 0,
-                    "attestor_progress": 0,
-                    "reward_factor": int(1e18),
-                    "data": attest_data
-                }} for node in subnet_nodes
+                {
+                    node["subnet_node_id"]: {
+                        "block": 0,
+                        "attestor_progress": 0,
+                        "reward_factor": int(1e18),
+                        "data": attest_data,
+                    }
+                }
+                for node in subnet_nodes
             ],
             "subnet_nodes": subnet_nodes,
             "prioritize_queue_node_id": None,
@@ -134,15 +134,13 @@ class LocalMockHypertensor:
                 attestor_progress=0,
                 reward_factor=int(1e18),
                 data=data or "",
-            )
+            ),
         )
 
         # Append or update attestation
         updated_attests = consensus.get("attests", [])
         # Remove any existing entry for this same peer
-        updated_attests = [
-            a for a in updated_attests if str(self.subnet_node_id) not in map(str, a.keys())
-        ]
+        updated_attests = [a for a in updated_attests if str(self.subnet_node_id) not in map(str, a.keys())]
         updated_attests.append(attestation_entry)
 
         # Save updated record back to database
@@ -161,6 +159,7 @@ class LocalMockHypertensor:
         # Handle if stored as JSON string
         if isinstance(subnet_nodes_data, str):
             import json
+
             try:
                 subnet_nodes_data = json.loads(subnet_nodes_data)
             except Exception:
@@ -191,7 +190,7 @@ class LocalMockHypertensor:
                         delegate_reward_rate=node_dict.get("delegate_reward_rate", 0),
                         last_delegate_reward_rate_update=node_dict.get("last_delegate_reward_rate_update", 0),
                         unique=node_dict.get("unique", ""),
-                        non_unique=node_dict.get("non_unique", "")
+                        non_unique=node_dict.get("non_unique", ""),
                     )
                 )
             except Exception as e:
@@ -199,11 +198,7 @@ class LocalMockHypertensor:
 
         raw_data = record.get("data", [])
         consensus_scores: List[SubnetNodeConsensusData] = [
-            SubnetNodeConsensusData(
-                subnet_node_id=item["subnet_node_id"],
-                score=item["score"]
-            )
-            for item in raw_data
+            SubnetNodeConsensusData(subnet_node_id=item["subnet_node_id"], score=item["score"]) for item in raw_data
         ]
 
         raw_attests = record.get("attests", [])
@@ -244,15 +239,8 @@ class LocalMockHypertensor:
         epoch_length = self.get_epoch_length()
         return current_block // epoch_length
 
-    def proof_of_stake(
-        self,
-        subnet_id: int,
-        peer_id: str,
-        min_class: int
-    ):
-        return {
-            "result": True
-        }
+    def proof_of_stake(self, subnet_id: int, peer_id: str, min_class: int):
+        return {"result": True}
 
     def get_subnet_slot(self, subnet_id: int):
         return 3
@@ -276,7 +264,7 @@ class LocalMockHypertensor:
             blocks_elapsed=blocks_elapsed,
             blocks_remaining=blocks_remaining,
             seconds_elapsed=seconds_elapsed,
-            seconds_remaining=seconds_remaining
+            seconds_remaining=seconds_remaining,
         )
 
     def get_subnet_epoch_data(self, slot: int) -> EpochData:
@@ -300,18 +288,14 @@ class LocalMockHypertensor:
             blocks_elapsed=blocks_elapsed,
             blocks_remaining=blocks_remaining,
             seconds_elapsed=seconds_elapsed,
-            seconds_remaining=seconds_remaining
+            seconds_remaining=seconds_remaining,
         )
 
     # def get_rewards_validator(self, subnet_id: int, epoch: int):
     #     return 6
 
     def get_rewards_validator(self, subnet_id: int, epoch: int):
-        subnet_nodes = self.get_min_class_subnet_nodes_formatted(
-            subnet_id,
-            epoch,
-            SubnetNodeClass.Validator
-        )
+        subnet_nodes = self.get_min_class_subnet_nodes_formatted(subnet_id, epoch, SubnetNodeClass.Validator)
 
         # TODO: Random selection, save current epochs chosen node in db
         # random_subnet_node = random.choice(subnet_nodes)
@@ -319,12 +303,8 @@ class LocalMockHypertensor:
 
         return subnet_nodes[0].subnet_node_id
 
-
     def get_min_class_subnet_nodes_formatted(
-        self,
-        subnet_id: int,
-        subnet_epoch: int,
-        min_class: SubnetNodeClass
+        self, subnet_id: int, subnet_epoch: int, min_class: SubnetNodeClass
     ) -> List["SubnetNodeInfo"]:
         """
         Return all subnet nodes that meet or exceed the minimum classification
@@ -350,10 +330,7 @@ class LocalMockHypertensor:
 
                 node_class_enum = subnet_node_class_to_enum(node_class_name)
 
-                if (
-                    node_class_enum.value >= min_class.value
-                    and start_epoch <= subnet_epoch
-                ):
+                if node_class_enum.value >= min_class.value and start_epoch <= subnet_epoch:
                     qualified_nodes.append(
                         SubnetNodeInfo(
                             subnet_id=self.subnet_id,
@@ -409,9 +386,7 @@ class LocalMockHypertensor:
 
                 node_class_enum = subnet_node_class_to_enum(node_class_name)
 
-                if (
-                    node_class_enum.value >= 4
-                ):
+                if node_class_enum.value >= 4:
                     qualified_nodes.append(
                         SubnetNodeInfo(
                             subnet_id=self.subnet_id,
@@ -454,6 +429,7 @@ class LocalMockHypertensor:
             state="Active",
             start_epoch=0,
             churn_limit=10,
+            churn_limit_multiplier=1,
             min_stake=0,
             max_stake=0,
             queue_immunity_epochs=0,

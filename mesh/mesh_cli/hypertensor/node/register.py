@@ -7,9 +7,9 @@ from dotenv import load_dotenv
 from mesh.substrate.chain_functions import Hypertensor, KeypairFrom
 from mesh.utils.logging import get_logger
 
-load_dotenv(os.path.join(Path.cwd(), '.env'))
+load_dotenv(os.path.join(Path.cwd(), ".env"))
 
-PHRASE = os.getenv('PHRASE')
+PHRASE = os.getenv("PHRASE")
 
 logger = get_logger(__name__)
 
@@ -29,11 +29,13 @@ register-node \
 
 [Alith]
 
+# NOTE: We register the bootnode.id peer ID as Aliths peer ID so the bootnode passes PoS when connecting to bootnode
+
 register-node \
 --subnet_id 1 \
 --hotkey 0x317D7a5a2ba5787A99BE4693Eb340a10C71d680b \
 --peer_id QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JB \
---bootnode_peer_id QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JC \
+--bootnode_peer_id QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v \
 --bootnode /ip4/127.00.1/tcp/31330/p2p/QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JC \
 --client_peer_id QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JD \
 --delegate_reward_rate 0.125 \
@@ -88,6 +90,7 @@ register-node \
 --local_rpc
 
 """
+
 
 def main():
     # fmt:off
@@ -162,6 +165,7 @@ def main():
             logger.error(f'⚠️ Extrinsic Failed: {receipt.error_message}')
     except Exception as e:
         logger.error("Error: ", e, exc_info=True)
+
 
 if __name__ == "__main__":
     main()

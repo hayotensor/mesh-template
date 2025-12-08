@@ -7,31 +7,18 @@ from dotenv import load_dotenv
 from mesh.substrate.chain_functions import Hypertensor, KeypairFrom
 from mesh.utils.logging import get_logger
 
-load_dotenv(os.path.join(Path.cwd(), '.env'))
+load_dotenv(os.path.join(Path.cwd(), ".env"))
 
-PHRASE = os.getenv('PHRASE')
+PHRASE = os.getenv("PHRASE")
 
 logger = get_logger(__name__)
 
 """
-register-subnet \
---max_cost 100.00 \
---name subnet-1 \
---repo github.com/subnet-1 \
---description "artificial intelligence" \
---misc "cool subnet" \
---min_stake 100.00 \
---max_stake  1000.00 \
---delegate_stake_percentage 0.1 \
---initial_coldkeys ["0x0123456789abcdef0123456789abcdef01234567"] \
---key_types ["Rsa"] \
---bootnodes "p2p/12.0.1/tpc" \
---phrase "craft squirrel soap letter garment unfair meat slide swift miss forest wide" \
---local_rpc
-
 [Local RPC Testing]
 
 Alith (register with Alith as owner of subnet):
+
+Initial coldkeys (See hypertensor/README.md): Alith, Baltathar, Charleth, Dorothy
 
 register-subnet \
 --max_cost 100.00 \
@@ -52,6 +39,7 @@ register-subnet \
 --local_rpc
 
 """
+
 
 def main():
     # fmt:off
@@ -135,6 +123,7 @@ def main():
             logger.error(f'⚠️ Extrinsic Failed: {receipt.error_message}')
     except Exception as e:
         logger.error("Error: ", e, exc_info=True)
+
 
 if __name__ == "__main__":
     main()

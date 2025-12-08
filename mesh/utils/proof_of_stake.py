@@ -9,7 +9,7 @@ from mesh.utils.peer_id import get_peer_id_from_pubkey
 logger = get_logger(__name__)
 
 
-class ProofOfStake():
+class ProofOfStake:
     def __init__(
         self,
         subnet_id: int,
