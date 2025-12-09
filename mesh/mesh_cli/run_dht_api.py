@@ -29,7 +29,7 @@ from mesh.utils.dht import get_node_heartbeats
 from mesh.utils.key import get_peer_id_from_identity_path, get_private_key
 from mesh.utils.logging import get_logger, setup_mp_logging, use_mesh_log_handler
 from mesh.utils.networking import log_visible_maddrs
-from mesh.utils.p2p_utils import extract_peer_ip_info, get_peers_ips
+from mesh.utils.p2p_utils import extract_multiple_peer_ips_info, extract_peer_ip_info, get_peers_ips
 from mesh.utils.proof_of_stake import ProofOfStake
 
 use_mesh_log_handler("in_root_logger")
@@ -45,6 +45,8 @@ dht: DHT = None
 
 """
 Bootnode API
+
+Note
 
 Example:
     curl -H "X-API-Key: key-party1-abc123" http://localhost:8000/get_bootnodes
@@ -77,17 +79,39 @@ Example:
              {
                 'QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG': {
                     'location': {
-                        'status': 'fail',
-                        'message': 'private range',
-                        'query': '127.0.0.1'
+                        "status": "success",
+                        "country": "United States",
+                        "countryCode": "US",
+                        "region": "FL",
+                        "regionName": "California",
+                        "city": "Los Angeles",
+                        "zip": "90001",
+                        "lat": 34.0549,
+                        "lon": -118.2426,
+                        "timezone": "America/Los_Angeles",
+                        "isp": "Verizon",
+                        "org": "Level 3",
+                        "as": "Verizon",
+                        "query": "123.123.123.123"
                     },
                     'multiaddrs': ['/ip4/127.0.0.1/tcp/31332']
                 },
                 '12D3KooWMUcE668wDF6aTiMmsKFwSV2wJNZ4tNvphVhMziPgg7mN': {
                     'location': {
-                        'status': 'fail',
-                        'message': 'private range',
-                        'query': '127.0.0.1'
+                        "status": "success",
+                        "country": "United States",
+                        "countryCode": "US",
+                        "region": "NY",
+                        "regionName": "New York",
+                        "city": "New York",
+                        "zip": "10001",
+                        "lat": 40.7128,
+                        "lon": -74.0060,
+                        "timezone": "America/New_York",
+                        "isp": "AT&T",
+                        "org": "Level 3",
+                        "as": "AT&T",
+                        "query": "123.123.123.123"
                     },
                     'multiaddrs': ['/ip4/127.0.0.1/tcp/41500']
                 }
@@ -225,29 +249,69 @@ async def get_bootnodes(request: Request, api_key: str = Depends(get_api_key)):
     return {"value": None}
 
 
+# See https://ip-api.com/docs/api:batch for more information
+# NOTE: There is also a max match request of 15 requests per minute
+MAX_IP_ADDRESSES_PER_REQUEST = 100
+
+
 @app.get("/get_peers_info")
 @ip_limiter.limit("5/minute")
 @key_limiter.limit("5/minute")
 async def get_peers_info(request: Request, api_key: str = Depends(get_api_key)):
     """
-    Query the DHT bootnodes.
+    Query the DHT peers and their location info.
+
+    This version handles large numbers of peers by batching IP lookups
+    in chunks of MAX_IP_ADDRESSES_PER_REQUEST (100) to comply with ip-api.com limits.
+
+    Note: http://ip-api.com currently allows 15 requests per minute with 100 IPs each.
     """
     if dht is None:
         return {"error": "DHT not initialized"}
 
-    peers_info = {
-        str(peer.peer_id): {
-            "location": extract_peer_ip_info(str(peer.addrs[0])),
-            "multiaddrs": [str(multiaddr) for multiaddr in peer.addrs],
-        }
-        for peer in dht.run_coroutine(get_peers_ips)
-    }
-    if peers_info:
+    peers_list = dht.run_coroutine(get_peers_ips)
+
+    # 1. Build a mapping of IP -> peer_id (for reverse lookup) and collect all IPs
+    ip_to_peer_id = {}
+    all_ips = []
+    for peer_info in peers_list:
+        for addr in peer_info.addrs:
+            addr_str = str(addr)
+            import re
+
+            if ip_match := re.search(r"/ip4/(\d+\.\d+\.\d+\.\d+)", addr_str):
+                ip = ip_match[1]
+                if ip not in ip_to_peer_id:  # Avoid duplicates
+                    ip_to_peer_id[ip] = str(peer_info.peer_id)
+                    all_ips.append(ip)
+
+    # 2. Batch IP lookups in chunks of MAX_IP_ADDRESSES_PER_REQUEST
+    from mesh.utils.p2p_utils import get_multiple_locations
+
+    ip_locations = {}
+    for i in range(0, len(all_ips), MAX_IP_ADDRESSES_PER_REQUEST):
+        batch = all_ips[i : i + MAX_IP_ADDRESSES_PER_REQUEST]
+        batch_results = get_multiple_locations(batch)
+        # Merge results into ip_locations dict
+        for loc in batch_results:
+            if loc.get("query"):
+                ip_locations[loc["query"]] = loc
+
+    # 3. Build the result keyed by peer_id
+    result = {}
+    for ip, location_data in ip_locations.items():
+        peer_id = ip_to_peer_id.get(ip)
+        if peer_id:
+            if peer_id not in result:
+                result[peer_id] = {}
+            result[peer_id][ip] = location_data
+
+    if result:
         try:
-            serialized_results = serialize_object(peers_info)
+            serialized_results = serialize_object(result)
             return {"value": serialized_results}
         except Exception as e:
-            logger.warning(f"Error returning heartbeat {e}", exc_info=True)
+            logger.warning(f"Error returning peers info {e}", exc_info=True)
 
     return {"value": None}
 

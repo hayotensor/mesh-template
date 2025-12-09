@@ -49,8 +49,10 @@ async def check_reachability_parallel(peer_ids, dht, node, *, fetch_info=False):
     )
     return dict(zip(peer_ids, rpc_infos))
 
+
 async def get_peers_ips(dht, dht_node):
     return await dht_node.p2p.list_peers()
+
 
 @functools.cache
 def get_location(ip_address):
@@ -62,7 +64,47 @@ def get_location(ip_address):
         pass
     return {}
 
+
 def extract_peer_ip_info(multiaddr_str):
     if ip_match := re.search(r"/ip4/(\d+\.\d+\.\d+\.\d+)", multiaddr_str):
         return get_location(ip_match[1])
     return {}
+
+
+def get_multiple_locations(ip_addresses: list):
+    """
+    Get location info for multiple IP addresses in a single batch request.
+
+    :param ip_addresses: List of IP address strings, e.g. ["208.80.152.201", "91.198.174.192"]
+    :returns: List of location dicts from ip-api.com
+    """
+    try:
+        response = requests.post("http://ip-api.com/batch", json=ip_addresses)
+        if response.status_code == 200:
+            return response.json()
+    except Exception:
+        pass
+    return []
+
+
+def extract_multiple_peer_ips_info(multiaddrs: list) -> dict:
+    """
+    Extract IP addresses from a list of multiaddrs and get location info for all in a single batch request.
+
+    :param multiaddrs: List of multiaddr strings, e.g. ["/ip4/208.80.152.201/tcp/4001", "/ip4/91.198.174.192/tcp/4001"]
+    :returns: Dict mapping IP addresses to their location info
+    """
+    # Extract all IPs from multiaddrs
+    ip_addresses = []
+    for multiaddr in multiaddrs:
+        if ip_match := re.search(r"/ip4/(\d+\.\d+\.\d+\.\d+)", multiaddr):
+            ip_addresses.append(ip_match[1])
+
+    if not ip_addresses:
+        return {}
+
+    # Get locations for all IPs in one batch request
+    locations = get_multiple_locations(ip_addresses)
+
+    # Map results by the query IP
+    return {loc["query"]: loc for loc in locations if loc.get("query")}
