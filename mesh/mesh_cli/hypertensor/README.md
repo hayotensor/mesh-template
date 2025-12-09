@@ -54,3 +54,8 @@
 - Faith (peer):
     * Identity Path: `faith.id`
     * Peer ID: Qmd9kjDLqM9isDgU5rCW6H9mpmfeLVtgsSHC5bqdDJtXmM
+
+
+- Bootnode (peer):
+    * Identity Path: `bootnode.id`
+    * Peer ID: QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v

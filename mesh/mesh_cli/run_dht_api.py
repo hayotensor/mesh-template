@@ -49,7 +49,7 @@ Bootnode API
 Note
 
 Example:
-    curl -H "X-API-Key: key-party1-abc123" http://localhost:8000/get_bootnodes
+    curl -H "X-API-Key: key-party1-abc123" http://localhost:8000/v1/get_bootnodes
         returns:
             {
                 "value":[
@@ -57,7 +57,7 @@ Example:
                     "/ip4/127.0.0.1/udp/31330/quic/p2p/123D"
                 ]
             }
-    curl -H "X-API-Key: key-party1-abc123" http://localhost:8000/get_heartbeat
+    curl -H "X-API-Key: key-party1-abc123" http://localhost:8000/v1/get_heartbeat
     (This returns data based on the unique variables for the subnet nodes that are sent in during the heartbeat submissions)
         returns:
             [
@@ -74,7 +74,8 @@ Example:
                         "expiration_time":1759202593.575971
                     }
                 ]
-    curl -H "X-API-Key: key-party1-abc123" http://localhost:8000/get_peers_info
+    curl -H "X-API-Key: key-party1-abc123" http://localhost:8000/v1/get_peers_info
+        *Note: When testing this locally, IPs will be private and not have location data*
         returns:
              {
                 'QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG': {
@@ -82,7 +83,7 @@ Example:
                         "status": "success",
                         "country": "United States",
                         "countryCode": "US",
-                        "region": "FL",
+                        "region": "CA",
                         "regionName": "California",
                         "city": "Los Angeles",
                         "zip": "90001",
@@ -94,7 +95,7 @@ Example:
                         "as": "Verizon",
                         "query": "123.123.123.123"
                     },
-                    'multiaddrs': ['/ip4/127.0.0.1/tcp/31332']
+                    'multiaddrs': ['/ip4/123.123.123.123/tcp/31332']
                 },
                 '12D3KooWMUcE668wDF6aTiMmsKFwSV2wJNZ4tNvphVhMziPgg7mN': {
                     'location': {
@@ -113,7 +114,7 @@ Example:
                         "as": "AT&T",
                         "query": "123.123.123.123"
                     },
-                    'multiaddrs': ['/ip4/127.0.0.1/tcp/41500']
+                    'multiaddrs': ['/ip4/123.123.123.123/tcp/41500']
                 }
              }
 
@@ -207,7 +208,7 @@ def serialize_object(obj):
     return str(obj)
 
 
-@app.get("v1/get_heartbeat")
+@app.get("/v1/get_heartbeat")
 @ip_limiter.limit("5/minute")
 @key_limiter.limit("5/minute")
 async def get_heartbeat(request: Request, api_key: str = Depends(get_api_key)):
@@ -227,7 +228,7 @@ async def get_heartbeat(request: Request, api_key: str = Depends(get_api_key)):
     return {"value": None}
 
 
-@app.get("v1/get_bootnodes")
+@app.get("/v1/get_bootnodes")
 @ip_limiter.limit("5/minute")
 @key_limiter.limit("5/minute")
 async def get_bootnodes(request: Request, api_key: str = Depends(get_api_key)):
@@ -254,7 +255,7 @@ async def get_bootnodes(request: Request, api_key: str = Depends(get_api_key)):
 MAX_IP_ADDRESSES_PER_REQUEST = 100
 
 
-@app.get("v1/get_peers_info")
+@app.get("/v1/get_peers_info")
 @ip_limiter.limit("5/minute")
 @key_limiter.limit("5/minute")
 async def get_peers_info(request: Request, api_key: str = Depends(get_api_key)):
@@ -270,9 +271,10 @@ async def get_peers_info(request: Request, api_key: str = Depends(get_api_key)):
         return {"error": "DHT not initialized"}
 
     peers_list = dht.run_coroutine(get_peers_ips)
+    print("Peers list: ", peers_list)
 
-    # 1. Build a mapping of IP -> peer_id (for reverse lookup) and collect all IPs
-    ip_to_peer_id = {}
+    # 1. Build a mapping of IP -> list of peer_ids (for reverse lookup) and collect unique IPs
+    ip_to_peer_ids = {}
     all_ips = []
     for peer_info in peers_list:
         for addr in peer_info.addrs:
@@ -281,9 +283,12 @@ async def get_peers_info(request: Request, api_key: str = Depends(get_api_key)):
 
             if ip_match := re.search(r"/ip4/(\d+\.\d+\.\d+\.\d+)", addr_str):
                 ip = ip_match[1]
-                if ip not in ip_to_peer_id:  # Avoid duplicates
-                    ip_to_peer_id[ip] = str(peer_info.peer_id)
+                peer_id = str(peer_info.peer_id)
+                if ip not in ip_to_peer_ids:
+                    ip_to_peer_ids[ip] = []
                     all_ips.append(ip)
+                if peer_id not in ip_to_peer_ids[ip]:  # Avoid duplicate peer_ids for same IP
+                    ip_to_peer_ids[ip].append(peer_id)
 
     # 2. Batch IP lookups in chunks of MAX_IP_ADDRESSES_PER_REQUEST
     from mesh.utils.p2p_utils import get_multiple_locations
@@ -292,19 +297,23 @@ async def get_peers_info(request: Request, api_key: str = Depends(get_api_key)):
     for i in range(0, len(all_ips), MAX_IP_ADDRESSES_PER_REQUEST):
         batch = all_ips[i : i + MAX_IP_ADDRESSES_PER_REQUEST]
         batch_results = get_multiple_locations(batch)
+        print("Batch results: ", batch_results)
         # Merge results into ip_locations dict
         for loc in batch_results:
             if loc.get("query"):
                 ip_locations[loc["query"]] = loc
 
-    # 3. Build the result keyed by peer_id
+    print("IP locations: ", ip_locations)
+    # 3. Build the result keyed by peer_id (each peer gets their location data)
     result = {}
     for ip, location_data in ip_locations.items():
-        peer_id = ip_to_peer_id.get(ip)
-        if peer_id:
+        peer_ids = ip_to_peer_ids.get(ip, [])
+        for peer_id in peer_ids:
             if peer_id not in result:
                 result[peer_id] = {}
             result[peer_id][ip] = location_data
+
+    print("Result: ", result)
 
     if result:
         try:
@@ -322,7 +331,7 @@ to the public.
 
 For example: Return records from the DHT records
 
-@app.get("v1/get_arbitrary_data")
+@app.get("/v1/get_arbitrary_data")
 @ip_limiter.limit("5/minute")
 @key_limiter.limit("5/minute")
 async def get_arbitrary_data(request: Request, api_key: str = Depends(get_api_key)):
