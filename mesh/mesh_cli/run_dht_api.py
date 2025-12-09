@@ -207,7 +207,7 @@ def serialize_object(obj):
     return str(obj)
 
 
-@app.get("/get_heartbeat")
+@app.get("v1/get_heartbeat")
 @ip_limiter.limit("5/minute")
 @key_limiter.limit("5/minute")
 async def get_heartbeat(request: Request, api_key: str = Depends(get_api_key)):
@@ -227,7 +227,7 @@ async def get_heartbeat(request: Request, api_key: str = Depends(get_api_key)):
     return {"value": None}
 
 
-@app.get("/get_bootnodes")
+@app.get("v1/get_bootnodes")
 @ip_limiter.limit("5/minute")
 @key_limiter.limit("5/minute")
 async def get_bootnodes(request: Request, api_key: str = Depends(get_api_key)):
@@ -254,7 +254,7 @@ async def get_bootnodes(request: Request, api_key: str = Depends(get_api_key)):
 MAX_IP_ADDRESSES_PER_REQUEST = 100
 
 
-@app.get("/get_peers_info")
+@app.get("v1/get_peers_info")
 @ip_limiter.limit("5/minute")
 @key_limiter.limit("5/minute")
 async def get_peers_info(request: Request, api_key: str = Depends(get_api_key)):
@@ -322,7 +322,7 @@ to the public.
 
 For example: Return records from the DHT records
 
-@app.get("/get_arbitrary_data")
+@app.get("v1/get_arbitrary_data")
 @ip_limiter.limit("5/minute")
 @key_limiter.limit("5/minute")
 async def get_arbitrary_data(request: Request, api_key: str = Depends(get_api_key)):
