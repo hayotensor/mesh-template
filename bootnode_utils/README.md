@@ -53,7 +53,7 @@ mesh-add-api-key --owner <owner_name>
 
 ## Notes
 
-By default keys are stored in `bootnode_rest_keys.json` or the directory of your choosing.
+By default, keys are stored in `bootnode_rest_keys.json` or the directory of your choosing.
 
 Updating a key will overwrite the existing one for that owner.
 

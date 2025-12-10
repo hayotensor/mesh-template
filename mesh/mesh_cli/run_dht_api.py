@@ -3,6 +3,7 @@
 """
 
 import os
+import re
 from argparse import ArgumentParser
 from pathlib import Path
 from secrets import token_hex
@@ -52,71 +53,145 @@ Example:
     curl -H "X-API-Key: key-party1-abc123" http://localhost:8000/v1/get_bootnodes
         returns:
             {
-                "value":[
-                    "/ip4/127.0.0.1/tcp/31330/p2p/123D",
-                    "/ip4/127.0.0.1/udp/31330/quic/p2p/123D"
+                "value": [
+                    "/ip4/123.123.123.123/tcp/31330/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v",
+                    "/ip4/123.123.123.123/udp/31330/quic/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v"
                 ]
             }
     curl -H "X-API-Key: key-party1-abc123" http://localhost:8000/v1/get_heartbeat
     (This returns data based on the unique variables for the subnet nodes that are sent in during the heartbeat submissions)
         returns:
-            [
-                {
-                    "peer_id":"QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG",
-                    "server":{
-                        "state":2,
-                        "role":"validator",
-                        "throughput":1.0,
-                        "public_name":null,
-                        "version":"1.0.0",
-                        "using_relay":false,
-                        "next_pings":{}},
-                        "expiration_time":1759202593.575971
+            {
+                "value": [
+                    {
+                    "peer_id": "QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JB",
+                    "server": {
+                        "state": "ONLINE",
+                        "role": "VALIDATOR",
+                        "throughput": 1,
+                        "public_name": null,
+                        "version": "1.0.0",
+                        "using_relay": false,
+                        "next_pings": {
+                        "QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9": 0.005177857035560813,
+                        "QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG": 0.004115824259442489
+                        }
+                    },
+                    "expiration_time": 1765332171.7576787
+                    },
+                    {
+                    "peer_id": "QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG",
+                    "server": {
+                        "state": "ONLINE",
+                        "role": "VALIDATOR",
+                        "throughput": 1,
+                        "public_name": null,
+                        "version": "1.0.0",
+                        "using_relay": false,
+                        "next_pings": {
+                        "QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JB": 0.005389619574915292,
+                        "QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9": 0.004811888599831563
+                        }
+                    },
+                    "expiration_time": 1765332163.220499
+                    },
+                    {
+                    "peer_id": "QmTJ8uyLJBwVprejUQfYFAywdXWfdnUQbC1Xif6QiTNta9",
+                    "server": {
+                        "state": "ONLINE",
+                        "role": "VALIDATOR",
+                        "throughput": 1,
+                        "public_name": null,
+                        "version": "1.0.0",
+                        "using_relay": false,
+                        "next_pings": {
+                        "QmShJYgxNoKn7xqdRQj5PBcNfPSsbWkgFBPA4mK5PH73JB": 0.005134013483953814,
+                        "QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG": 0.004351709186359328
+                        }
+                    },
+                    "expiration_time": 1765332164.4520426
                     }
                 ]
+            }
     curl -H "X-API-Key: key-party1-abc123" http://localhost:8000/v1/get_peers_info
         *Note: When testing this locally, IPs will be private and not have location data*
         returns:
-             {
-                'QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG': {
-                    'location': {
-                        "status": "success",
-                        "country": "United States",
-                        "countryCode": "US",
-                        "region": "CA",
-                        "regionName": "California",
-                        "city": "Los Angeles",
-                        "zip": "90001",
-                        "lat": 34.0549,
-                        "lon": -118.2426,
-                        "timezone": "America/Los_Angeles",
-                        "isp": "Verizon",
-                        "org": "Level 3",
-                        "as": "Verizon",
-                        "query": "123.123.123.123"
+        {
+            "value":{
+                "12D3KooWEdfS2dGfBGJZiftYyDx2PyFPi3qxXQx57DhEoZsTgLhh":{
+                    "123.123.123.123":{
+                        'location': {
+                            "status": "success",
+                            "country": "United States",
+                            "countryCode": "US",
+                            "region": "CA",
+                            "regionName": "California",
+                            "city": "Los Angeles",
+                            "zip": "90001",
+                            "lat": 34.0549,
+                            "lon": -118.2426,
+                            "timezone": "America/Los_Angeles",
+                            "isp": "Verizon",
+                            "org": "Level 3",
+                            "as": "Verizon",
+                            "query": "123.123.123.123"
+                        },
                     },
-                    'multiaddrs': ['/ip4/123.123.123.123/tcp/31332']
+                    "multiaddrs":[
+                        "/ip4/123.123.123.123/tcp/34490"
+                    ]
                 },
-                '12D3KooWMUcE668wDF6aTiMmsKFwSV2wJNZ4tNvphVhMziPgg7mN': {
-                    'location': {
-                        "status": "success",
-                        "country": "United States",
-                        "countryCode": "US",
-                        "region": "NY",
-                        "regionName": "New York",
-                        "city": "New York",
-                        "zip": "10001",
-                        "lat": 40.7128,
-                        "lon": -74.0060,
-                        "timezone": "America/New_York",
-                        "isp": "AT&T",
-                        "org": "Level 3",
-                        "as": "AT&T",
-                        "query": "123.123.123.123"
+                "QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG":{
+                    "123.123.123.123":{
+                        'location': {
+                            "status": "success",
+                            "country": "United States",
+                            "countryCode": "US",
+                            "region": "NY",
+                            "regionName": "New York",
+                            "city": "New York",
+                            "zip": "10001",
+                            "lat": 40.7128,
+                            "lon": -74.0060,
+                            "timezone": "America/New_York",
+                            "isp": "AT&T",
+                            "org": "Level 3",
+                            "as": "AT&T",
+                            "query": "123.123.123.123"
+                        },
                     },
-                    'multiaddrs': ['/ip4/123.123.123.123/tcp/41500']
-                }
-             }
+                    "multiaddrs":[
+                        "/ip4/123.123.123.123/tcp/31332"
+                    ]
+                },
+            }
+        }
+
+        Local example return:
+        {
+            "value":{
+                "12D3KooWEdfS2dGfBGJZiftYyDx2PyFPi3qxXQx57DhEoZsTgLhh":{
+                    "123.123.123.123":{
+                        "status":"fail",
+                        "message":"private range",
+                        "query":"123.123.123.123"
+                    },
+                    "multiaddrs":[
+                        "/ip4/123.123.123.123/tcp/34490"
+                    ]
+                },
+                "QmbRz8Bt1pMcVnUzVQpL2icveZz2MF7VtELC44v8kVNwiG":{
+                    "123.123.123.123":{
+                        "status":"fail",
+                        "message":"private range",
+                        "query":"123.123.123.123"
+                    },
+                    "multiaddrs":[
+                        "/ip4/123.123.123.123/tcp/31332"
+                    ]
+                },
+            }
+        }
 
 Create endpoint with NGINX for HTTPS encryption
 
@@ -274,16 +349,21 @@ async def get_peers_info(request: Request, api_key: str = Depends(get_api_key)):
     print("Peers list: ", peers_list)
 
     # 1. Build a mapping of IP -> list of peer_ids (for reverse lookup) and collect unique IPs
+    # Also track multiaddrs per peer_id
     ip_to_peer_ids = {}
+    peer_id_to_multiaddrs = {}
     all_ips = []
     for peer_info in peers_list:
+        peer_id = str(peer_info.peer_id)
+        if peer_id not in peer_id_to_multiaddrs:
+            peer_id_to_multiaddrs[peer_id] = []
+
         for addr in peer_info.addrs:
             addr_str = str(addr)
-            import re
+            peer_id_to_multiaddrs[peer_id].append(addr_str)
 
             if ip_match := re.search(r"/ip4/(\d+\.\d+\.\d+\.\d+)", addr_str):
                 ip = ip_match[1]
-                peer_id = str(peer_info.peer_id)
                 if ip not in ip_to_peer_ids:
                     ip_to_peer_ids[ip] = []
                     all_ips.append(ip)
@@ -304,7 +384,7 @@ async def get_peers_info(request: Request, api_key: str = Depends(get_api_key)):
                 ip_locations[loc["query"]] = loc
 
     print("IP locations: ", ip_locations)
-    # 3. Build the result keyed by peer_id (each peer gets their location data)
+    # 3. Build the result keyed by peer_id (each peer gets their location data and multiaddrs)
     result = {}
     for ip, location_data in ip_locations.items():
         peer_ids = ip_to_peer_ids.get(ip, [])
@@ -312,6 +392,10 @@ async def get_peers_info(request: Request, api_key: str = Depends(get_api_key)):
             if peer_id not in result:
                 result[peer_id] = {}
             result[peer_id][ip] = location_data
+
+    # Add multiaddrs to each peer's result
+    for peer_id in result:
+        result[peer_id]["multiaddrs"] = peer_id_to_multiaddrs.get(peer_id, [])
 
     print("Result: ", result)
 
