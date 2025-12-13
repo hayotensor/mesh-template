@@ -28,3 +28,4 @@ aiohttp>=3.12.13
 uvicorn>=0.34.3
 prometheus-client>=0.22.1
 slowapi>=0.1.9
+async-timeout>=4.0.2
