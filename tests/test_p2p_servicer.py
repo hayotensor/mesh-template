@@ -4,11 +4,12 @@ from typing import AsyncIterator
 import pytest
 import pytest_asyncio
 
-from mesh.p2p import P2P, P2PContext, P2PDaemonError, ServicerBase
-from mesh.proto import test_pb2
-from mesh.utils.asyncio import anext
+from subnet.p2p import P2P, P2PContext, P2PDaemonError, ServicerBase
+from subnet.proto import test_pb2
+from subnet.utils.asyncio import anext
 
 # pytest tests/test_p2p_servicer.py -rP
+
 
 @pytest_asyncio.fixture
 async def server_client():

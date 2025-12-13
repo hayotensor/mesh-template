@@ -24,14 +24,14 @@
 # SOFTWARE.
 import pytest
 
-from mesh.utils.multiaddr.exceptions import (
+from subnet.utils.multiaddr.exceptions import (
     BinaryParseError,
     ProtocolLookupError,
     ProtocolNotFoundError,
     StringParseError,
 )
-from mesh.utils.multiaddr.multiaddr import Multiaddr
-from mesh.utils.multiaddr.protocols import (
+from subnet.utils.multiaddr.multiaddr import Multiaddr
+from subnet.utils.multiaddr.protocols import (
     P_DNS,
     P_IP4,
     P_IP6,
@@ -45,6 +45,7 @@ from mesh.utils.multiaddr.protocols import (
 )
 
 # pytest tests/test_multiaddr.py -rP
+
 
 @pytest.mark.parametrize(
     "addr_str",

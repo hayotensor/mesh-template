@@ -2,15 +2,18 @@ import glob
 import json
 from typing import Any, List, Optional
 
-from mesh import PeerID
-from mesh.substrate.chain_data import SubnetNode, SubnetNodeInfo
-from mesh.substrate.chain_functions import EpochData
-from mesh.substrate.config import BLOCK_SECS
+from subnet import PeerID
+from subnet.substrate.chain_data import SubnetNode, SubnetNodeInfo
+from subnet.substrate.chain_functions import EpochData
+from subnet.substrate.config import BLOCK_SECS
 
 epoch_data_location = "tests/test_utils/epoch_json.json"
+
+
 def write_epoch_json(data: dict):
     with open(epoch_data_location, "w") as f:
         json.dump(data, f)
+
 
 def increase_progress_and_write(percentage: float):
     if not (0.0 <= percentage <= 1.0):
@@ -42,11 +45,12 @@ def increase_progress_and_write(percentage: float):
         "blocks_elapsed": blocks_elapsed,
         "blocks_remaining": blocks_remaining,
         "seconds_elapsed": seconds_elapsed,
-        "seconds_remaining": seconds_remaining
+        "seconds_remaining": seconds_remaining,
     }
 
     with open(epoch_data_location, "w") as f:
         json.dump(updated_data, f, indent=2)
+
 
 def increase_progress_and_write_with_slot(percentage: float, slot: int):
     if not (0.0 <= percentage <= 1.0):
@@ -78,11 +82,12 @@ def increase_progress_and_write_with_slot(percentage: float, slot: int):
         "blocks_elapsed": blocks_elapsed,
         "blocks_remaining": blocks_remaining,
         "seconds_elapsed": seconds_elapsed,
-        "seconds_remaining": seconds_remaining
+        "seconds_remaining": seconds_remaining,
     }
 
     with open(epoch_data_location, "w") as f:
         json.dump(updated_data, f, indent=2)
+
 
 class MockHypertensor:
     url = None
@@ -130,8 +135,8 @@ class MockHypertensor:
         with open(epoch_data_location, "r") as f:
             data = json.load(f)
 
-            current_block = data['block']
-            epoch_length = data['block_per_epoch']
+            current_block = data["block"]
+            epoch_length = data["block_per_epoch"]
 
             if current_block < slot:
                 return EpochData.zero(current_block=current_block, epoch_length=epoch_length)
@@ -153,7 +158,7 @@ class MockHypertensor:
             blocks_elapsed=blocks_elapsed,
             blocks_remaining=blocks_remaining,
             seconds_elapsed=seconds_elapsed,
-            seconds_remaining=seconds_remaining
+            seconds_remaining=seconds_remaining,
         )
 
     def get_rewards_validator(self, subnet_id: int, epoch: int):
@@ -168,11 +173,7 @@ class MockHypertensor:
     ):
         return
 
-    def attest(
-        self,
-        subnet_id: int,
-        data: Optional[List[Any]] = None
-    ):
+    def attest(self, subnet_id: int, data: Optional[List[Any]] = None):
         return
 
     def get_elected_validator_node_formatted(self, subnet_id: int, epoch: int) -> Optional["SubnetNode"]:
@@ -204,7 +205,7 @@ class MockHypertensor:
             a=None,
             b=None,
             c=None,
-            stake_balance=10000000000000
+            stake_balance=10000000000000,
         )
 
     def get_consensus_data(self, subnet_id: int, epoch: int):
@@ -212,10 +213,7 @@ class MockHypertensor:
         for identity_path in glob.glob("rsa_test_path*.key"):
             with open(identity_path, "rb") as f:
                 peer_id = PeerID.from_identity_rsa(f.read())
-                node = {
-                    'peer_id': peer_id,
-                    'score': 1e18
-                }
+                node = {"peer_id": peer_id, "score": 1e18}
                 consensus_data.append(node)
 
         return consensus_data
@@ -226,19 +224,21 @@ class MockHypertensor:
         for identity_path in glob.glob("rsa_test_path*.key"):
             with open(identity_path, "rb") as f:
                 peer_id = PeerID.from_identity_rsa(f.read())
-                subnet_nodes.append(SubnetNode(
-                    id=id,
-                    hotkey=f"0x1234567890abcdef1234567890abcdef1234567{id}",
-                    peer_id=peer_id,
-                    bootstrap_peer_id=peer_id,
-                    client_peer_id=peer_id,
-                    classification="Validator",
-                    delegate_reward_rate=0,
-                    last_delegate_reward_rate_update=0,
-                    a=None,
-                    b=None,
-                    c=None,
-                ))
+                subnet_nodes.append(
+                    SubnetNode(
+                        id=id,
+                        hotkey=f"0x1234567890abcdef1234567890abcdef1234567{id}",
+                        peer_id=peer_id,
+                        bootstrap_peer_id=peer_id,
+                        client_peer_id=peer_id,
+                        classification="Validator",
+                        delegate_reward_rate=0,
+                        last_delegate_reward_rate_update=0,
+                        a=None,
+                        b=None,
+                        c=None,
+                    )
+                )
                 id += 1
 
         return subnet_nodes

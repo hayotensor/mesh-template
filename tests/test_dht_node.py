@@ -6,10 +6,10 @@ from itertools import product
 import numpy as np
 import pytest
 
-import mesh
-from mesh import get_dht_time
-from mesh.dht.node import DHTID, DHTNode
-from mesh.utils.logging import get_logger
+import subnet
+from subnet import get_dht_time
+from subnet.dht.node import DHTID, DHTNode
+from subnet.utils.logging import get_logger
 
 from test_utils.dht_swarms import launch_star_shaped_swarm, launch_swarm_in_separate_processes
 
@@ -19,6 +19,7 @@ logger = get_logger(__name__)
 # this helps us avoid undesirable gRPC side-effects (e.g. segfaults) when running multiple tests in sequence
 
 # pytest tests/test_dht_node.py::test_dht_node -rP
+
 
 @pytest.mark.forked
 @pytest.mark.asyncio
@@ -157,7 +158,7 @@ async def test_dht_node(
 
     for proc in processes:
         proc.terminate()
-    # The nodes don't own their mesh.p2p.P2P instances, so we shutdown them separately
+    # The nodes don't own their subnet.p2p.P2P instances, so we shutdown them separately
     await asyncio.gather(me.shutdown(), that_guy.shutdown(), detached_node.shutdown())
 
 
@@ -194,9 +195,9 @@ async def test_dhtnode_caching(T=0.05):
         client_mode=True,
         reuse_get_requests=False,
     )
-    await node2.store("k", [123, "value"], expiration_time=mesh.get_dht_time() + 7 * T)
-    await node2.store("k2", [654, "value"], expiration_time=mesh.get_dht_time() + 7 * T)
-    await node2.store("k3", [654, "value"], expiration_time=mesh.get_dht_time() + 15 * T)
+    await node2.store("k", [123, "value"], expiration_time=subnet.get_dht_time() + 7 * T)
+    await node2.store("k2", [654, "value"], expiration_time=subnet.get_dht_time() + 7 * T)
+    await node2.store("k3", [654, "value"], expiration_time=subnet.get_dht_time() + 15 * T)
     await node1.get_many(["k", "k2", "k3", "k4"])
     assert len(node1.protocol.cache) == 3
     assert len(node1.cache_refresh_queue) == 0
@@ -204,7 +205,7 @@ async def test_dhtnode_caching(T=0.05):
     await node1.get_many(["k", "k2", "k3", "k4"])
     assert len(node1.cache_refresh_queue) == 3
 
-    await node2.store("k", [123, "value"], expiration_time=mesh.get_dht_time() + 12 * T)
+    await node2.store("k", [123, "value"], expiration_time=subnet.get_dht_time() + 12 * T)
     await asyncio.sleep(4 * T)
     await node1.get("k")
     await asyncio.sleep(1 * T)
@@ -220,7 +221,7 @@ async def test_dhtnode_caching(T=0.05):
     await asyncio.sleep(5 * T)
     assert len(node1.cache_refresh_queue) == 0
 
-    await node2.store("k", [123, "value"], expiration_time=mesh.get_dht_time() + 10 * T)
+    await node2.store("k", [123, "value"], expiration_time=subnet.get_dht_time() + 10 * T)
     await node1.get("k")
     await asyncio.sleep(1 * T)
     assert len(node1.cache_refresh_queue) == 0
@@ -233,7 +234,9 @@ async def test_dhtnode_caching(T=0.05):
 
     await asyncio.gather(node1.shutdown(), node2.shutdown())
 
+
 # pytest tests/test_dht_node.py::test_dhtnode_reuse_get -rP
+
 
 @pytest.mark.forked
 @pytest.mark.asyncio
@@ -241,8 +244,8 @@ async def test_dhtnode_reuse_get():
     peers = await launch_star_shaped_swarm(n_peers=10, parallel_rpc=256)
 
     await asyncio.gather(
-        random.choice(peers).store("k1", 123, mesh.get_dht_time() + 999),
-        random.choice(peers).store("k2", 567, mesh.get_dht_time() + 999),
+        random.choice(peers).store("k1", 123, subnet.get_dht_time() + 999),
+        random.choice(peers).store("k2", 567, subnet.get_dht_time() + 999),
     )
 
     you = random.choice(peers)
@@ -272,12 +275,12 @@ async def test_dhtnode_blacklist():
     node1, node2, node3, node4 = await launch_star_shaped_swarm(n_peers=4, blacklist_time=999)
 
     node2.blacklist.clear()
-    assert await node2.store("abc", 123, expiration_time=mesh.get_dht_time() + 99)
+    assert await node2.store("abc", 123, expiration_time=subnet.get_dht_time() + 99)
     assert len(node2.blacklist.ban_counter) == 0
 
     await asyncio.gather(node3.shutdown(), node4.shutdown())
 
-    assert await node2.store("def", 456, expiration_time=mesh.get_dht_time() + 99)
+    assert await node2.store("def", 456, expiration_time=subnet.get_dht_time() + 99)
 
     assert set(node2.blacklist.ban_counter.keys()) == {node3.peer_id, node4.peer_id}
 
@@ -300,7 +303,7 @@ async def test_dhtnode_edge_cases():
     values = subkeys + [[]]
     for key, subkey, value in product(keys, subkeys, values):
         await random.choice(peers).store(
-            key=key, subkey=subkey, value=value, expiration_time=mesh.get_dht_time() + 999
+            key=key, subkey=subkey, value=value, expiration_time=subnet.get_dht_time() + 999
         )
 
         stored = await random.choice(peers).get(key=key, latest=True)

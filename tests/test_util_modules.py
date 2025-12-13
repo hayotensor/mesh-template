@@ -10,11 +10,11 @@ import numpy as np
 import pytest
 import torch
 
-import mesh
-from mesh.compression import deserialize_torch_tensor, serialize_torch_tensor
-from mesh.proto.runtime_pb2 import CompressionType
-from mesh.utils import BatchTensorDescriptor, DHTExpiration, HeapEntry, MSGPackSerializer, ValueWithExpiration
-from mesh.utils.asyncio import (
+import subnet
+from subnet.compression import deserialize_torch_tensor, serialize_torch_tensor
+from subnet.proto.runtime_pb2 import CompressionType
+from subnet.utils import BatchTensorDescriptor, DHTExpiration, HeapEntry, MSGPackSerializer, ValueWithExpiration
+from subnet.utils.asyncio import (
     achain,
     aenumerate,
     aiter_with_timeout,
@@ -27,15 +27,15 @@ from mesh.utils.asyncio import (
     cancel_and_wait,
     enter_asynchronously,
 )
-from mesh.utils.mpfuture import InvalidStateError
-from mesh.utils.performance_ema import PerformanceEMA
+from subnet.utils.mpfuture import InvalidStateError
+from subnet.utils.performance_ema import PerformanceEMA
 
 # pytest tests/test_util_modules.py -rP
 
 
 @pytest.mark.forked
 def test_mpfuture_result():
-    future = mesh.MPFuture()
+    future = subnet.MPFuture()
 
     def _proc(future):
         with pytest.raises(RuntimeError):
@@ -52,7 +52,7 @@ def test_mpfuture_result():
     assert future.cancel() is False
     assert future.done() and not future.running() and not future.cancelled()
 
-    future = mesh.MPFuture()
+    future = subnet.MPFuture()
     with pytest.raises(concurrent.futures.TimeoutError):
         future.result(timeout=1e-3)
 
@@ -62,7 +62,7 @@ def test_mpfuture_result():
 
 @pytest.mark.forked
 def test_mpfuture_exception():
-    future = mesh.MPFuture()
+    future = subnet.MPFuture()
     with pytest.raises(concurrent.futures.TimeoutError):
         future.exception(timeout=1e-3)
 
@@ -82,7 +82,7 @@ def test_mpfuture_exception():
 
 @pytest.mark.forked
 def test_mpfuture_cancel():
-    future = mesh.MPFuture()
+    future = subnet.MPFuture()
     assert not future.cancelled()
     future.cancel()
     evt = mp.Event()
@@ -108,7 +108,7 @@ def test_mpfuture_cancel():
 @pytest.mark.forked
 def test_mpfuture_status():
     evt = mp.Event()
-    future = mesh.MPFuture()
+    future = subnet.MPFuture()
 
     def _proc1(future):
         assert future.set_running_or_notify_cancel() is True
@@ -124,7 +124,7 @@ def test_mpfuture_status():
     with pytest.raises(InvalidStateError):
         future.set_running_or_notify_cancel()
 
-    future = mesh.MPFuture()
+    future = subnet.MPFuture()
     assert future.cancel()
 
     def _proc2(future):
@@ -137,7 +137,7 @@ def test_mpfuture_status():
     p.join()
     evt.set()
 
-    future2 = mesh.MPFuture()
+    future2 = subnet.MPFuture()
     future2.cancel()
     assert future2.set_running_or_notify_cancel() is False
 
@@ -145,7 +145,7 @@ def test_mpfuture_status():
 @pytest.mark.asyncio
 async def test_await_mpfuture():
     # await result from the same process, but a different coroutine
-    f1, f2 = mesh.MPFuture(), mesh.MPFuture()
+    f1, f2 = subnet.MPFuture(), subnet.MPFuture()
 
     async def wait_and_assign_async():
         assert f2.set_running_or_notify_cancel() is True
@@ -158,7 +158,7 @@ async def test_await_mpfuture():
     assert (await asyncio.gather(f1, f2)) == [(123, "ololo"), (456, "pyshpysh")]
 
     # await result from separate processes
-    f1, f2 = mesh.MPFuture(), mesh.MPFuture()
+    f1, f2 = subnet.MPFuture(), subnet.MPFuture()
 
     def wait_and_assign(future, value):
         time.sleep(0.1 * random.random())
@@ -174,7 +174,7 @@ async def test_await_mpfuture():
         p.join()
 
     # await cancel
-    f1, f2 = mesh.MPFuture(), mesh.MPFuture()
+    f1, f2 = subnet.MPFuture(), subnet.MPFuture()
 
     def wait_and_cancel():
         time.sleep(0.01)
@@ -192,7 +192,7 @@ async def test_await_mpfuture():
     p.join()
 
     # await exception
-    f1, f2 = mesh.MPFuture(), mesh.MPFuture()
+    f1, f2 = subnet.MPFuture(), subnet.MPFuture()
 
     def wait_and_raise():
         time.sleep(0.01)
@@ -213,10 +213,10 @@ async def test_await_mpfuture():
 @pytest.mark.forked
 def test_mpfuture_bidirectional():
     evt = mp.Event()
-    future_from_main = mesh.MPFuture()
+    future_from_main = subnet.MPFuture()
 
     def _future_creator():
-        future_from_fork = mesh.MPFuture()
+        future_from_fork = subnet.MPFuture()
         future_from_main.set_result(("abc", future_from_fork))
 
         if future_from_fork.result() == ["we", "need", "to", "go", "deeper"]:
@@ -226,7 +226,7 @@ def test_mpfuture_bidirectional():
     p.start()
 
     out = future_from_main.result()
-    assert isinstance(out[1], mesh.MPFuture)
+    assert isinstance(out[1], subnet.MPFuture)
     out[1].set_result(["we", "need", "to", "go", "deeper"])
 
     p.join()
@@ -239,7 +239,7 @@ def test_mpfuture_done_callback():
     events = [mp.Event() for _ in range(7)]
 
     def _future_creator():
-        future1, future2, future3 = mesh.MPFuture(), mesh.MPFuture(), mesh.MPFuture()
+        future1, future2, future3 = subnet.MPFuture(), subnet.MPFuture(), subnet.MPFuture()
 
         def _check_result_and_set(future):
             assert future.done()
@@ -285,12 +285,12 @@ def test_mpfuture_done_callback():
 def test_many_futures():
     evt = mp.Event()
     receiver, sender = mp.Pipe()
-    main_futures = [mesh.MPFuture() for _ in range(1000)]
-    assert len(mesh.MPFuture._active_futures) == 1000
+    main_futures = [subnet.MPFuture() for _ in range(1000)]
+    assert len(subnet.MPFuture._active_futures) == 1000
 
     def _run_peer():
-        fork_futures = [mesh.MPFuture() for _ in range(500)]
-        assert len(mesh.MPFuture._active_futures) == 500
+        fork_futures = [subnet.MPFuture() for _ in range(500)]
+        assert len(subnet.MPFuture._active_futures) == 500
 
         for i, future in enumerate(random.sample(main_futures, 300)):
             if random.random() < 0.5:
@@ -304,11 +304,11 @@ def test_many_futures():
 
         evt.wait()
 
-        assert len(mesh.MPFuture._active_futures) == 200
+        assert len(subnet.MPFuture._active_futures) == 200
         for future in fork_futures:
             if not future.done():
                 future.set_result(123)
-        assert len(mesh.MPFuture._active_futures) == 0
+        assert len(subnet.MPFuture._active_futures) == 0
 
     p = mp.Process(target=_run_peer)
     p.start()
@@ -316,7 +316,7 @@ def test_many_futures():
     some_fork_futures = receiver.recv()
 
     time.sleep(0.1)  # giving enough time for the futures to be destroyed
-    assert len(mesh.MPFuture._active_futures) == 700
+    assert len(subnet.MPFuture._active_futures) == 700
 
     for future in some_fork_futures:
         future.set_running_or_notify_cancel()
@@ -327,7 +327,7 @@ def test_many_futures():
     for future in main_futures:
         future.cancel()
     time.sleep(0.1)  # giving enough time for the futures to be destroyed
-    assert len(mesh.MPFuture._active_futures) == 0
+    assert len(subnet.MPFuture._active_futures) == 0
     p.join()
 
 
@@ -348,35 +348,35 @@ def test_serialize_tuple():
 def test_split_parts():
     tensor = torch.randn(910, 512)
     serialized_tensor_part = serialize_torch_tensor(tensor, allow_inplace=False)
-    chunks1 = list(mesh.utils.split_for_streaming(serialized_tensor_part, 16384))
+    chunks1 = list(subnet.utils.split_for_streaming(serialized_tensor_part, 16384))
     assert len(chunks1) == int(np.ceil(tensor.numel() * tensor.element_size() / 16384))
 
-    chunks2 = list(mesh.utils.split_for_streaming(serialized_tensor_part, 10_000))
+    chunks2 = list(subnet.utils.split_for_streaming(serialized_tensor_part, 10_000))
     assert len(chunks2) == int(np.ceil(tensor.numel() * tensor.element_size() / 10_000))
 
-    chunks3 = list(mesh.utils.split_for_streaming(serialized_tensor_part, 10**9))
+    chunks3 = list(subnet.utils.split_for_streaming(serialized_tensor_part, 10**9))
     assert len(chunks3) == 1
 
     compressed_tensor_part = serialize_torch_tensor(tensor, CompressionType.FLOAT16, allow_inplace=False)
-    chunks4 = list(mesh.utils.split_for_streaming(compressed_tensor_part, 16384))
+    chunks4 = list(subnet.utils.split_for_streaming(compressed_tensor_part, 16384))
     assert len(chunks4) == int(np.ceil(tensor.numel() * 2 / 16384))
 
-    combined1 = mesh.utils.combine_from_streaming(chunks1)
-    combined2 = mesh.utils.combine_from_streaming(iter(chunks2))
-    combined3 = mesh.utils.combine_from_streaming(chunks3)
-    combined4 = mesh.utils.combine_from_streaming(chunks4)
+    combined1 = subnet.utils.combine_from_streaming(chunks1)
+    combined2 = subnet.utils.combine_from_streaming(iter(chunks2))
+    combined3 = subnet.utils.combine_from_streaming(chunks3)
+    combined4 = subnet.utils.combine_from_streaming(chunks4)
     for combined in combined1, combined2, combined3:
         assert torch.allclose(tensor, deserialize_torch_tensor(combined), rtol=1e-5, atol=1e-8)
 
     assert torch.allclose(tensor, deserialize_torch_tensor(combined4), rtol=1e-3, atol=1e-3)
 
-    combined_incomplete = mesh.utils.combine_from_streaming(chunks4[:5])
-    combined_incomplete2 = mesh.utils.combine_from_streaming(chunks4[:1])
-    combined_incomplete3 = mesh.utils.combine_from_streaming(chunks4[:-1])
+    combined_incomplete = subnet.utils.combine_from_streaming(chunks4[:5])
+    combined_incomplete2 = subnet.utils.combine_from_streaming(chunks4[:1])
+    combined_incomplete3 = subnet.utils.combine_from_streaming(chunks4[:-1])
     for combined in combined_incomplete, combined_incomplete2, combined_incomplete3:
         with pytest.raises(RuntimeError):
             deserialize_torch_tensor(combined)
-            # note: we rely on this being RuntimeError in mesh.averaging.allreduce.AllReduceRunner
+            # note: we rely on this being RuntimeError in subnet.averaging.allreduce.AllReduceRunner
 
 
 def test_generic_data_classes():

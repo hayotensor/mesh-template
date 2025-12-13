@@ -3,8 +3,8 @@ import operator
 import random
 from itertools import chain, zip_longest
 
-from mesh.dht.routing import DHTID, RoutingTable
-from mesh.utils.networking import LOCALHOST
+from subnet.dht.routing import DHTID, RoutingTable
+from subnet.utils.networking import LOCALHOST
 
 # pytest tests/test_routing.py -rP
 

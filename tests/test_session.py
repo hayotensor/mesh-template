@@ -3,20 +3,20 @@ from typing import List
 
 import pytest
 
-from mesh import get_dht_time
-from mesh.dht.crypto import SignatureValidator
-from mesh.subnet.client.config import ClientConfig
-from mesh.subnet.client.routing.routing_manager import RemoteManager
-from mesh.subnet.client.session import Session
-from mesh.subnet.protocols.mock_protocol import MockProtocol
-from mesh.utils.data_structures import QuantType, ServerClass, ServerInfo, ServerState
-from mesh.utils.dht import declare_node_sig
-from mesh.utils.key import (
+from subnet import get_dht_time
+from subnet.app.client.config import ClientConfig
+from subnet.app.client.routing.routing_manager import RemoteManager
+from subnet.app.client.session import Session
+from subnet.app.protocols.mock_protocol import MockProtocol
+from subnet.dht.crypto import SignatureValidator
+from subnet.utils.data_structures import QuantType, ServerClass, ServerInfo, ServerState
+from subnet.utils.dht import declare_node_sig
+from subnet.utils.key import (
     generate_rsa_private_key_file,
     get_rsa_peer_id,
     get_rsa_private_key,
 )
-from mesh.utils.logging import get_logger
+from subnet.utils.logging import get_logger
 
 from test_utils.dht_swarms import (
     launch_dht_instances_with_record_validators,
@@ -33,6 +33,7 @@ NOT COMPLETE
 # pytest tests/test_session.py::test_mock_session -rP
 # pytest tests/test_session.py::test_mock_session --log-cli-level=DEBUG
 
+
 @pytest.mark.forked
 @pytest.mark.asyncio
 async def test_mock_session():
@@ -43,7 +44,9 @@ async def test_mock_session():
     for i in range(peers_len):
         test_path = f"rsa_test_path_{i}.key"
         test_paths.append(test_path)
-        private_key, public_key, public_bytes, encoded_public_key, encoded_digest, peer_id = generate_rsa_private_key_file(test_path)
+        private_key, public_key, public_bytes, encoded_public_key, encoded_digest, peer_id = (
+            generate_rsa_private_key_file(test_path)
+        )
         loaded_key = get_rsa_private_key(test_path)
         record_validator = SignatureValidator(loaded_key)
         record_validators.append(record_validator)
@@ -76,14 +79,10 @@ async def test_mock_session():
         key="node",
         server_info=server_info,
         expiration_time=get_dht_time() + 999,
-        record_validator=hoster_record_validator
+        record_validator=hoster_record_validator,
     )
 
-    hoster_inference_protocol = MockProtocol(
-        dht=hoster_dht,
-        subnet_id=1,
-        start=True
-    )
+    hoster_inference_protocol = MockProtocol(dht=hoster_dht, subnet_id=1, start=True)
 
     config = ClientConfig()
     config.initial_peers = hoster_dht.get_visible_maddrs()

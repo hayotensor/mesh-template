@@ -87,10 +87,10 @@ debian/files
 *.debhelper.log
 
 # protobuf stuff
-mesh/proto/*_pb2*
+subnet/proto/*_pb2*
 
 # libp2p-daemon binary
-mesh/mesh_cli/p2pd
+subnet/subnet_cli/p2pd
 
 # private keys
 *.key

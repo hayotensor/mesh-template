@@ -3,15 +3,16 @@ from typing import Optional
 
 import pytest
 
-from mesh.proto import dht_pb2
-from mesh.proto.auth_pb2 import AccessToken
-from mesh.utils.authorizers.auth import AuthRole, AuthRPCWrapper, SignatureAuthorizer
-from mesh.utils.crypto import Ed25519PrivateKey, RSAPrivateKey
-from mesh.utils.logging import get_logger
+from subnet.proto import dht_pb2
+from subnet.proto.auth_pb2 import AccessToken
+from subnet.utils.authorizers.auth import AuthRole, AuthRPCWrapper, SignatureAuthorizer
+from subnet.utils.crypto import Ed25519PrivateKey, RSAPrivateKey
+from subnet.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 # pytest tests/test_auth_rsa.py -rP
+
 
 class MockAuthorizer(SignatureAuthorizer):
     _authority_private_key = None
@@ -84,7 +85,9 @@ class MockAuthorizer(SignatureAuthorizer):
     def _token_to_bytes(access_token: AccessToken) -> bytes:
         return f"{access_token.username} {access_token.public_key} {access_token.expiration_time}".encode()
 
+
 # pytest tests/test_auth.py::test_valid_request_and_response -rP
+
 
 @pytest.mark.asyncio
 async def test_valid_request_and_response():
@@ -101,7 +104,9 @@ async def test_valid_request_and_response():
     await service_authorizer.sign_response(response, request)
     assert await client_authorizer.validate_response(response, request)
 
+
 # pytest tests/test_auth.py::test_invalid_access_token -rP
+
 
 @pytest.mark.asyncio
 async def test_invalid_access_token():
@@ -126,7 +131,9 @@ async def test_invalid_access_token():
 
     assert not await client_authorizer.validate_response(response, request)
 
+
 # pytest tests/test_auth.py::test_invalid_signatures -rP
+
 
 @pytest.mark.asyncio
 async def test_invalid_signatures():
@@ -151,7 +158,9 @@ async def test_invalid_signatures():
 
     assert not await client_authorizer.validate_response(response, request)
 
+
 # pytest tests/test_auth.py::test_auth_rpc_wrapper -rP
+
 
 @pytest.mark.asyncio
 async def test_auth_rpc_wrapper():

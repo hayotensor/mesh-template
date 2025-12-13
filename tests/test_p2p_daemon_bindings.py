@@ -6,9 +6,9 @@ import pytest
 import pytest_asyncio
 from google.protobuf.message import EncodeError
 
-from mesh.p2p.p2p_daemon_bindings.control import ControlClient, DaemonConnector, parse_conn_protocol
-from mesh.p2p.p2p_daemon_bindings.datastructures import PeerID, PeerInfo, StreamInfo
-from mesh.p2p.p2p_daemon_bindings.utils import (
+from subnet.p2p.p2p_daemon_bindings.control import ControlClient, DaemonConnector, parse_conn_protocol
+from subnet.p2p.p2p_daemon_bindings.datastructures import PeerID, PeerInfo, StreamInfo
+from subnet.p2p.p2p_daemon_bindings.utils import (
     ControlFailure,
     raise_if_failed,
     read_pbmsg_safe,
@@ -16,12 +16,13 @@ from mesh.p2p.p2p_daemon_bindings.utils import (
     write_pbmsg,
     write_unsigned_varint,
 )
-from mesh.proto import p2pd_pb2 as p2pd_pb
-from mesh.utils.multiaddr import Multiaddr, protocols
+from subnet.proto import p2pd_pb2 as p2pd_pb
+from subnet.utils.multiaddr import Multiaddr, protocols
 
 from test_utils.p2p_daemon import connect_safe, make_p2pd_pair_unix
 
 # pytest tests/test_p2p_daemon_bindings.py -rP
+
 
 def test_raise_if_failed_raises():
     resp = p2pd_pb.Response()

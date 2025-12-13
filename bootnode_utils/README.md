@@ -19,6 +19,7 @@ Each request requires a valid API key. API keys are managed locally and stored i
 `active` – Boolean flag indicating whether the key is enabled
 
 ##### Example
+
 ```bash
 [
   { "owner": "party1", "key": "key-party1-abc123", "active": true },
@@ -36,19 +37,23 @@ Keys can be manually added to the JSON file or by using the following CLI comman
 Generates a new key for the given owner (unless one already exists):
 
 ```bash
-mesh-add-api-key --owner <owner_name>
+subnet-add-api-key --owner <owner_name>
 ```
+
 #### Deactivate an API key
 
 Mark an owner's key as inactive without removing it:
+
 ```bash
-mesh-add-api-key --owner <owner_name> --inactive
+subnet-add-api-key --owner <owner_name> --inactive
 ```
+
 #### Reactivate an API key
 
 Restore access for an owner's key:
+
 ```bash
-mesh-add-api-key --owner <owner_name>
+subnet-add-api-key --owner <owner_name>
 ```
 
 ## Notes

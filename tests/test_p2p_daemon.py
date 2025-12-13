@@ -10,14 +10,15 @@ from typing import List
 import numpy as np
 import pytest
 
-from mesh.p2p import P2P, P2PDaemonError, P2PHandlerError
-from mesh.proto import dht_pb2, test_pb2
-from mesh.utils.multiaddr import Multiaddr
-from mesh.utils.serializer import MSGPackSerializer
+from subnet.p2p import P2P, P2PDaemonError, P2PHandlerError
+from subnet.proto import dht_pb2, test_pb2
+from subnet.utils.multiaddr import Multiaddr
+from subnet.utils.serializer import MSGPackSerializer
 
 from test_utils.networking import get_free_port
 
 # pytest tests/test_p2p_daemon.py -rP
+
 
 def is_process_running(pid: int) -> bool:
     return subprocess.run(["ps", "-p", str(pid)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0

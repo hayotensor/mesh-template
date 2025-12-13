@@ -8,11 +8,11 @@ from typing import Tuple
 import numpy as np
 from tqdm import trange
 
-import mesh
-from mesh.utils.limits import increase_file_limit
-from mesh.utils.logging import get_logger, use_mesh_log_handler
+import subnet
+from subnet.utils.limits import increase_file_limit
+from subnet.utils.logging import get_logger, use_subnet_log_handler
 
-use_mesh_log_handler("in_root_logger")
+use_subnet_log_handler("in_root_logger")
 logger = get_logger(__name__)
 
 
@@ -71,7 +71,7 @@ async def store_and_get_task(
                 key,
                 subkey=subkey,
                 value=store_values[subkey],
-                expiration_time=mesh.get_dht_time() + expiration,
+                expiration_time=subnet.get_dht_time() + expiration,
                 return_future=True,
             )
             for peer, subkey in zip(store_peers, store_subkeys)
@@ -135,7 +135,7 @@ async def benchmark_dht(
         neighbors = sum(
             [peer.get_visible_maddrs() for peer in random.sample(peers, min(initial_peers, len(peers)))], []
         )
-        peer = mesh.DHT(initial_peers=neighbors, start=True, wait_timeout=wait_timeout)
+        peer = subnet.DHT(initial_peers=neighbors, start=True, wait_timeout=wait_timeout)
         peers.append(peer)
 
     benchmark_started = time.perf_counter()

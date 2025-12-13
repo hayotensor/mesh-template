@@ -38,17 +38,20 @@ def sha256(path):
     with open(path, "rb") as f:
         return hashlib.sha256(f.read()).hexdigest()
 
+
 def proto_compile(output_path):
     from grpc_tools import protoc
 
-    proto_path = os.path.join(here, "mesh", "proto")
+    proto_path = os.path.join(here, "subnet", "proto")
     proto_files = glob.glob(os.path.join(proto_path, "*.proto"))
-    result = protoc.main([
-        "grpc_tools.protoc",
-        f"--proto_path={proto_path}",
-        f"--python_out={output_path}",
-        *proto_files,
-    ])
+    result = protoc.main(
+        [
+            "grpc_tools.protoc",
+            f"--proto_path={proto_path}",
+            f"--python_out={output_path}",
+            *proto_files,
+        ]
+    )
     if result != 0:
         raise RuntimeError(f"protoc failed with exit code {result}")
 
@@ -80,7 +83,7 @@ def build_p2p_daemon():
             tar.extractall(tempdir)
 
         result = subprocess.run(
-            ["go", "build", "-o", os.path.join(here, "mesh", "mesh_cli", "p2pd")],
+            ["go", "build", "-o", os.path.join(here, "subnet", "subnet_cli", "p2pd")],
             cwd=os.path.join(tempdir, f"go-libp2p-daemon-{P2PD_VERSION.lstrip('v')}", "p2pd"),
         )
         if result.returncode != 0:
@@ -88,7 +91,7 @@ def build_p2p_daemon():
 
 
 def download_p2p_daemon():
-    binary_path = os.path.join(here, "mesh", "mesh_cli", "p2pd")
+    binary_path = os.path.join(here, "subnet", "subnet_cli", "p2pd")
     arch = platform.machine()
     # An architecture name may vary depending on the OS (e.g., the same CPU is arm64 on macOS and aarch64 on Linux).
     # We consider multiple aliases here, see https://stackoverflow.com/questions/45125516/possible-values-for-uname-m
@@ -100,8 +103,8 @@ def download_p2p_daemon():
 
     if binary_name not in P2P_BINARY_HASH:
         raise RuntimeError(
-            f"mesh does not provide a precompiled p2pd binary for {platform.system()} ({arch}). "
-            f"Please install Go and build it from source: https://github.com/hypertensor-blockchain/mesh#from-source"
+            f"subnet does not provide a precompiled p2pd binary for {platform.system()} ({arch}). "
+            f"Please install Go and build it from source: https://github.com/hypertensor-blockchain/subnet-template#from-source"
         )
     expected_hash = P2P_BINARY_HASH[binary_name]
 
@@ -134,7 +137,7 @@ class BuildPy(build_py):
 
         super().run()
         print("Compiling proto files")
-        proto_output_path = os.path.join(self.build_lib, "mesh", "proto")
+        proto_output_path = os.path.join(self.build_lib, "subnet", "proto")
         os.makedirs(proto_output_path, exist_ok=True)
         proto_compile(proto_output_path)
 
@@ -149,7 +152,7 @@ class Develop(develop):
         # Also compile proto files directly for editable installs
         # This ensures they're compiled even if build_py doesn't run as expected
         print("Compiling proto files for editable install")
-        proto_output_path = os.path.join(here, "mesh", "proto")
+        proto_output_path = os.path.join(here, "subnet", "proto")
         os.makedirs(proto_output_path, exist_ok=True)
         proto_compile(proto_output_path)
 
@@ -159,9 +162,10 @@ class Develop(develop):
 class EggInfo(egg_info):
     """Custom egg_info command that compiles proto files.
     This is called even with PEP 517 editable installs."""
+
     def run(self):
         print("EGG_INFO: Compiling proto files")
-        proto_output_path = os.path.join(here, "mesh", "proto")
+        proto_output_path = os.path.join(here, "subnet", "proto")
         os.makedirs(proto_output_path, exist_ok=True)
         proto_compile(proto_output_path)
 
@@ -172,7 +176,7 @@ with open("requirements.txt") as requirements_file:
     install_requires = list(map(str, parse_requirements(requirements_file)))
 
 # loading version from setup.py
-with codecs.open(os.path.join(here, "mesh/__init__.py"), encoding="utf-8") as init_file:
+with codecs.open(os.path.join(here, "subnet/__init__.py"), encoding="utf-8") as init_file:
     version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", init_file.read(), re.MULTILINE)
     version_string = version_match.group(1)
 
@@ -189,16 +193,16 @@ extras["bitsandbytes"] = ["bitsandbytes~=0.45.2"]
 extras["all"] = extras["dev"] + extras["docs"] + extras["bitsandbytes"]
 
 setup(
-    name="mesh",
+    name="subnet",
     version=version_string,
     cmdclass={"build_py": BuildPy, "develop": Develop, "egg_info": EggInfo},
     description="Decentralized Artificial Intelligence App Template",
     long_description="Decentralized Artificial Intelligence App Template for building on top of Hypertensor.",
     author="Learning@home & contributors",
-    author_email="mesh-team@hotmail.com",
-    url="https://github.com/hypertensor-protocol/mesh",
+    author_email="subnet-team@hotmail.com",
+    url="https://github.com/hypertensor-protocol/subnet-template",
     packages=find_packages(exclude=["tests"]),
-    package_data={"mesh": ["proto/*", "mesh_cli/*", "bootnode_utils/*.json"]},
+    package_data={"subnet": ["proto/*", "subnet_cli/*", "bootnode_utils/*.json"]},
     include_package_data=True,
     license="MIT",
     setup_requires=["grpcio-tools"],
@@ -223,25 +227,25 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "mesh-dht = mesh.mesh_cli.run_dht:main",
-            "mesh-dht-api = mesh.mesh_cli.run_dht_api:main",
-            "mesh-server = mesh.mesh_cli.run_server:main",
-            "mesh-server-mock = mesh.mesh_cli.run_server_mock:main",
+            "subnet-dht = subnet.subnet_cli.run_dht:main",
+            "subnet-dht-api = subnet.subnet_cli.run_dht_api:main",
+            "subnet-server = subnet.subnet_cli.run_server:main",
+            "subnet-server-mock = subnet.subnet_cli.run_server_mock:main",
             # DHT Bootnode API
-            "mesh-add-api-key = mesh.mesh_cli.api.add_key:main",
+            "subnet-add-api-key = subnet.subnet_cli.api.add_key:main",
             # generate in-subnet private key for peer identity
-            "keygen = mesh.mesh_cli.crypto.keygen:main",
+            "keygen = subnet.subnet_cli.crypto.keygen:main",
             # generate coldkey or hotkey
-            "generate-key = mesh.mesh_cli.hypertensor.keys.generate_key:main",
+            "generate-key = subnet.subnet_cli.hypertensor.keys.generate_key:main",
             # view peer ID from private key
-            "keyview = mesh.mesh_cli.crypto.keyview:main",
+            "keyview = subnet.subnet_cli.crypto.keyview:main",
             # hypertensor subnet
-            "register-subnet = mesh.mesh_cli.hypertensor.subnet.register:main",
-            "activate-subnet = mesh.mesh_cli.hypertensor.subnet.activate:main",
+            "register-subnet = subnet.subnet_cli.hypertensor.subnet.register:main",
+            "activate-subnet = subnet.subnet_cli.hypertensor.subnet.activate:main",
             # hypertensor node
-            "register-node = mesh.mesh_cli.hypertensor.node.register:main",
-            "activate-node = mesh.mesh_cli.hypertensor.node.activate:main",
-            "register-activate-node = mesh.mesh_cli.hypertensor.node.register_activate:main",
+            "register-node = subnet.subnet_cli.hypertensor.node.register:main",
+            "activate-node = subnet.subnet_cli.hypertensor.node.activate:main",
+            "register-activate-node = subnet.subnet_cli.hypertensor.node.register_activate:main",
         ]
     },
     # What does your project relate to?

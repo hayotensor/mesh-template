@@ -5,18 +5,19 @@ import pytest
 import pytest_asyncio
 from pydantic.v1 import BaseModel, StrictInt, conint
 
-import mesh
-from mesh.dht.node import DHTNode
-from mesh.dht.schema import BytesWithPublicKey, SchemaValidator
-from mesh.dht.validation import DHTRecord, DHTRecordRequestType, RecordValidatorBase
-from mesh.utils.timed_storage import get_dht_time
+import subnet
+from subnet.dht.node import DHTNode
+from subnet.dht.schema import BytesWithPublicKey, SchemaValidator
+from subnet.dht.validation import DHTRecord, DHTRecordRequestType, RecordValidatorBase
+from subnet.utils.timed_storage import get_dht_time
 
 # pytest tests/test_dht_schema.py -rP
 
+
 class SampleSchema(BaseModel):
     experiment_name: bytes
-    n_batches: Dict[bytes, conint(ge=0, strict=True)] # type: ignore
-    signed_data: Dict[BytesWithPublicKey, bytes] # type: ignore
+    n_batches: Dict[bytes, conint(ge=0, strict=True)]  # type: ignore
+    signed_data: Dict[BytesWithPublicKey, bytes]  # type: ignore
 
 
 @pytest_asyncio.fixture
@@ -84,7 +85,7 @@ async def test_expecting_public_keys(dht_nodes_with_schema):
     alice, bob = dht_nodes_with_schema
 
     # Subkeys expected to contain a public key
-    # (so mesh.dht.crypto.SignatureValidator would require a signature)
+    # (so subnet.dht.crypto.SignatureValidator would require a signature)
     assert await bob.store("signed_data", b"foo_bar", get_dht_time() + 10, subkey=b"uid[owner:public-key]")
     assert not await bob.store("signed_data", b"foo_bar", get_dht_time() + 10, subkey=b"uid-without-public-key")
 
@@ -186,8 +187,8 @@ async def test_merging_schema_validators(dht_nodes_with_schema):
 
 @pytest.mark.forked
 def test_sending_validator_instance_between_processes():
-    alice = mesh.DHT(start=True)
-    bob = mesh.DHT(start=True, initial_peers=alice.get_visible_maddrs())
+    alice = subnet.DHT(start=True)
+    bob = subnet.DHT(start=True, initial_peers=alice.get_visible_maddrs())
 
     alice.add_validators([SchemaValidator(SampleSchema)])
     bob.add_validators([SchemaValidator(SampleSchema)])

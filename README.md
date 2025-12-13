@@ -1,4 +1,5 @@
 ## Hypertensor subnet framework
+
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 A framework for building open & decentralized AI projects
 
@@ -31,9 +32,9 @@ https://docs.hypertensor.org
 
 To install this container from source, simply run the following:
 
-```
-git clone https://github.com/hypertensor-blockchain/mesh.git
-cd mesh
+```bash
+git clone https://github.com/hypertensor-blockchain/subnet-template.git
+cd subnet
 python -m venv .venv
 source .venv/bin/activate
 pip install .
@@ -54,7 +55,7 @@ of [Go toolchain](https://golang.org/doc/install) (1.15 or 1.16 are supported).
   other 64-bit distros should work as well. Legacy 32-bit is not recommended.
 - __macOS__ is partially supported.
   If you have issues, you can run the container using [Docker](https://docs.docker.com/desktop/mac/install/) instead.
-  We recommend using [our Docker image](https://hub.docker.com/r/hypertensor-blockchain/mesh).
+  We recommend using [our Docker image](https://hub.docker.com/r/hypertensor-blockchain/subnet-template).
 - __Windows 10+ (experimental)__ can run the container
   using [WSL](https://docs.microsoft.com/ru-ru/windows/wsl/install-win10). You can configure WSL to use GPU by
   following sections 1–3 of [this guide](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) by NVIDIA. After
@@ -65,10 +66,13 @@ of [Go toolchain](https://golang.org/doc/install) (1.15 or 1.16 are supported).
 # Documentation
 
 ## .env
+
 Create an `.env` file for the environmental variables.
-```
+
+```bash
 touch .env
 ```
+
 Fill out the `.env` file with the necessary variables from `.env.example`.
 
 ## Keys
@@ -80,20 +84,22 @@ The template currently allows RSA and Ed25519 key types and is interoperable bet
 #### Generate coldkey (if needed)
 
 #### Generate hotkey
+
 - This is the hotkey of the node. It is used for validating and attesting only. Each hotkey is unique to each subnet node and no hotkey can be used twice.
 
 #### Generate peer private keys
 
-  - This will create 3 private key files for your peer
-      - `peer_id`: Main peer ID for communication and signing
-      - `bootstrap_peer_id`: (Optional usage) Peer ID to be used as a bootstrap node.
-      - `client_peer_id`: (Optional usage) Peer ID to be used as a client. This is for those who want to build frontends to interact with the subnet.
+- This will create 3 private key files for your peer
+  - `peer_id`: Main peer ID for communication and signing
+  - `bootstrap_peer_id`: (Optional usage) Peer ID to be used as a bootstrap node.
+  - `client_peer_id`: (Optional usage) Peer ID to be used as a client. This is for those who want to build frontends to interact with the subnet.
 
 The `bootstrap_peer_id` and `client_peer_id` are not required to be used as a peer, but they are required to be generated and stored on-chain when registering a node.
 
 <b>Example Private Key Generation</b>
 
 <b>RSA:</b>
+
 ```bash
 keygen \
 --path rsa-pk.key \
@@ -103,6 +109,7 @@ keygen \
 ```
 
 <b>Ed25519:</b>
+
 ```bash
 keygen \
 --path ed-pk.key \
@@ -114,10 +121,12 @@ keygen \
 ## Register and Activate Subnet Node (on-chain)
 
 #### Register & Stake on Hypertensor
-  - Call `register_subnet_node`
-  - Retrieve your `start_epoch` by querying your SubnetNodesData storage element on polkadot.js with your subnet node ID. This is the epoch you must activate your node on + the grace period
+
+- Call `register_subnet_node`
+- Retrieve your `start_epoch` by querying your SubnetNodesData storage element on polkadot.js with your subnet node ID. This is the epoch you must activate your node on + the grace period
 
 ##### Example Register & Stake CLI
+
 ```bash
 register-node \
 --subnet_id 1 \
@@ -132,12 +141,15 @@ register-node \
 ```
 
 #### Activate node
-  - Call `activate_subnet_node` in Hypertensor on your start epoch up to the grace period.
+
+- Call `activate_subnet_node` in Hypertensor on your start epoch up to the grace period.
 
 ##### Example Register & Stake CLI
+
 ```bash
 activate-node --subnet_id 1
 ```
+
 ---
 ## Running Nodes
 
@@ -157,11 +169,12 @@ Each subnet must have at least one public and running bootnode at all times for 
 #### Start Bootnode
 
 ```bash
-mesh-dht-api \
+subnet-dht-api \
 --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
 --announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
 --identity_path bootnode.id \
 ```
+
 ##### Update `PUBLIC_INITIAL_PEERS`
 
 Once you run it, look at the outputs and find the following line:
@@ -173,16 +186,20 @@ Mon 00 01:23:45.678 [INFO] Running a DHT instance. To connect other peers to thi
 Once the bootnode is deployed, copy the `/ip4/YOUR_ADDRESS_HERE/tcp/31330/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj` into the `PUBLIC_INITIAL_PEERS` in the `.env` file.
 
 #### Start Node and Join Subnet
+
 ##### This joins an existing subnets and runs a bootnode.
+
 - Get the bootnode multiaddresses from the subnets team or blockchain and add them to the `initial_peers` argument and replace `/ip4/{ip}/p2p/{peer_id}`. In this example, we use 2 bootnodes to connect to, but one is required.
+- 
 ```bash
-mesh-dht-api \
+subnet-dht-api \
 --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
 --announce_maddrs /ip4/{your_ip} \
 --initial_peers /ip4/{ip}/p2p/{peer_id} /ip4/{ip}/p2p/{peer_id}
 ```
 
-### Node 
+### Node
+
 #### *Fill in how to start and run a node for your subnet!*
 
 *The following is example only for deploying a subnet with no use-case.*
@@ -192,7 +209,7 @@ mesh-dht-api \
 This will start a new subnet (fresh swarm as initial node/bootnode and server in one). It is <b>not</b> required to run a node as a bootnode together. Bootnodes should be treated as contact point for entry only.
 
 ```bash
-mesh-server-mock \
+subnet-server-mock \
 --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
 --announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
 --identity_path bootnode.id \
@@ -211,8 +228,9 @@ Mon 00 01:23:45.678 [INFO] Running a DHT instance. To connect other peers to thi
 Once the bootnode is deployed, copy the `/ip4/YOUR_ADDRESS_HERE/tcp/31330/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj` into the `PUBLIC_INITIAL_PEERS` in the `.env` file.
 
 #### Join DHT / Start Node
+
 ```bash
-mesh-server-mock \
+subnet-server-mock \
 --host_maddrs /ip4/0.0.0.0/tcp/31331 /ip4/0.0.0.0/udp/31331/quic \
 --announce_maddrs /ip4/{your_ip}/tcp/31331 /ip4/{your_ip}/udp/31331/quic \
 --identity_path alith.id \
@@ -221,17 +239,19 @@ mesh-server-mock \
 ---
 
 ## Running Nodes Locally
-Start a mesh locally with 3 nodes and **no requirement for a blockchain connection**:
+
+Start a subnet template locally with 3 nodes and **no requirement for a blockchain connection**:
 
 (See below on how to run the nodes with a blockchain connection locally)
 
-#### Start the bootnode as a server 
+#### Start the bootnode as a server
+
 This is a node that as a bootnode and a server, although this is not recommended for production.
 
 <b>Note:</b> In production, a bootnode should <b>not</b> be ran as a server.
 
 ```bash
-mesh-server-mock \
+subnet-server-mock \
     --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
     --announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
     --identity_path bootnode.id \
@@ -239,6 +259,7 @@ mesh-server-mock \
     --no_blockchain_rpc \
     --new_swarm
 ```
+
 ##### Update `PUBLIC_INITIAL_PEERS`
 
 Once you run it, look at the outputs and find the following line:
@@ -250,8 +271,9 @@ Mon 00 01:23:45.678 [INFO] Running a DHT instance. To connect other peers to thi
 Once the bootnode is deployed, copy the `/ip4/YOUR_ADDRESS_HERE/tcp/31337/p2p/QmTPAIfThisIsMyAddressGoFindYoursnCfj` into the `PUBLIC_INITIAL_PEERS` in the `.env` file.
 
 #### Start Node 2
+
 ```bash
-mesh-server-mock \
+subnet-server-mock \
     --host_maddrs /ip4/0.0.0.0/tcp/31331 /ip4/0.0.0.0/udp/31331/quic \
     --announce_maddrs /ip4/{your_ip}/tcp/31331 /ip4/{your_ip}/udp/31331/quic \
     --identity_path alith.id \
@@ -260,8 +282,9 @@ mesh-server-mock \
 ```
 
 #### Start Node 3
+
 ```bash
-mesh-server-mock \
+subnet-server-mock \
     --host_maddrs /ip4/0.0.0.0/tcp/31332 /ip4/0.0.0.0/udp/31332/quic \
     --announce_maddrs /ip4/{your_ip}/tcp/31332 /ip4/{your_ip}/udp/31332/quic \
     --identity_path baltathar.id \
@@ -281,11 +304,14 @@ mesh-server-mock \
 ---
 ## Running Nodes Locally With Local Blockchain
 
-The following example will use Alith as the subnet owner and as the node example (registering and running the node). To add more nodes for testing with a running local blockchain, see `mesh/mesh_cli/hypertensor/README.md` to view each test identity path, it's hotkeys, coldkeys, and their peer IDs.
+In production, the codebase is set up to use the `.env` file for hotkey configuration via the mnemonic phrase (`PHRASE`). To run locally, we take advantage of the `--private_key` flag when registering the node on-chain, and when starting the node, by using the private key argument instead of the mnemonic phrase. This will be used in the following example for both registering the node on-chain, and running the node as a subnet node in the P2P DHT-based network.
 
-See `mesh/mesh_cli/hypertensor/node/register.py` to register more test accounts.
+The following example will use Alith as the subnet owner and as the node example (registering and running the node). To add more nodes for testing with a running local blockchain, see `subnet/subnet_cli/hypertensor/README.md` to view each test identity path, it's hotkeys, coldkeys, and their peer IDs.
+
+See `subnet/subnet_cli/hypertensor/node/register.py` to register more test accounts.
 
 ##### For testing with a running local blockchain
+
 1. Register subnet
 2. Register at least 3 nodes
 3. Run the nodes
@@ -294,7 +320,9 @@ See `mesh/mesh_cli/hypertensor/node/register.py` to register more test accounts.
 Once the subnet is activated, consensus will begin on the following epoch between all of the nodes in the subnet.
 
 #### Register a subnet:
+
 With Alith's coldkey as the owner and with Alith, Baltathar, Charleth, and Dorothy as the initial coldkeys:
+
 ```bash
 register-subnet \
 --max_cost 100.00 \
@@ -314,12 +342,15 @@ register-subnet \
 --private_key "0x5fb92d6e98884f76de468fa3f6278f8807c48bebc13595d45af5bdc4da702133" \
 --local_rpc
 ```
+
 #### Register a node:
+
 <b>Note:</b> The client peer ID, bootnode peer ID, and bootnode are only for testing purposes. In production, the client peer ID and bootnode peer ID should be generated beforehand and each have its own identity paths (the bootnode will be derived from the bootnode peer ID if utilized). The client and bootnode peer ID are required on-chain but not required to be used off-chain in the subnet. The bootnode is optional.
 
 Using **Alith**'s coldkey private key:
 
 Note: We use the `bootnode.id` peer ID for Alith's bootnode peer ID so we can connect via the PoS mechanism when connecting to the bootnode.
+
 ```bash
 register-node \
   --subnet_id 1 \
@@ -372,22 +403,25 @@ register-node \
 Get the subnet node ID after registrations.
 
 #### Run nodes
+
 (Replace the subnet ID and subnet node ID's if they differ from the example)
 
 Using **Alith**'s hotkey private key:
+
 ```bash
-mesh-server-mock \
+subnet-server-mock \
     --host_maddrs /ip4/0.0.0.0/tcp/31331 /ip4/0.0.0.0/udp/31331/quic \
     --announce_maddrs /ip4/{your_ip}/tcp/31331 /ip4/{your_ip}/udp/31331/quic \
     --identity_path alith.id \
     --subnet_id 1 --subnet_node_id 1 \
     --local_rpc \
-    --private_key "0x51b7c50c1cd27de89a361210431e8f03a7ddda1a0c8c5ff4e4658ca81ac02720"
+    --private_key "0x883189525adc71f940606d02671bd8b7dfe3b2f75e2a6ed1f5179ac794566b40"
 ```
 
 Using **Baltathar**'s hotkey private key:
+
 ```bash
-mesh-server-mock \
+subnet-server-mock \
     --host_maddrs /ip4/0.0.0.0/tcp/31332 /ip4/0.0.0.0/udp/31332/quic \
     --announce_maddrs /ip4/{your_ip}/tcp/31332 /ip4/{your_ip}/udp/31332/quic \
     --identity_path baltathar.id \
@@ -397,8 +431,9 @@ mesh-server-mock \
 ```
 
 Using **Charleth**'s hotkey private key:
+
 ```bash
-mesh-server-mock \
+subnet-server-mock \
     --host_maddrs /ip4/0.0.0.0/tcp/31333 /ip4/0.0.0.0/udp/31333/quic \
     --announce_maddrs /ip4/{your_ip}/tcp/31333 /ip4/{your_ip}/udp/31333/quic \
     --identity_path charleth.id \
@@ -407,7 +442,15 @@ mesh-server-mock \
     --private_key "0x51b7c50c1cd27de89a361210431e8f03a7ddda1a0c8c5ff4e4658ca81ac02720"
 ```
 
+**Add the minimum delegate stake balance required:**
+
+Add the minimum required delegate stake to the subnet through the [explorer](https://polkadot.js.org/apps/#/explorer). Using the explorer, navigate to extrinsics (**Developer > Extrinsics**), under "**submit the following extrinsic**" choose **network** and select the `addToDelegateStake(subnetId, stakeToBeAdded)` extrinsic.
+
+**Activate the subnet:**
+
 Activate the subnet using the owners private key or through the [explorer](https://polkadot.js.org/apps/#/explorer). Using the explorer, navigate to extrinsics (**Developer > Extrinsics**), under "**submit the following extrinsic**" choose **network** and select the `activateSubnet(subnetId)` extrinsic.
+
+**Or use the CLI:**
 
 ```bash
 activate-subnet \
@@ -438,13 +481,14 @@ Once activated, the subnet nodes will begin to run consensus on the following ep
   - Orchestration tooling
   - Blue-green deployment standardizations
 - Etc.
+
 ---
 
 ## Contributing
 
 This is currently at the active development stage, and we welcome all contributions. Everything, from bug fixes and documentation improvements to entirely new features, is appreciated.
 
-If you want to contribute to this mesh template but don't know where to start, take a look at the unresolved [issues](https://github.com/hypertensor-blockchain/mesh/issues). 
+If you want to contribute to this subnet template but don't know where to start, take a look at the unresolved [issues](https://github.com/hypertensor-blockchain/subnet-template/issues). 
 
 Open a new issue or join [our chat room](https://discord.gg/bY7NUEweQp) in case you want to discuss new functionality or report a possible bug. Bug fixes are always welcome, but new features should be preferably discussed with maintainers beforehand.
 

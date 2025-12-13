@@ -4,16 +4,17 @@ import pickle
 
 import pytest
 
-import mesh
-from mesh.dht.crypto import SignatureValidator
-from mesh.dht.node import DHTNode
-from mesh.dht.validation import DHTRecord, DHTRecordRequestType
-from mesh.utils.crypto import Ed25519PrivateKey, RSAPrivateKey
-from mesh.utils.timed_storage import get_dht_time
+import subnet
+from subnet.dht.crypto import SignatureValidator
+from subnet.dht.node import DHTNode
+from subnet.dht.validation import DHTRecord, DHTRecordRequestType
+from subnet.utils.crypto import Ed25519PrivateKey, RSAPrivateKey
+from subnet.utils.timed_storage import get_dht_time
 
 # pytest tests/test_dht_crypto.py -rP
 
 # pytest tests/test_dht_crypto.py::test_signature_validator_rsa_and_ed25519 -rP
+
 
 def test_signature_validator_rsa_and_ed25519():
     receiver_validator = SignatureValidator(RSAPrivateKey())
@@ -49,7 +50,9 @@ def test_signature_validator_rsa_and_ed25519():
     for record in signed_records:
         assert not receiver_validator.validate(record, DHTRecordRequestType.POST)
 
+
 # pytest tests/test_dht_crypto.py::test_signature_validator_ed25519_and_rsa -rP
+
 
 def test_signature_validator_ed25519_and_rsa():
     receiver_validator = SignatureValidator(Ed25519PrivateKey())
@@ -88,6 +91,7 @@ def test_signature_validator_ed25519_and_rsa():
 
 # pytest tests/test_dht_crypto.py::test_validator_instance_is_picklable_ed25519 -rP
 
+
 def test_validator_instance_is_picklable_ed25519():
     # Needs to be picklable because the validator instance may be sent between processes
 
@@ -109,7 +113,9 @@ def test_validator_instance_is_picklable_ed25519():
     assert original_validator.validate(signed_record, DHTRecordRequestType.POST)
     assert unpickled_validator.validate(signed_record, DHTRecordRequestType.POST)
 
+
 # pytest tests/test_dht_crypto.py::test_validator_instance_is_picklable_rsa -rP
+
 
 def test_validator_instance_is_picklable_rsa():
     # Needs to be picklable because the validator instance may be sent between processes
@@ -132,6 +138,7 @@ def test_validator_instance_is_picklable_rsa():
     assert original_validator.validate(signed_record, DHTRecordRequestType.POST)
     assert unpickled_validator.validate(signed_record, DHTRecordRequestType.POST)
 
+
 def get_signed_record(conn: mp.connection.Connection) -> DHTRecord:
     validator = conn.recv()
     record = conn.recv()
@@ -141,7 +148,9 @@ def get_signed_record(conn: mp.connection.Connection) -> DHTRecord:
     conn.send(record)
     return record
 
+
 # pytest tests/test_dht_crypto.py::test_dhtnode_signatures_rsa_and_ed25519 -rP
+
 
 @pytest.mark.forked
 @pytest.mark.asyncio
@@ -156,23 +165,25 @@ async def test_dhtnode_signatures_rsa_and_ed25519():
     key = b"key"
     subkey = b"protected_subkey" + bob.protocol.record_validator.local_public_key
 
-    assert await bob.store(key, b"true_value", mesh.get_dht_time() + 10, subkey=subkey)
+    assert await bob.store(key, b"true_value", subnet.get_dht_time() + 10, subkey=subkey)
     assert (await alice.get(key, latest=True)).value[subkey].value == b"true_value"
 
-    store_ok = await mallory.store(key, b"fake_value", mesh.get_dht_time() + 10, subkey=subkey)
+    store_ok = await mallory.store(key, b"fake_value", subnet.get_dht_time() + 10, subkey=subkey)
     assert not store_ok
     assert (await alice.get(key, latest=True)).value[subkey].value == b"true_value"
 
-    assert await bob.store(key, b"updated_true_value", mesh.get_dht_time() + 10, subkey=subkey)
+    assert await bob.store(key, b"updated_true_value", subnet.get_dht_time() + 10, subkey=subkey)
     assert (await alice.get(key, latest=True)).value[subkey].value == b"updated_true_value"
 
     await bob.shutdown()  # Bob has shut down, now Mallory is the single peer of Alice
 
-    store_ok = await mallory.store(key, b"updated_fake_value", mesh.get_dht_time() + 10, subkey=subkey)
+    store_ok = await mallory.store(key, b"updated_fake_value", subnet.get_dht_time() + 10, subkey=subkey)
     assert not store_ok
     assert (await alice.get(key, latest=True)).value[subkey].value == b"updated_true_value"
 
+
 # pytest tests/test_dht_crypto.py::test_signing_in_different_process_ed25519 -rP
+
 
 def test_signing_in_different_process_ed25519():
     parent_conn, child_conn = mp.Pipe()
@@ -191,7 +202,9 @@ def test_signing_in_different_process_ed25519():
     assert b"[signature:" in signed_record.value
     assert validator.validate(signed_record, DHTRecordRequestType.POST)
 
+
 # pytest tests/test_dht_crypto.py::test_signing_in_different_process_rsa -rP
+
 
 def test_signing_in_different_process_rsa():
     parent_conn, child_conn = mp.Pipe()

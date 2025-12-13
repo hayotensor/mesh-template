@@ -9,13 +9,13 @@ from typing import NamedTuple
 
 from pkg_resources import resource_filename
 
-from mesh.p2p.p2p_daemon_bindings.p2pclient import Client
-from mesh.utils.multiaddr import Multiaddr, protocols
+from subnet.p2p.p2p_daemon_bindings.p2pclient import Client
+from subnet.utils.multiaddr import Multiaddr, protocols
 
 from test_utils.networking import get_free_port
 
 TIMEOUT_DURATION = 5  # seconds
-P2PD_PATH = resource_filename("mesh", "mesh_cli/p2pd")
+P2PD_PATH = resource_filename("subnet", "subnet_cli/p2pd")
 
 
 async def try_until_success(coro_func, timeout=TIMEOUT_DURATION):

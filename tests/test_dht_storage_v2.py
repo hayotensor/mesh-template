@@ -2,14 +2,15 @@ import time
 
 import pytest
 
-from mesh.dht.storage_v2 import DHTID, DHTLocalStorage, DictionaryDHTValue
-from mesh.utils.serializer_v2 import MSGPackSerializer
-from mesh.utils.timed_storage_v2 import get_dht_time
+from subnet.dht.storage_v2 import DHTID, DHTLocalStorage, DictionaryDHTValue
+from subnet.utils.serializer_v2 import MSGPackSerializer
+from subnet.utils.timed_storage_v2 import get_dht_time
 
 # pytest tests/test_dht_storage_v2.py -rP
 
 
 # pytest tests/test_dht_storage_v2.py::test_store -rP
+
 
 def test_store():
     d = DHTLocalStorage()
@@ -67,7 +68,9 @@ def test_localstorage_top():
 
     assert d.top()[0] == DHTID.generate("key3") and d.top()[1].value == b"val3"
 
+
 # pytest tests/test_dht_storage_v2.py::test_localstorage_nested -rP
+
 
 def test_localstorage_nested():
     time = get_dht_time()
@@ -117,7 +120,9 @@ def test_localstorage_nested():
     assert expiration_time == time + 5
     assert abs(created_at - time) < 0.5  # allow small drift
 
+
 # pytest tests/test_dht_storage_v2.py::test_localstorage_freeze -rP
+
 
 def test_localstorage_freeze():
     d = DHTLocalStorage(maxsize=2)
@@ -136,7 +141,9 @@ def test_localstorage_freeze():
         assert DHTID.generate("key1") in d
     assert DHTID.generate("key1") not in d
 
+
 # pytest tests/test_dht_storage_v2.py::test_localstorage_serialize -rP
+
 
 def test_localstorage_serialize():
     d1 = DictionaryDHTValue()
@@ -157,11 +164,13 @@ def test_localstorage_serialize():
     # assert len(new_d2) == 2
     # assert new_d2.get("key3") == (b"pyshpysh", now + 2)
 
-
     stored = new_d2.get("key3")
     value, expiration_time, created_at = stored
     # assert "key1" not in new_d2 and len(new_d2) == 2 and new_d2.get("key3") == (b"pyshpysh", now + 2)
     assert (
-        "key1" not in new_d2 and len(new_d2) == 2 and
-        value == b"pyshpysh" and expiration_time == now + 2 and abs(created_at - now) < 0.5
+        "key1" not in new_d2
+        and len(new_d2) == 2
+        and value == b"pyshpysh"
+        and expiration_time == now + 2
+        and abs(created_at - now) < 0.5
     )

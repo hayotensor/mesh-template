@@ -1,16 +1,17 @@
 import pytest
 import torch
 
-import mesh
-from mesh.compression import (
+import subnet
+from subnet.compression import (
     deserialize_torch_tensor,
     serialize_torch_tensor,
 )
-from mesh.proto.runtime_pb2 import CompressionType
-from mesh.utils.streaming import combine_from_streaming, split_for_streaming
+from subnet.proto.runtime_pb2 import CompressionType
+from subnet.utils.streaming import combine_from_streaming, split_for_streaming
 
 # pytest tests/test_compression.py -rP
 # may need to run `pip install bitsandbytes`
+
 
 @pytest.mark.forked
 def test_tensor_compression(size=(128, 128, 64), alpha=5e-08, beta=0.0008):
@@ -96,7 +97,7 @@ def test_serialize_tensor_properties(dtype: torch.dtype, requires_grad: bool):
 @pytest.mark.parametrize("tensor_size", [(4096, 16), (0, 0)])
 @pytest.mark.forked
 def test_serialize_bfloat16(use_legacy_bfloat16: bool, tensor_size: tuple):
-    mesh.compression.base.USE_LEGACY_BFLOAT16 = use_legacy_bfloat16
+    subnet.compression.base.USE_LEGACY_BFLOAT16 = use_legacy_bfloat16
     tensor = torch.randn(tensor_size, dtype=torch.bfloat16)
     _check(tensor, CompressionType.NONE)
     _check(tensor, CompressionType.BLOCKWISE_8BIT, rtol=0.1, atol=0.01, chunk_size=1024)

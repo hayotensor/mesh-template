@@ -1,20 +1,20 @@
-# Contributing to mesh
+# Contributing to subnet template
 
-This document covers the technical details of making your contributions to the code of mesh. For other ways to
+This document covers the technical details of making your contributions to the code of subnet template. For other ways to
 contribute, read the [contributing guide](https://hypertensor-blockchain.readthedocs.io/en/latest/user/contributing.html) in
 our documentation.
 
-Before you begin, file a new issue on [GitHub](https://github.com/hypertensor-blockchain/mesh/issues) or announce that
+Before you begin, file a new issue on [GitHub](https://github.com/hypertensor-blockchain/subnet-template/issues) or announce that
 you are going to work on an existing one to avoid duplicate effort. After you finish, submit a pull request and wait
 for it to be reviewed by the library maintainers (and possibly other community members).
 
 ## Environment setup
 
-First, install mesh in the development mode, preferably with Python 3.8+ on Linux.
+First, install subnet-template in the development mode, preferably with Python 3.8+ on Linux.
 
 ```
-git clone https://github.com/hypertensor-blockchain/mesh
-cd mesh
+git clone https://github.com/hypertensor-blockchain/subnet-template
+cd subnet-template
 pip install -e .[dev]
 ``` 
 
@@ -41,7 +41,7 @@ with the following rules:
   repository. Also, you may want to check your code for typos by running `codespell --skip=".git"`, though there
   might be false positives.
 * We highly encourage the use of [typing](https://docs.python.org/3/library/typing.html) where applicable.
-* Use `get_logger` from `mesh.utils.logging` to log any information instead of `print`ing directly to standard
+* Use `get_logger` from `subnet.utils.logging` to log any information instead of `print`ing directly to standard
   output/error streams.
 * Comments should be used sparingly and never describe the obvious. Usually it's best to clean up the code logic
   instead of describing it, as it might lead to redundant (or worse, stale or incorrect) messages.
@@ -54,7 +54,7 @@ with the following rules:
 
 ## Contribution formatting guidelines
 
-To make sure that each change to mesh is consistent across the entire project history and is easy to review by any
+To make sure that each change to subnet template is consistent across the entire project history and is easy to review by any
 community member, follow these guidelines when submitting your pull request and writing commit messages. The library
 maintainers use the same rules when merging your commits into the master branch after the PR approval.
 
@@ -90,7 +90,7 @@ the pull request description (if it adheres to the format) or a cleaned up compi
 * In general, when naming a pull request instead of a commit, it's best to highlight the major change in its title
   instead of listing all modifications. Also, if a pull request makes significant changes to the library, it's best to
   give a high-level description in the title instead of a technical one:
-  compare `Implement decentralized parameter averaging` with `Add mesh.client.averaging`.
+  compare `Implement decentralized parameter averaging` with `Add subnet.client.averaging`.
 
 For more on the philosophy of easy-to-review pull requests, read these
 guides: [1](https://mtlynch.io/code-review-love/)
@@ -105,10 +105,10 @@ implement a new part of the library, you are expected to write a test for the co
 discovered a bug in the existing code base and intend to fix it, it's also best if you add the steps to reproduce it as
 a new test to make sure it's not reintroduced by future changes.
 
-To run tests, you need to install mesh in development mode with additional dependencies: `pip install -e .[dev]`.
+To run tests, you need to install subnet template in development mode with additional dependencies: `pip install -e .[dev]`.
 You can run all tests with `pytest tests/` or choose a specific subset, e.g., `pytest tests/test_dht.py`.
 
-When investigating test behavior, please note that pytest automatically wraps all mesh tests with fixtures defined
+When investigating test behavior, please note that pytest automatically wraps all subnet template tests with fixtures defined
 in a global configuration file [`tests/conftest.py`](./tests/conftest.py), some of which will run automatically. For
 more informantion, refer to the [pytest documentation on fixtures](https://docs.pytest.org/en/6.2.x/fixture.html).
 
@@ -128,7 +128,7 @@ The documentation root will be available in `./docs/_build/html/index.html`
 
 ## Running benchmarks
 
-Currently, mesh has three benchmark scripts for evaluating the impact of code changes on the most
+Currently, the subnet template has three benchmark scripts for evaluating the impact of code changes on the most
 performance-sensitive parts of the library. If you make a change that might introduce a regression, you may be asked by
 the maintainers to provide the benchmarking results for your branch and a comparison with the master branch.
 

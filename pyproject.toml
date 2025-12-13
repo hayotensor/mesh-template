@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta:__legacy__"
 
 [tool.coverage.run]
 concurrency = ["thread", "multiprocessing"]
-omit = ["mesh/proto/*"]
-source = ["mesh"]
+omit = ["subnet/proto/*"]
+source = ["subnet"]
 parallel = true
 sigterm = true
 

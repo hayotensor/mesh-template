@@ -7,9 +7,9 @@ from scalecodec.base import RuntimeConfiguration, ScaleBytes
 from scalecodec.type_registry import load_type_registry_preset
 from substrateinterface.exceptions import SubstrateRequestException
 
-from mesh.substrate.chain_data import ConsensusData, get_runtime_config
-from mesh.substrate.chain_functions import Hypertensor, KeypairFrom, SubnetNodeClass
-from mesh.utils.logging import get_logger
+from subnet.substrate.chain_data import ConsensusData, get_runtime_config
+from subnet.substrate.chain_functions import Hypertensor, KeypairFrom, SubnetNodeClass
+from subnet.utils.logging import get_logger
 
 logger = get_logger(__name__)
 

@@ -15,13 +15,13 @@ image = (
             "cd bitsandbytes && cmake -DCOMPUTE_BACKEND=cpu -S . && make && pip --no-cache install . ",
         ]
     )
-    .add_local_dir("mesh", remote_path="/root/mesh/mesh")
-    .add_local_file("requirements.txt", remote_path="/root/mesh/requirements.txt")
-    .add_local_file("requirements-dev.txt", remote_path="/root/mesh/requirements-dev.txt")
-    .add_local_file("requirements-docs.txt", remote_path="/root/mesh/requirements-docs.txt")
-    .add_local_file("setup.py", remote_path="/root/mesh/setup.py")
-    .add_local_file("pyproject.toml", remote_path="/root/mesh/pyproject.toml")
-    .add_local_dir("tests", remote_path="/root/mesh/tests")
+    .add_local_dir("subnet", remote_path="/root/subnet/subnet")
+    .add_local_file("requirements.txt", remote_path="/root/subnet/requirements.txt")
+    .add_local_file("requirements-dev.txt", remote_path="/root/subnet/requirements-dev.txt")
+    .add_local_file("requirements-docs.txt", remote_path="/root/subnet/requirements-docs.txt")
+    .add_local_file("setup.py", remote_path="/root/subnet/setup.py")
+    .add_local_file("pyproject.toml", remote_path="/root/subnet/pyproject.toml")
+    .add_local_dir("tests", remote_path="/root/subnet/tests")
 )
 
 # Create an image with golang and other system dependencies
@@ -41,17 +41,17 @@ image_with_golang = (
             "cd bitsandbytes && cmake -DCOMPUTE_BACKEND=cpu -S . && make && pip --no-cache install . ",
         ]
     )
-    .add_local_dir("mesh", remote_path="/root/mesh/mesh")
-    .add_local_file("requirements.txt", remote_path="/root/mesh/requirements.txt")
-    .add_local_file("requirements-dev.txt", remote_path="/root/mesh/requirements-dev.txt")
-    .add_local_file("requirements-docs.txt", remote_path="/root/mesh/requirements-docs.txt")
-    .add_local_file("setup.py", remote_path="/root/mesh/setup.py")
-    .add_local_file("pyproject.toml", remote_path="/root/mesh/pyproject.toml")
-    .add_local_dir("tests", remote_path="/root/mesh/tests")
+    .add_local_dir("subnet", remote_path="/root/subnet/subnet")
+    .add_local_file("requirements.txt", remote_path="/root/subnet/requirements.txt")
+    .add_local_file("requirements-dev.txt", remote_path="/root/subnet/requirements-dev.txt")
+    .add_local_file("requirements-docs.txt", remote_path="/root/subnet/requirements-docs.txt")
+    .add_local_file("setup.py", remote_path="/root/subnet/setup.py")
+    .add_local_file("pyproject.toml", remote_path="/root/subnet/pyproject.toml")
+    .add_local_dir("tests", remote_path="/root/subnet/tests")
 )
 
 
-app = modal.App("mesh-ci")
+app = modal.App("subnet-ci")
 
 codecov_secret = modal.Secret.from_dict(
     {
@@ -64,7 +64,7 @@ codecov_secret = modal.Secret.from_dict(
 
 
 def setup_environment(*, build_p2pd=False):
-    os.chdir("/root/mesh")
+    os.chdir("/root/subnet")
 
     if build_p2pd:
         install_cmd = [
@@ -114,7 +114,7 @@ def run_codecov():
         [
             "pytest",
             "--cov",
-            "mesh",
+            "subnet",
             "--cov-config=pyproject.toml",
             "-v",
             "tests",

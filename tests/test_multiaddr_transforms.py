@@ -26,11 +26,11 @@ import io
 
 import pytest
 
-import mesh.utils.multiaddr.protocols
-from mesh.utils.multiaddr.codecs import codec_by_name
-from mesh.utils.multiaddr.exceptions import BinaryParseError, StringParseError
-from mesh.utils.multiaddr.protocols import REGISTRY, Protocol
-from mesh.utils.multiaddr.transforms import bytes_iter, bytes_to_string, size_for_addr, string_to_bytes
+import subnet.utils.multiaddr.protocols
+from subnet.utils.multiaddr.codecs import codec_by_name
+from subnet.utils.multiaddr.exceptions import BinaryParseError, StringParseError
+from subnet.utils.multiaddr.protocols import REGISTRY, Protocol
+from subnet.utils.multiaddr.transforms import bytes_iter, bytes_to_string, size_for_addr, string_to_bytes
 
 # pytest tests/test_multiaddr_transforms.py -rP
 
@@ -166,9 +166,9 @@ class UnparsableProtocol(DummyProtocol):
 @pytest.fixture
 def protocol_extension(monkeypatch):
     # “Add” additional non-parsable protocol to protocols from code list
-    registry = mesh.utils.multiaddr.protocols.REGISTRY.copy(unlock=True)
+    registry = subnet.utils.multiaddr.protocols.REGISTRY.copy(unlock=True)
     registry.add(UnparsableProtocol())
-    monkeypatch.setattr(mesh.utils.multiaddr.protocols, "REGISTRY", registry)
+    monkeypatch.setattr(subnet.utils.multiaddr.protocols, "REGISTRY", registry)
 
 
 @pytest.mark.parametrize("string", ["test", "/ip4/", "/unparsable/5"])

@@ -3,14 +3,15 @@ from typing import List
 
 import pytest
 
-from mesh.dht.crypto import SignatureValidator
-from mesh.utils.key import generate_rsa_private_key_file, get_rsa_private_key
+from subnet.dht.crypto import SignatureValidator
+from subnet.utils.key import generate_rsa_private_key_file, get_rsa_private_key
 
 from test_utils.dht_swarms import (
     launch_dht_with_clients,
 )
 
 # pytest tests/test_dht_client.py::test_dht_same_clients -rP
+
 
 @pytest.mark.forked
 def test_dht_same_clients(n_peers=10):
@@ -24,7 +25,9 @@ def test_dht_same_clients(n_peers=10):
         full_path = os.path.join(root_path, test_path)
 
         if not os.path.exists(full_path):
-            private_key, public_key, public_bytes, encoded_public_key, encoded_digest, peer_id = generate_rsa_private_key_file(test_path)
+            private_key, public_key, public_bytes, encoded_public_key, encoded_digest, peer_id = (
+                generate_rsa_private_key_file(test_path)
+            )
 
         test_paths.append(test_path)
         loaded_key = get_rsa_private_key(test_path)
@@ -34,7 +37,6 @@ def test_dht_same_clients(n_peers=10):
         if i > 0:
             test_paths.append(test_path)
             record_validators.append(record_validator)
-
 
     dhts = launch_dht_with_clients(
         record_validators=record_validators,

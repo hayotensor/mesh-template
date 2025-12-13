@@ -16,6 +16,7 @@ def cleanup_process(process, timeout=5):
         process.kill()
         process.wait(timeout=timeout)
 
+
 @pytest.mark.xfail(reason="Flaky test", strict=False)
 def test_cli_run_server_identity_path():
     pattern = r"Running DHT node on \[(.+)\],"
@@ -30,7 +31,7 @@ def test_cli_run_server_identity_path():
         common_server_args = ["--hidden_dim", "4", "--num_handlers", "1"]
 
         server_1_proc = Popen(
-            ["mesh-server", "--num_experts", "1", "--identity_path", id_path] + common_server_args,
+            ["subnet-server", "--num_experts", "1", "--identity_path", id_path] + common_server_args,
             stderr=PIPE,
             text=True,
             encoding="utf-8",
@@ -49,7 +50,7 @@ def test_cli_run_server_identity_path():
         assert len(ids_1) == 1
 
         server_2_proc = Popen(
-            ["mesh-server", "--num_experts", "1", "--identity_path", id_path] + common_server_args,
+            ["subnet-server", "--num_experts", "1", "--identity_path", id_path] + common_server_args,
             stderr=PIPE,
             text=True,
             encoding="utf-8",
@@ -65,7 +66,7 @@ def test_cli_run_server_identity_path():
         assert len(ids_2) == 1
 
         server_3_proc = Popen(
-            ["mesh-server", "--num_experts", "1"] + common_server_args,
+            ["subnet-server", "--num_experts", "1"] + common_server_args,
             stderr=PIPE,
             text=True,
             encoding="utf-8",

@@ -2,16 +2,16 @@ from typing import AsyncIterator
 
 import pytest
 
-from mesh.proto import auth_pb2
-from mesh.proto.auth_pb2 import ResponseAuthInfo
-from mesh.utils.authorizers.auth import (
+from subnet.proto import auth_pb2
+from subnet.proto.auth_pb2 import ResponseAuthInfo
+from subnet.utils.authorizers.auth import (
     AuthorizedRequestBase,
     AuthorizedResponseBase,
     AuthRole,
     AuthRPCWrapperStreamer,
     SignatureAuthorizer,
 )
-from mesh.utils.crypto import Ed25519PrivateKey, RSAPrivateKey
+from subnet.utils.crypto import Ed25519PrivateKey, RSAPrivateKey
 
 # pytest tests/test_auth_streamer.py -rP
 
@@ -47,15 +47,12 @@ from mesh.utils.crypto import Ed25519PrivateKey, RSAPrivateKey
 #         for i in range(2):
 #             yield DummyResponse(f"stream:{request.msg}:{i}")
 
+
 class DummyRequest:
     def __init__(self, msg: str):
         self.msg = msg
         self.auth = auth_pb2.RequestAuthInfo(
-            client_access_token=auth_pb2.AccessToken(),
-            service_public_key=b"",
-            time=0.0,
-            nonce=b"",
-            signature=b""
+            client_access_token=auth_pb2.AccessToken(), service_public_key=b"", time=0.0, nonce=b"", signature=b""
         )
 
     def SerializeToString(self) -> bytes:
@@ -65,25 +62,25 @@ class DummyRequest:
     @property
     def __class__(self):
         # This trick makes isinstance(..., AuthorizedRequestBase) pass
-        class DummyClass(AuthorizedRequestBase): pass  # noqa: E701
+        class DummyClass(AuthorizedRequestBase):
+            pass  # noqa: E701
+
         return DummyClass
 
 
 class DummyResponse:
     def __init__(self, reply: str):
         self.reply = reply
-        self.auth = auth_pb2.ResponseAuthInfo(
-            service_access_token=auth_pb2.AccessToken(),
-            nonce=b"",
-            signature=b""
-        )
+        self.auth = auth_pb2.ResponseAuthInfo(service_access_token=auth_pb2.AccessToken(), nonce=b"", signature=b"")
 
     def SerializeToString(self) -> bytes:
         return self.reply.encode()
 
     @property
     def __class__(self):
-        class DummyClass(AuthorizedResponseBase): pass
+        class DummyClass(AuthorizedResponseBase):
+            pass
+
         return DummyClass
 
 
@@ -94,6 +91,7 @@ class DummyStub:
     async def rpc_stream(self, request: DummyRequest) -> AsyncIterator[DummyResponse]:
         for i in range(2):
             yield DummyResponse(f"stream:{request.msg}:{i}")
+
 
 @pytest.mark.asyncio
 async def test_authrpcwrapper_real_authorizer_ed25519():
@@ -122,6 +120,7 @@ async def test_authrpcwrapper_real_authorizer_ed25519():
         replies.append(resp.reply)
 
     assert replies == ["stream:test:0", "stream:test:1"]
+
 
 @pytest.mark.asyncio
 async def test_authrpcwrapper_real_authorizer_rsa():

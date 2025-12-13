@@ -1,4 +1,4 @@
-from mesh.utils.p2p_utils import extract_multiple_peer_ips_info, get_multiple_locations
+from subnet.utils.p2p_utils import extract_multiple_peer_ips_info, get_multiple_locations
 
 # pytest tests/test_ip_api.py::test_ip_api -rP
 
@@ -136,7 +136,7 @@ def test_dht_api_get_peers_info_batch():
                     all_ips.append(ip)
 
     # 2. Batch IP lookups in chunks of MAX_IP_ADDRESSES_PER_REQUEST
-    from mesh.utils.p2p_utils import get_multiple_locations
+    from subnet.utils.p2p_utils import get_multiple_locations
 
     ip_locations = {}
     for i in range(0, len(all_ips), MAX_IP_ADDRESSES_PER_REQUEST):

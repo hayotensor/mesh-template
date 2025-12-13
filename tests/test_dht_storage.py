@@ -1,10 +1,11 @@
 import time
 
-from mesh.dht.storage import DHTID, DHTLocalStorage, DictionaryDHTValue
-from mesh.utils.serializer import MSGPackSerializer
-from mesh.utils.timed_storage import get_dht_time
+from subnet.dht.storage import DHTID, DHTLocalStorage, DictionaryDHTValue
+from subnet.utils.serializer import MSGPackSerializer
+from subnet.utils.timed_storage import get_dht_time
 
 # pytest tests/test_dht_storage.py -rP
+
 
 def test_store():
     d = DHTLocalStorage()

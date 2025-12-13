@@ -14,7 +14,7 @@ def test_dht_connection_successful():
     cloned_env["MESH_LOGLEVEL"] = "INFO"
 
     dht_proc = Popen(
-        ["mesh-dht", "--host_maddrs", "/ip4/127.0.0.1/tcp/0", "--refresh_period", str(dht_refresh_period)],
+        ["subnet-dht", "--host_maddrs", "/ip4/127.0.0.1/tcp/0", "--refresh_period", str(dht_refresh_period)],
         stderr=PIPE,
         text=True,
         encoding="utf-8",
@@ -31,7 +31,7 @@ def test_dht_connection_successful():
 
     dht_client_proc = Popen(
         [
-            "mesh-dht",
+            "subnet-dht",
             *initial_peers,
             "--host_maddrs",
             "/ip4/127.0.0.1/tcp/0",

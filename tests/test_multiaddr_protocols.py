@@ -25,9 +25,10 @@
 import pytest
 import varint
 
-from mesh.utils.multiaddr import exceptions, protocols
+from subnet.utils.multiaddr import exceptions, protocols
 
 # pytest tests/test_multiaddr_protocols.py -rP
+
 
 def test_code_to_varint():
     vi = varint.encode(5)

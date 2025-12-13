@@ -4,15 +4,16 @@ from typing import Dict
 import pytest
 from pydantic.v1 import BaseModel, StrictInt
 
-import mesh
-from mesh.dht.crypto import SignatureValidator
-from mesh.dht.protocol import DHTProtocol
-from mesh.dht.routing import DHTID
-from mesh.dht.schema import BytesWithPublicKey, SchemaValidator
-from mesh.dht.validation import CompositeValidator, DHTRecord, DHTRecordRequestType
-from mesh.utils.crypto import Ed25519PrivateKey, RSAPrivateKey
+import subnet
+from subnet.dht.crypto import SignatureValidator
+from subnet.dht.protocol import DHTProtocol
+from subnet.dht.routing import DHTID
+from subnet.dht.schema import BytesWithPublicKey, SchemaValidator
+from subnet.dht.validation import CompositeValidator, DHTRecord, DHTRecordRequestType
+from subnet.utils.crypto import Ed25519PrivateKey, RSAPrivateKey
 
 # pytest tests/test_dht_validation.py -rP
+
 
 class SchemaA(BaseModel):
     field_a: bytes
@@ -30,12 +31,14 @@ def validators_for_app():
         "B": [SchemaValidator(SchemaB, allow_extra_keys=False), SignatureValidator(Ed25519PrivateKey())],
     }
 
+
 # pytest tests/test_dht_validation.py::test_dht_add_validators -rP
+
 
 @pytest.mark.forked
 def test_dht_add_validators(validators_for_app):
     # One app may create a DHT with its validators
-    dht = mesh.DHT(start=False, record_validators=validators_for_app["A"])
+    dht = subnet.DHT(start=False, record_validators=validators_for_app["A"])
 
     # While the DHT process is not started, you can't send a command to append new validators
     with pytest.raises(RuntimeError):
@@ -45,18 +48,18 @@ def test_dht_add_validators(validators_for_app):
     # After starting the process, other apps may add new validators to the existing DHT
     dht.add_validators(validators_for_app["B"])
 
-    assert dht.store("field_a", b"bytes_value", mesh.get_dht_time() + 10)
+    assert dht.store("field_a", b"bytes_value", subnet.get_dht_time() + 10)
     assert dht.get("field_a", latest=True).value == b"bytes_value"
 
-    assert not dht.store("field_a", 666, mesh.get_dht_time() + 10)
+    assert not dht.store("field_a", 666, subnet.get_dht_time() + 10)
     assert dht.get("field_a", latest=True).value == b"bytes_value"
 
     local_public_key = validators_for_app["A"][0].local_public_key
-    assert dht.store("field_b", 777, mesh.get_dht_time() + 10, subkey=local_public_key)
+    assert dht.store("field_b", 777, subnet.get_dht_time() + 10, subkey=local_public_key)
     dictionary = dht.get("field_b", latest=True).value
     assert len(dictionary) == 1 and dictionary[local_public_key].value == 777
 
-    assert not dht.store("unknown_key", 666, mesh.get_dht_time() + 10)
+    assert not dht.store("unknown_key", 666, subnet.get_dht_time() + 10)
     assert dht.get("unknown_key", latest=True) is None
 
 
@@ -73,7 +76,7 @@ def test_composite_validator(validators_for_app):
         key=DHTID.generate(source="field_b").to_bytes(),
         subkey=DHTProtocol.serializer.dumps(local_public_key),
         value=DHTProtocol.serializer.dumps(777),
-        expiration_time=mesh.get_dht_time() + 10,
+        expiration_time=subnet.get_dht_time() + 10,
     )
 
     signed_record = dataclasses.replace(record, value=validator.sign_value(record))
@@ -87,7 +90,7 @@ def test_composite_validator(validators_for_app):
         key=DHTID.generate(source="unknown_key").to_bytes(),
         subkey=DHTProtocol.IS_REGULAR_VALUE,
         value=DHTProtocol.serializer.dumps(777),
-        expiration_time=mesh.get_dht_time() + 10,
+        expiration_time=subnet.get_dht_time() + 10,
     )
 
     signed_record = dataclasses.replace(record, value=validator.sign_value(record))

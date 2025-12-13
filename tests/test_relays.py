@@ -3,12 +3,13 @@ from functools import partial
 
 import pytest
 
-import mesh
+import subnet
 
 # pytest tests/test_relays.py -rP
 
+
 async def ping_to_client(dht, node, peer_id: str):
-    return await node.protocol.call_ping(mesh.PeerID.from_base58(str(peer_id)))
+    return await node.protocol.call_ping(subnet.PeerID.from_base58(str(peer_id)))
 
 
 @pytest.mark.forked
@@ -20,7 +21,7 @@ async def ping_to_client(dht, node, peer_id: str):
     ],
 )
 def test_autorelay(use_auto_relay: bool, use_relay: bool):
-    dht_first_peer = mesh.DHT(
+    dht_first_peer = subnet.DHT(
         start=True,
         use_auto_relay=use_auto_relay,
         use_relay=use_relay,
@@ -30,7 +31,7 @@ def test_autorelay(use_auto_relay: bool, use_relay: bool):
     initial_peers = dht_first_peer.get_visible_maddrs()
     assert dht_first_peer_id is not None
 
-    dht_third_peer = mesh.DHT(
+    dht_third_peer = subnet.DHT(
         initial_peers=initial_peers,
         host_maddrs=[],
         start=True,
@@ -40,7 +41,7 @@ def test_autorelay(use_auto_relay: bool, use_relay: bool):
         use_auto_relay=use_auto_relay,
     )
     time.sleep(5)
-    dht_second_peer = mesh.DHT(
+    dht_second_peer = subnet.DHT(
         initial_peers=initial_peers,
         start=True,
         client_mode=False,

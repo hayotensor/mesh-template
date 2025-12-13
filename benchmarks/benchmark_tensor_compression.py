@@ -3,11 +3,11 @@ import time
 
 import torch
 
-from mesh.compression import deserialize_torch_tensor, serialize_torch_tensor
-from mesh.proto.runtime_pb2 import CompressionType
-from mesh.utils.logging import get_logger, use_mesh_log_handler
+from subnet.compression import deserialize_torch_tensor, serialize_torch_tensor
+from subnet.proto.runtime_pb2 import CompressionType
+from subnet.utils.logging import get_logger, use_subnet_log_handler
 
-use_mesh_log_handler("in_root_logger")
+use_subnet_log_handler("in_root_logger")
 logger = get_logger(__name__)
 
 
