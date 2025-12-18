@@ -30,7 +30,7 @@ from subnet.utils.dht import get_node_heartbeats
 from subnet.utils.key import get_peer_id_from_identity_path, get_private_key
 from subnet.utils.logging import get_logger, setup_mp_logging, use_subnet_log_handler
 from subnet.utils.networking import log_visible_maddrs
-from subnet.utils.p2p_utils import extract_multiple_peer_ips_info, extract_peer_ip_info, get_peers_ips
+from subnet.utils.p2p_utils import get_peers_ips
 from subnet.utils.proof_of_stake import ProofOfStake
 
 use_subnet_log_handler("in_root_logger")
@@ -565,7 +565,7 @@ def main():
         pos = ProofOfStake(
             subnet_id,
             hypertensor,
-            min_class=1,
+            min_class=0,
         )
         pos_authorizer = ProofOfStakeAuthorizer(signature_authorizer, pos)
     else:

@@ -23,13 +23,14 @@ class ProofOfStake:
         self.peer_id_to_last_successful_pos: Dict[PeerID, float] = {}
         self.pos_success_cooldown = 300
         self.peer_id_to_last_failed_pos: Dict[PeerID, float] = {}
-        self.pos_fail_cooldown: float = 300
+        self.pos_fail_cooldown: float = 20
         self.min_class = min_class
 
     def get_peer_id_last_success(self, peer_id: PeerID) -> float:
         return self.peer_id_to_last_successful_pos.get(peer_id, 0)
 
     def update_peer_id_success(self, peer_id: PeerID):
+        logger.debug(f"Peer ID {peer_id} succeeded proof-of-stake")
         self.peer_id_to_last_successful_pos[peer_id] = get_dht_time()
         self.peer_id_to_last_failed_pos.pop(peer_id, None)
 
@@ -37,6 +38,7 @@ class ProofOfStake:
         return self.peer_id_to_last_failed_pos.get(peer_id, 0)
 
     def update_peer_id_fail(self, peer_id: PeerID):
+        logger.info(f"Peer ID {peer_id} failed proof-of-stake")
         self.peer_id_to_last_failed_pos[peer_id] = get_dht_time()
         self.peer_id_to_last_successful_pos.pop(peer_id, None)
 
@@ -51,13 +53,13 @@ class ProofOfStake:
         # Recently failed — reject immediately
         last_fail = self.get_peer_id_last_fail(peer_id)
         if last_fail and now - last_fail < self.pos_fail_cooldown:
-            logger.debug("Peer recently failed, rejecting")
+            logger.debug(f"Peer ID {peer_id} recently failed proof-of-stake, rejecting")
             return False
 
         # Recent success — no need to check again
         last_success = self.get_peer_id_last_success(peer_id)
         if last_success and now - last_success < self.pos_success_cooldown:
-            logger.debug("Peer recently succeeded, initiating cooldown")
+            logger.debug(f"Peer ID {peer_id} recently succeeded proof-of-stake, initiating cooldown")
             return True
 
         # On-chain proof of stake check

@@ -237,6 +237,7 @@ setup(
             "keygen = subnet.subnet_cli.crypto.keygen:main",
             # generate coldkey or hotkey
             "generate-key = subnet.subnet_cli.hypertensor.keys.generate_key:main",
+            "multi-key-view = subnet.subnet_cli.hypertensor.keys.multi_key_view:main",
             # view peer ID from private key
             "keyview = subnet.subnet_cli.crypto.keyview:main",
             # hypertensor subnet

@@ -104,7 +104,7 @@ class Server:
             pos = ProofOfStake(
                 self.subnet_id,
                 self.hypertensor,
-                min_class=1,
+                min_class=0,
             )
             self.pos_authorizer = ProofOfStakeAuthorizer(self.signature_authorizer, pos)
         else:

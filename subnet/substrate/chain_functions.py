@@ -1,4 +1,3 @@
-import binascii
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, List, Optional
@@ -20,7 +19,6 @@ from subnet.substrate.chain_data import (
     SubnetNode,
     SubnetNodeInfo,
     SubnetNodeStakeInfo,
-    get_runtime_config,
 )
 from subnet.substrate.config import BLOCK_SECS
 from subnet.utils import get_logger
@@ -92,10 +90,10 @@ class KeypairFrom(Enum):
 
 
 class SubnetNodeClass(Enum):
-    Registered = 1
-    Idle = 2
-    Included = 3
-    Validator = 4
+    Registered = 0
+    Idle = 1
+    Included = 2
+    Validator = 3
 
 
 # lookup from string
@@ -116,7 +114,6 @@ class Hypertensor:
         runtime_config: Optional[RuntimeConfiguration] = None,
     ):
         self.url = url
-        # self.interface: SubstrateInterface = SubstrateInterface(url=url)
         self.interface: SubstrateInterface = SubstrateInterface(url=url, runtime_config=runtime_config)
         if keypair_from is None:
             self.keypair = Keypair.create_from_mnemonic(phrase, crypto_type=KeypairType.ECDSA)
@@ -204,8 +201,6 @@ class Hypertensor:
                     receipt = _interface.submit_extrinsic(extrinsic, wait_for_inclusion=True)
                     if receipt.is_success:
                         print("✅ Extrinsic Success")
-                        # for event in receipt.triggered_events:
-                        #     print(f"* {event.value}")
                     else:
                         logger.error(f"⚠️ Extrinsic Failed: {receipt.error_message}")
 
@@ -248,8 +243,6 @@ class Hypertensor:
 
                     if receipt.is_success:
                         print("✅ Extrinsic Success")
-                        # for event in receipt.triggered_events:
-                        #     print(f"* {event.value}")
                     else:
                         logger.error(f"⚠️ Extrinsic Failed: {receipt.error_message}")
 
@@ -1686,10 +1679,10 @@ class Hypertensor:
         :param peer_id: peer ID
         :param min_class: SubnetNodeClass enum
 
-        Registered = 1
-        Idle = 2
-        Included = 3
-        Validator = 4
+        Registered = 0
+        Idle = 1
+        Included = 2
+        Validator = 3
 
         ```rust
         pub enum SubnetNodeClass {

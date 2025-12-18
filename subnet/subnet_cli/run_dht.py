@@ -153,7 +153,7 @@
 #         pos = ProofOfStake(
 #             subnet_id,
 #             hypertensor,
-#             min_class=1,
+#             min_class=0,
 #         )
 #         pos_authorizer = ProofOfStakeAuthorizer(signature_authorizer, pos)
 #     else:
