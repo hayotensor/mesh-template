@@ -59,7 +59,9 @@ class Server:
         self.expiration = expiration
 
         self.initial_peers = initial_peers
-        self.announce_maddrs = kwargs.get("announce_maddrs")  # Returns None if 'my_key' not present
+        self.announce_maddrs = kwargs.get(
+            "announce_maddrs"
+        )  # Returns None if 'my_key' not present
 
         self.subnet_id = subnet_id
         self.subnet_node_id = subnet_node_id
@@ -80,12 +82,16 @@ class Server:
         # Initialize predicate validator here. See https://docs.hypertensor.org/subnet-template/dht-records/record-validator/predicate-validators
         if self.hypertensor is not None:
             consensus_predicate = HypertensorPredicateValidator.from_predicate_class(
-                MockHypertensorCommitReveal, hypertensor=self.hypertensor, subnet_id=subnet_id
+                MockHypertensorCommitReveal,
+                hypertensor=self.hypertensor,
+                subnet_id=subnet_id,
             )
 
         else:
             consensus_predicate = HypertensorPredicateValidator.from_predicate_class(
-                MockHypertensorCommitReveal, hypertensor=MockHypertensor(), subnet_id=subnet_id
+                MockHypertensorCommitReveal,
+                hypertensor=MockHypertensor(),
+                subnet_id=subnet_id,
             )
 
         self.record_validators.append(consensus_predicate)
@@ -117,10 +123,25 @@ class Server:
         # Test connecting to the DHT as a direct peer
         if reachable_via_relay is None:
             is_reachable = check_direct_reachability(
-                initial_peers=initial_peers, authorizer=self.pos_authorizer, use_relay=False, **kwargs
+                initial_peers=initial_peers,
+                authorizer=self.pos_authorizer,
+                use_relay=False,
+                **kwargs,
             )
-            reachable_via_relay = is_reachable is False  # if can't check reachability (returns None), run a full peer
-            logger.info(f"This server is accessible {'via relays' if reachable_via_relay else 'directly'}")
+            reachable_via_relay = (
+                is_reachable is False
+            )  # if can't check reachability (returns None), run a full peer
+            # logger.info(
+            #     f"This server is accessible {'via relays' if reachable_via_relay else 'directly'}"
+            # )
+            if reachable_via_relay:
+                logger.info(
+                    "Server is not accessible directly to the majority of all peers, attempting to connect directly anyway. \n"
+                    "Ensure your public IP is correct, port is open, and your NAT/firewall is configured for communication. \n \n"
+                    "This issue can also be caused by too many peers exiting at the time of your entry and should resolve itself. \n"
+                    "If you receive a ValidationError about 'Peer x can't access this node. Probably, libp2p has failed to bypass the firewall', \n"
+                    "then their or your node may not be accessible for communication. "
+                )
 
         logger.info("About to run DHT")
 
@@ -130,13 +151,19 @@ class Server:
             num_workers=DEFAULT_NUM_WORKERS,
             use_relay=use_relay,
             use_auto_relay=use_auto_relay,
-            client_mode=reachable_via_relay,
+            client_mode=False,
             record_validators=self.record_validators,
             **dict(kwargs, authorizer=self.pos_authorizer),
         )
 
-        self.reachability_protocol = (
-            ReachabilityProtocol.attach_to_dht(self.dht, identity_path) if not reachable_via_relay else None
+        # self.reachability_protocol = (
+        #     ReachabilityProtocol.attach_to_dht(self.dht, identity_path)
+        #     if not reachable_via_relay
+        #     else None
+        # )
+
+        self.reachability_protocol = ReachabilityProtocol.attach_to_dht(
+            self.dht, identity_path
         )
 
         visible_maddrs_str = [str(a) for a in self.dht.get_visible_maddrs()]
@@ -339,21 +366,24 @@ class ModuleHeartbeatThread(threading.Thread):
             if self.server_info.state != ServerState.OFFLINE:
                 self._ping_next_servers()
                 self.server_info.next_pings = {
-                    peer_id.to_base58(): rtt for peer_id, rtt in self.ping_aggregator.to_dict().items()
+                    peer_id.to_base58(): rtt
+                    for peer_id, rtt in self.ping_aggregator.to_dict().items()
                 }
             else:
-                self.server_info.next_pings = None  # No need to ping if we're disconnecting
+                self.server_info.next_pings = (
+                    None  # No need to ping if we're disconnecting
+                )
 
             logger.info("Declaring node [Heartbeat]...")
 
             """
-            Do not change the "node" key
+            Do not change the "heartbeat" key
 
             See https://docs.hypertensor.org/build-a-subnet/requirements#node-key-public-key-subkey
             """
             declare_node_sig(
                 dht=self.dht,
-                key="node",
+                key="heartbeat",
                 server_info=self.server_info,
                 expiration_time=get_dht_time() + self.expiration,
                 record_validator=self.record_validator,
@@ -393,7 +423,7 @@ class ModuleHeartbeatThread(threading.Thread):
                 self.join(timeout=5)
 
     def _ping_next_servers(self) -> Dict[subnet.PeerID, float]:
-        module_infos = get_node_infos_sig(self.dht, uid="node", latest=True)
+        module_infos = get_node_infos_sig(self.dht, uid="heartbeat", latest=True)
         if len(module_infos) == 0:
             return
         middle_servers = {info.peer_id for info in module_infos}

@@ -19,28 +19,28 @@ def in_ipython() -> bool:
 
 
 logging.addLevelName(logging.WARNING, "WARN")
-loglevel = os.getenv("MESH_LOGLEVEL", "INFO")
+loglevel = os.getenv("SUBNET_LOGLEVEL", "INFO")
 
 TRUE_CONSTANTS = ["TRUE", "1"]
 
-_env_colors = os.getenv("MESH_COLORS")
+_env_colors = os.getenv("SUBNET_COLORS")
 if _env_colors is not None:
     use_colors = _env_colors.upper() in TRUE_CONSTANTS
 else:
     use_colors = sys.stderr.isatty() or in_ipython()
 
-_env_log_caller = os.getenv("MESH_ALWAYS_LOG_CALLER", "0")
+_env_log_caller = os.getenv("SUBNET_ALWAYS_LOG_CALLER", "0")
 always_log_caller = _env_log_caller.upper() in TRUE_CONSTANTS
 
 
 class HandlerMode(Enum):
     NOWHERE = 0
-    IN_MESH = 1
+    IN_SUBNET = 1
     IN_ROOT_LOGGER = 2
 
 
 _init_lock = threading.RLock()
-_current_mode = HandlerMode.IN_MESH
+_current_mode = HandlerMode.IN_SUBNET
 _default_handler = None
 
 # Multiprocessing logging support
@@ -126,7 +126,7 @@ def get_logger(name: Optional[str] = None) -> logging.Logger:
     """
     Same as ``logging.getLogger()`` but ensures that the default subnet log handler is initialized.
 
-    :note: By default, the subnet log handler (that reads the ``MESH_LOGLEVEL`` env variable and uses
+    :note: By default, the subnet log handler (that reads the ``SUBNET_LOGLEVEL`` env variable and uses
            the colored log formatter) is only applied to messages logged inside the subnet package.
            If you want to extend this handler to other loggers in your application, call
            ``use_subnet_log_handler("in_root_logger")``.
@@ -142,7 +142,10 @@ def _enable_default_handler(name: Optional[str]) -> None:
     # Remove the extra default handler in the Colab's default logger before adding a new one
     if isinstance(logger, logging.RootLogger):
         for handler in list(logger.handlers):
-            if isinstance(handler, logging.StreamHandler) and handler.stream is sys.stderr:
+            if (
+                isinstance(handler, logging.StreamHandler)
+                and handler.stream is sys.stderr
+            ):
                 logger.removeHandler(handler)
 
     logger.addHandler(_default_handler)
@@ -183,14 +186,14 @@ def use_subnet_log_handler(where: Union[HandlerMode, str]) -> None:
     if where == _current_mode:
         return
 
-    if _current_mode == HandlerMode.IN_MESH:
+    if _current_mode == HandlerMode.IN_SUBNET:
         _disable_default_handler("subnet")
     elif _current_mode == HandlerMode.IN_ROOT_LOGGER:
         _disable_default_handler(None)
 
     _current_mode = where
 
-    if _current_mode == HandlerMode.IN_MESH:
+    if _current_mode == HandlerMode.IN_SUBNET:
         _enable_default_handler("subnet")
     elif _current_mode == HandlerMode.IN_ROOT_LOGGER:
         _enable_default_handler(None)
@@ -209,7 +212,9 @@ def golog_level_to_python(level: str) -> int:
 
 def python_level_to_golog(level: str) -> str:
     if not isinstance(level, str):
-        raise ValueError("`level` is expected to be a Python log level in the string form")
+        raise ValueError(
+            "`level` is expected to be a Python log level in the string form"
+        )
 
     if level == "CRITICAL":
         return "FATAL"
@@ -245,7 +250,9 @@ def setup_mp_logging() -> mp.Queue:
 
     # Create listener that processes logs from the queue
     # Use the existing _default_handler to maintain formatting
-    _queue_listener = logging.handlers.QueueListener(_log_queue, _default_handler, respect_handler_level=True)
+    _queue_listener = logging.handlers.QueueListener(
+        _log_queue, _default_handler, respect_handler_level=True
+    )
     _queue_listener.start()
 
     return _log_queue

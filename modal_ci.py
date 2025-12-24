@@ -17,8 +17,12 @@ image = (
     )
     .add_local_dir("subnet", remote_path="/root/subnet/subnet")
     .add_local_file("requirements.txt", remote_path="/root/subnet/requirements.txt")
-    .add_local_file("requirements-dev.txt", remote_path="/root/subnet/requirements-dev.txt")
-    .add_local_file("requirements-docs.txt", remote_path="/root/subnet/requirements-docs.txt")
+    .add_local_file(
+        "requirements-dev.txt", remote_path="/root/subnet/requirements-dev.txt"
+    )
+    .add_local_file(
+        "requirements-docs.txt", remote_path="/root/subnet/requirements-docs.txt"
+    )
     .add_local_file("setup.py", remote_path="/root/subnet/setup.py")
     .add_local_file("pyproject.toml", remote_path="/root/subnet/pyproject.toml")
     .add_local_dir("tests", remote_path="/root/subnet/tests")
@@ -43,8 +47,12 @@ image_with_golang = (
     )
     .add_local_dir("subnet", remote_path="/root/subnet/subnet")
     .add_local_file("requirements.txt", remote_path="/root/subnet/requirements.txt")
-    .add_local_file("requirements-dev.txt", remote_path="/root/subnet/requirements-dev.txt")
-    .add_local_file("requirements-docs.txt", remote_path="/root/subnet/requirements-docs.txt")
+    .add_local_file(
+        "requirements-dev.txt", remote_path="/root/subnet/requirements-dev.txt"
+    )
+    .add_local_file(
+        "requirements-docs.txt", remote_path="/root/subnet/requirements-docs.txt"
+    )
     .add_local_file("setup.py", remote_path="/root/subnet/setup.py")
     .add_local_file("pyproject.toml", remote_path="/root/subnet/pyproject.toml")
     .add_local_dir("tests", remote_path="/root/subnet/tests")
@@ -56,7 +64,9 @@ app = modal.App("subnet-ci")
 codecov_secret = modal.Secret.from_dict(
     {
         "CODECOV_TOKEN": os.getenv("CODECOV_TOKEN"),
-        "GITHUB_EVENT_PULL_REQUEST_HEAD_SHA": os.getenv("GITHUB_EVENT_PULL_REQUEST_HEAD_SHA"),
+        "GITHUB_EVENT_PULL_REQUEST_HEAD_SHA": os.getenv(
+            "GITHUB_EVENT_PULL_REQUEST_HEAD_SHA"
+        ),
         "GITHUB_EVENT_NUMBER": os.getenv("GITHUB_EVENT_NUMBER"),
         "GITHUB_REPOSITORY": os.getenv("GITHUB_REPOSITORY"),
     }
@@ -82,7 +92,7 @@ def setup_environment(*, build_p2pd=False):
     subprocess.run(install_cmd, check=True)
 
     environment = os.environ.copy()
-    environment["MESH_MEMORY_SHARING_STRATEGY"] = "file_descriptor"
+    environment["SUBNET_MEMORY_SHARING_STRATEGY"] = "file_descriptor"
 
     return environment
 

@@ -3,7 +3,9 @@ import re
 from subprocess import PIPE, Popen
 from time import sleep
 
-_DHT_START_PATTERN = re.compile(r"Running a DHT instance. To connect other peers to this one, use (.+)$")
+_DHT_START_PATTERN = re.compile(
+    r"Running a DHT instance. To connect other peers to this one, use (.+)$"
+)
 
 
 def test_dht_connection_successful():
@@ -11,10 +13,16 @@ def test_dht_connection_successful():
 
     cloned_env = os.environ.copy()
     # overriding the loglevel to prevent debug print statements
-    cloned_env["MESH_LOGLEVEL"] = "INFO"
+    cloned_env["SUBNET_LOGLEVEL"] = "INFO"
 
     dht_proc = Popen(
-        ["subnet-dht", "--host_maddrs", "/ip4/127.0.0.1/tcp/0", "--refresh_period", str(dht_refresh_period)],
+        [
+            "subnet-dht",
+            "--host_maddrs",
+            "/ip4/127.0.0.1/tcp/0",
+            "--refresh_period",
+            str(dht_refresh_period),
+        ],
         stderr=PIPE,
         text=True,
         encoding="utf-8",
@@ -52,7 +60,10 @@ def test_dht_connection_successful():
         dht_client_proc.stderr.readline()
     first_report_msg = dht_client_proc.stderr.readline()
 
-    assert "2 DHT nodes (including this one) are in the local routing table" in first_report_msg, first_report_msg
+    assert (
+        "2 DHT nodes (including this one) are in the local routing table"
+        in first_report_msg
+    ), first_report_msg
 
     # expect that one of the next logging outputs from the first peer shows a new connection
     for _ in range(20):
@@ -60,13 +71,15 @@ def test_dht_connection_successful():
         second_report_msg = dht_proc.stderr.readline()
 
         if (
-            "2 DHT nodes (including this one) are in the local routing table" in first_report_msg
+            "2 DHT nodes (including this one) are in the local routing table"
+            in first_report_msg
             and "Local storage contains 0 keys" in second_report_msg
         ):
             break
     else:
         assert (
-            "2 DHT nodes (including this one) are in the local routing table" in first_report_msg
+            "2 DHT nodes (including this one) are in the local routing table"
+            in first_report_msg
             and "Local storage contains 0 keys" in second_report_msg
         )
 

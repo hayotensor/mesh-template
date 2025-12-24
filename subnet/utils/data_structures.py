@@ -10,8 +10,12 @@ from subnet.dht.validation import DHTRecord
 # from subnet.pallet.module_uid import ModuleUID
 
 ModuleUID = str
-UID_DELIMITER = "."  # delimits parts of one module uid, e.g. "bloom.transformer.h.4.self_attention"
-CHAIN_DELIMITER = " "  # delimits multiple uids in a sequence, e.g. "bloom.layer3 bloom.layer4"
+UID_DELIMITER = (
+    "."  # delimits parts of one module uid, e.g. "bloom.transformer.h.4.self_attention"
+)
+CHAIN_DELIMITER = (
+    " "  # delimits multiple uids in a sequence, e.g. "bloom.layer3 bloom.layer4"
+)
 
 
 def parse_uid(uid: ModuleUID) -> Tuple[str, int]:  # type: ignore
@@ -66,8 +70,6 @@ class ServerInfo:
     public_name: Optional[str] = None
     version: Optional[str] = None
 
-    # inference_rps: Optional[RPS] = None # type: ignore
-
     using_relay: Optional[bool] = None
     next_pings: Optional[Dict[str, pydantic.confloat(ge=0, strict=True)]] = None  # type: ignore
 
@@ -83,7 +85,9 @@ class ServerInfo:
         state, role, throughput = source[:3]
         extra_info = source[3] if len(source) > 2 else {}
         # pydantic will validate existing fields and ignore extra ones
-        return cls(state=ServerState(state), role=role, throughput=throughput, **extra_info)
+        return cls(
+            state=ServerState(state), role=role, throughput=throughput, **extra_info
+        )
 
 
 @dataclasses.dataclass

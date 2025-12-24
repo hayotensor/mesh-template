@@ -26,12 +26,13 @@ def test_cli_run_server_identity_path():
 
         cloned_env = os.environ.copy()
         # overriding the loglevel to prevent debug print statements
-        cloned_env["MESH_LOGLEVEL"] = "INFO"
+        cloned_env["SUBNET_LOGLEVEL"] = "INFO"
 
         common_server_args = ["--hidden_dim", "4", "--num_handlers", "1"]
 
         server_1_proc = Popen(
-            ["subnet-server", "--num_experts", "1", "--identity_path", id_path] + common_server_args,
+            ["subnet-server", "--num_experts", "1", "--identity_path", id_path]
+            + common_server_args,
             stderr=PIPE,
             text=True,
             encoding="utf-8",
@@ -50,7 +51,8 @@ def test_cli_run_server_identity_path():
         assert len(ids_1) == 1
 
         server_2_proc = Popen(
-            ["subnet-server", "--num_experts", "1", "--identity_path", id_path] + common_server_args,
+            ["subnet-server", "--num_experts", "1", "--identity_path", id_path]
+            + common_server_args,
             stderr=PIPE,
             text=True,
             encoding="utf-8",

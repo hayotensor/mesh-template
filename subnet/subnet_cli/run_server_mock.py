@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import time
 from pathlib import Path
 
 import configargparse
@@ -10,7 +11,6 @@ from substrateinterface import Keypair, KeypairType
 
 from subnet.app.server.server import Server
 from subnet.substrate.chain_functions import Hypertensor, KeypairFrom
-from subnet.substrate.mock.chain_functions import MockHypertensor
 from subnet.substrate.mock.local_chain_functions import LocalMockHypertensor
 from subnet.utils import limits
 from subnet.utils.constants import PUBLIC_INITIAL_PEERS
@@ -34,8 +34,8 @@ Add required parameters to start a node
 For example, if you're building an inference subnet, you may need a model name to load the model.
 
 subnet-server-mock \
-    --host_maddrs /ip4/0.0.0.0/tcp/31331 /ip4/0.0.0.0/udp/31331/quic \
-    --announce_maddrs /ip4/127.00.1/tcp/31331 /ip4/127.00.1/udp/31331/quic \
+    --host_maddrs /ip4/0.0.0.0/tcp/31331 /ip4/0.0.0.0/udp/31331/quic-v1 \
+    --announce_maddrs /ip4/127.00.1/tcp/31331 /ip4/127.00.1/udp/31331/quic-v1 \
     --identity_path server3.id \
     --subnet_id 1 --subnet_node_id 2
 """
@@ -105,7 +105,9 @@ def main():
     host_maddrs = args.pop("host_maddrs")
     port = args.pop("port")
     if port is not None:
-        assert host_maddrs is None, "You can't use --port and --host_maddrs at the same time"
+        assert host_maddrs is None, (
+            "You can't use --port and --host_maddrs at the same time"
+        )
     else:
         port = 0
     if host_maddrs is None:
@@ -114,8 +116,12 @@ def main():
     announce_maddrs = args.pop("announce_maddrs")
     public_ip = args.pop("public_ip")
     if public_ip is not None:
-        assert announce_maddrs is None, "You can't use --public_ip and --announce_maddrs at the same time"
-        assert port != 0, "Please specify a fixed non-zero --port when you use --public_ip (e.g., --port 31337)"
+        assert announce_maddrs is None, (
+            "You can't use --public_ip and --announce_maddrs at the same time"
+        )
+        assert port != 0, (
+            "Please specify a fixed non-zero --port when you use --public_ip (e.g., --port 31337)"
+        )
         announce_maddrs = [f"/ip4/{public_ip}/tcp/{port}"]
 
     args["startup_timeout"] = args.pop("daemon_startup_timeout")
@@ -126,6 +132,8 @@ def main():
         limits.logger.setLevel(logging.WARNING)
         limits.increase_file_limit(file_limit, file_limit)
 
+    hotkey = None
+    start_epoch = None
     if no_blockchain_rpc is False:
         if local_rpc:
             rpc = os.getenv("LOCAL_RPC")
@@ -134,13 +142,38 @@ def main():
 
         if phrase is not None:
             hypertensor = Hypertensor(rpc, phrase)
+            keypair = Keypair.create_from_mnemonic(
+                phrase, crypto_type=KeypairType.ECDSA
+            )
+            hotkey = keypair.ss58_address
+            logger.info(f"hotkey: {hotkey}")
         elif private_key is not None:
             hypertensor = Hypertensor(rpc, private_key, KeypairFrom.PRIVATE_KEY)
-            keypair = Keypair.create_from_private_key(private_key, crypto_type=KeypairType.ECDSA)
+            keypair = Keypair.create_from_private_key(
+                private_key, crypto_type=KeypairType.ECDSA
+            )
             hotkey = keypair.ss58_address
             logger.info(f"hotkey: {hotkey}")
         else:
             hypertensor = Hypertensor(rpc, PHRASE)
+
+        if hotkey is not None:
+            result = hypertensor.interface.query("System", "Account", [hotkey])
+            balance = result.value["data"]["free"]
+            assert balance >= 500, (
+                f"Hotkey must have at least 0.0000000000000005 TENSOR to be a live account, balance is {float(balance / 1e18)}"
+            )
+
+        # Check subnet node exists
+        subnet_node_info = hypertensor.get_formatted_get_subnet_node_info(
+            subnet_id, subnet_node_id
+        )
+        if subnet_node_info is None:
+            raise Exception("Subnet node does not exist")
+
+        start_epoch = subnet_node_info.classification["start_epoch"]
+        if start_epoch is None:
+            raise Exception("Subnet node start epoch is None")
     else:
         peer_id = get_peer_id_from_identity_path(args["identity_path"])
         reset_db = False
@@ -171,6 +204,35 @@ def main():
         # Necessary to prevent the server from freezing after forks
         torch.set_num_threads(1)
 
+    # This snippest enables nodes to start the node without waiting their node to be registered on-chain
+    # On-chain, once registered, the node is not activated under n+1 of the registration epoch
+    # This waits for the node to be eligible to join the subnet as others will not allow them to communicate
+    # with them until this node is fully registered on-chain
+    if start_epoch is not None:
+        slot = hypertensor.get_subnet_slot(subnet_id)
+        slot = int(str(slot))
+        subnet_epoch_data = hypertensor.get_subnet_epoch_data(slot)
+        current_epoch = subnet_epoch_data.epoch
+        logger.info(f"Current epoch is {current_epoch}")
+        if current_epoch < start_epoch:
+            logger.info(
+                "Keep this running and the node will automatically join the subnet once it's fully registered on-chain"
+            )
+            logger.info(f"Subnet node start epoch is {start_epoch}")
+            while current_epoch < start_epoch:
+                subnet_epoch_data = hypertensor.get_subnet_epoch_data(slot)
+                current_epoch = subnet_epoch_data.epoch
+                logger.info(f"Current epoch is {current_epoch}")
+                if current_epoch >= start_epoch:
+                    break
+
+                seconds_remaining = subnet_epoch_data.seconds_remaining
+                logger.info(
+                    f"Checking next epoch to see if we can join the subnet, sleeping for {seconds_remaining} seconds"
+                )
+                time.sleep(seconds_remaining)
+        logger.info("Subnet node is about to join the subnets DHT")
+
     server = Server(
         **args,
         host_maddrs=host_maddrs,
@@ -186,6 +248,12 @@ def main():
     except KeyboardInterrupt:
         logger.info("Caught KeyboardInterrupt, shutting down")
     finally:
+        if no_blockchain_rpc:
+            try:
+                # Delete subnet node from mock db if it was created
+                hypertensor.db.delete_subnet_node(subnet_id, subnet_node_id)
+            except Exception as e:
+                logger.error(f"Failed to delete subnet node from mock db: {e}")
         server.shutdown()
 
 
