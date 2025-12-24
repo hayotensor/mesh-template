@@ -42,22 +42,32 @@ class AuthorizedResponseBase:
 class AuthorizerBase(ABC):
     @abstractmethod
     async def sign_request(
-        self, request: AuthorizedRequestBase, service_public_key: Optional[Ed25519PublicKey | RSAPublicKey]
+        self,
+        request: AuthorizedRequestBase,
+        service_public_key: Optional[Ed25519PublicKey | RSAPublicKey],
     ) -> None: ...
 
     @abstractmethod
     async def validate_request(self, request: AuthorizedRequestBase) -> bool: ...
 
     @abstractmethod
-    async def sign_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> None: ...
+    async def sign_response(
+        self, response: AuthorizedResponseBase, request: AuthorizedRequestBase
+    ) -> None: ...
 
     @abstractmethod
-    async def validate_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> bool: ...
+    async def validate_response(
+        self, response: AuthorizedResponseBase, request: AuthorizedRequestBase
+    ) -> bool: ...
 
 
 class SignatureAuthorizer(AuthorizerBase):
     def __init__(self, local_private_key: Ed25519PrivateKey | RSAPrivateKey):
-        self._key_type = KeyType.RSA if isinstance(local_private_key, RSAPrivateKey) else KeyType.Ed25519
+        self._key_type = (
+            KeyType.RSA
+            if isinstance(local_private_key, RSAPrivateKey)
+            else KeyType.Ed25519
+        )
         self._local_private_key = local_private_key
         self._local_public_key = local_private_key.get_public_key()
 
@@ -85,7 +95,9 @@ class SignatureAuthorizer(AuthorizerBase):
         return self._local_public_key
 
     async def sign_request(
-        self, request: AuthorizedRequestBase, service_public_key: Optional[Ed25519PublicKey | RSAPublicKey]
+        self,
+        request: AuthorizedRequestBase,
+        service_public_key: Optional[Ed25519PublicKey | RSAPublicKey],
     ) -> None:
         auth = request.auth
 
@@ -112,7 +124,9 @@ class SignatureAuthorizer(AuthorizerBase):
         """
         auth = request.auth
 
-        client_public_key = load_public_key_from_bytes(auth.client_access_token.public_key)
+        client_public_key = load_public_key_from_bytes(
+            auth.client_access_token.public_key
+        )
 
         signature = auth.signature
         auth.signature = b""
@@ -120,14 +134,22 @@ class SignatureAuthorizer(AuthorizerBase):
             logger.debug("Request has invalid signature")
             return client_public_key, 0.0, auth.nonce, False
 
-        if auth.service_public_key and auth.service_public_key != self._local_public_key.to_bytes():
+        if (
+            auth.service_public_key
+            and auth.service_public_key != self._local_public_key.to_bytes()
+        ):
             logger.debug("Request is generated for a peer with another public key")
             return client_public_key, 0.0, auth.nonce, False
 
         with self._recent_nonces.freeze():
             current_time = get_dht_time()
-            if abs(auth.time - current_time) > self._MAX_CLIENT_SERVICER_TIME_DIFF.total_seconds():
-                logger.debug("Clocks are not synchronized or a previous request is replayed again")
+            if (
+                abs(auth.time - current_time)
+                > self._MAX_CLIENT_SERVICER_TIME_DIFF.total_seconds()
+            ):
+                logger.debug(
+                    "Clocks are not synchronized or a previous request is replayed again"
+                )
                 return client_public_key, current_time, auth.nonce, False
             if auth.nonce in self._recent_nonces:
                 logger.debug("Previous request is replayed again")
@@ -144,11 +166,17 @@ class SignatureAuthorizer(AuthorizerBase):
         if not valid:
             return False
 
-        self._recent_nonces.store(nonce, None, current_time + self._MAX_CLIENT_SERVICER_TIME_DIFF.total_seconds() * 3)
+        self._recent_nonces.store(
+            nonce,
+            None,
+            current_time + self._MAX_CLIENT_SERVICER_TIME_DIFF.total_seconds() * 3,
+        )
 
         return True
 
-    async def sign_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> None:
+    async def sign_response(
+        self, response: AuthorizedResponseBase, request: AuthorizedRequestBase
+    ) -> None:
         auth = response.auth
 
         # auth.service_access_token.CopyFrom(self._local_access_token)
@@ -164,7 +192,9 @@ class SignatureAuthorizer(AuthorizerBase):
     ) -> Tuple[RSAPublicKey | Ed25519PublicKey, bool]:
         auth = response.auth
 
-        service_public_key = load_public_key_from_bytes(auth.service_access_token.public_key)
+        service_public_key = load_public_key_from_bytes(
+            auth.service_access_token.public_key
+        )
 
         signature = auth.signature
         auth.signature = b""
@@ -178,7 +208,9 @@ class SignatureAuthorizer(AuthorizerBase):
 
         return service_public_key, True
 
-    async def validate_response(self, response: AuthorizedResponseBase, request: AuthorizedRequestBase) -> bool:
+    async def validate_response(
+        self, response: AuthorizedResponseBase, request: AuthorizedRequestBase
+    ) -> bool:
         _, valid = await self.do_validate_response(response, request)
         return valid
 
@@ -218,23 +250,31 @@ class AuthRPCWrapper:
 
         @functools.wraps(method)
         async def wrapped_rpc(request: AuthorizedRequestBase, *args, **kwargs):
-            if self._authorizer is not None:
-                if self._role == AuthRole.CLIENT:
-                    await self._authorizer.sign_request(request, self._service_public_key)
-                elif self._role == AuthRole.SERVICER:
-                    if not await self._authorizer.validate_request(request):
-                        return None
+            try:
+                if self._authorizer is not None:
+                    if self._role == AuthRole.CLIENT:
+                        await self._authorizer.sign_request(
+                            request, self._service_public_key
+                        )
+                    elif self._role == AuthRole.SERVICER:
+                        if not await self._authorizer.validate_request(request):
+                            return None
 
-            response = await method(request, *args, **kwargs)
+                    response = await method(request, *args, **kwargs)
 
-            if self._authorizer is not None:
-                if self._role == AuthRole.SERVICER:
-                    await self._authorizer.sign_response(response, request)
-                elif self._role == AuthRole.CLIENT:
-                    if not await self._authorizer.validate_response(response, request):
-                        return None
+                if self._authorizer is not None:
+                    if self._role == AuthRole.SERVICER:
+                        await self._authorizer.sign_response(response, request)
+                    elif self._role == AuthRole.CLIENT:
+                        if not await self._authorizer.validate_response(
+                            response, request
+                        ):
+                            return None
 
-            return response
+                return response
+            except Exception as e:
+                logger.debug(f"Exception AuthRPCWrapper: {name}: {e}")
+                return None
 
         return wrapped_rpc
 
@@ -278,7 +318,9 @@ class AuthRPCWrapperStreamer:
                         if role == AuthRole.SERVICER:
                             await authorizer.sign_response(response, request)
                         elif role == AuthRole.CLIENT:
-                            if not await authorizer.validate_response(response, request):
+                            if not await authorizer.validate_response(
+                                response, request
+                            ):
                                 continue
 
                     yield response
@@ -318,7 +360,9 @@ class AuthRPCWrapperStreamer:
                                 return None
                             return full_gen
                         else:
-                            if not await authorizer.validate_response(response, request):
+                            if not await authorizer.validate_response(
+                                response, request
+                            ):
                                 return None
 
                 return response

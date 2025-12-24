@@ -17,7 +17,6 @@ from setuptools.command.egg_info import egg_info
 
 P2PD_VERSION = "v0.5.0.hivemind1"
 
-# TODO: Update to our own repo
 P2PD_SOURCE_URL = f"https://github.com/learning-at-home/go-libp2p-daemon/archive/refs/tags/{P2PD_VERSION}.tar.gz"
 P2PD_BINARY_URL = f"https://github.com/learning-at-home/go-libp2p-daemon/releases/download/{P2PD_VERSION}/"
 
@@ -28,6 +27,22 @@ P2P_BINARY_HASH = {
     "p2pd-linux-amd64": "42f8f48e62583b97cdba3c31439c08029fb2b9fc506b5bdd82c46b7cc1d279d8",
     "p2pd-linux-arm64": "046f18480c785a84bdf139d7486086d379397ca106cb2f0191598da32f81447a",
 }
+
+# TODO: Update to latest Go-Libp2p Daemon
+# P2PD_VERSION = "v0.9.1"
+
+# P2PD_SOURCE_URL = f"https://github.com/libp2p/go-libp2p-daemon/archive/refs/tags/{P2PD_VERSION}.tar.gz"
+# P2PD_BINARY_URL = (
+#     f"https://github.com/libp2p/go-libp2p-daemon/releases/download/{P2PD_VERSION}/"
+# )
+
+# # The value is sha256 of the binary from the release page
+# P2P_BINARY_HASH = {
+#     f"p2pd-{P2PD_VERSION}-darwin.tar.gz": "52cad0aee61ae983b2a4183ed8f2c955c04aa7070e4d3ff1b3010ad7a4b3f0f6",
+#     f"p2pd-{P2PD_VERSION}-linux-386.tar.gz": "e40092b24e4757edf113d91875468afe4c73b14902faecb4c5be1e12b88743b3",
+#     f"p2pd-{P2PD_VERSION}-linux-amd64.tar.gz": "0147fb08981272f68edd07ff6639fd4da2a6cab2693f7345fb6fcd6f31c9999c",
+#     f"p2pd-{P2PD_VERSION}-linux-arm64.tar.gz": "e94c58ac9e9bbf599897a405a3f3bb8dbe21289a0d2fb98def8d32e649d855fb",
+# }
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -59,14 +74,19 @@ def proto_compile(output_path):
     for py_file in glob.glob(f"{output_path}/*_pb2.py"):
         with open(py_file, "r+") as f:
             code = f.read()
-            code = re.sub(r"^import (.+_pb2.*)", r"from . import \1", code, flags=re.MULTILINE)
+            code = re.sub(
+                r"^import (.+_pb2.*)", r"from . import \1", code, flags=re.MULTILINE
+            )
             f.seek(0)
             f.write(code)
             f.truncate()
 
 
 def build_p2p_daemon():
-    result = subprocess.run("go version", capture_output=True, shell=True).stdout.decode("ascii", "replace")
+    print("Building P2P daemon")
+    result = subprocess.run(
+        "go version", capture_output=True, shell=True
+    ).stdout.decode("ascii", "replace")
     m = re.search(r"^go version go([\d.]+)", result)
 
     if m is None:
@@ -84,10 +104,14 @@ def build_p2p_daemon():
 
         result = subprocess.run(
             ["go", "build", "-o", os.path.join(here, "subnet", "subnet_cli", "p2pd")],
-            cwd=os.path.join(tempdir, f"go-libp2p-daemon-{P2PD_VERSION.lstrip('v')}", "p2pd"),
+            cwd=os.path.join(
+                tempdir, f"go-libp2p-daemon-{P2PD_VERSION.lstrip('v')}", "p2pd"
+            ),
         )
         if result.returncode != 0:
-            raise RuntimeError(f"Failed to build p2pd: exited with status code: {result.returncode}")
+            raise RuntimeError(
+                f"Failed to build p2pd: exited with status code: {result.returncode}"
+            )
 
 
 def download_p2p_daemon():
@@ -99,11 +123,23 @@ def download_p2p_daemon():
         arch = "amd64"
     if arch in ("aarch64", "aarch64_be", "armv8b", "armv8l"):
         arch = "arm64"
-    binary_name = f"p2pd-{platform.system().lower()}-{arch}"
+
+    platform_system = platform.system().lower()
+    binary_name = f"p2pd-{platform_system}-{arch}"
+
+    # TODO: Update to latest Go-Libp2p Daemon
+    # binary_name = f"p2pd-{P2PD_VERSION}-{platform_system}-{arch}"
+
+    print(
+        "Downloading P2P daemon for platform",
+        platform_system,
+        "and architecture",
+        arch,
+    )
 
     if binary_name not in P2P_BINARY_HASH:
         raise RuntimeError(
-            f"subnet does not provide a precompiled p2pd binary for {platform.system()} ({arch}). "
+            f"subnet does not provide a precompiled p2pd binary for {platform_system} ({arch}). "
             f"Please install Go and build it from source: https://github.com/hypertensor-blockchain/subnet-template#from-source"
         )
     expected_hash = P2P_BINARY_HASH[binary_name]
@@ -123,7 +159,9 @@ def download_p2p_daemon():
 
 
 class BuildPy(build_py):
-    user_options = build_py.user_options + [("buildgo", None, "Builds p2pd from source")]
+    user_options = build_py.user_options + [
+        ("buildgo", None, "Builds p2pd from source")
+    ]
 
     def initialize_options(self):
         super().initialize_options()
@@ -176,8 +214,12 @@ with open("requirements.txt") as requirements_file:
     install_requires = list(map(str, parse_requirements(requirements_file)))
 
 # loading version from setup.py
-with codecs.open(os.path.join(here, "subnet/__init__.py"), encoding="utf-8") as init_file:
-    version_match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", init_file.read(), re.MULTILINE)
+with codecs.open(
+    os.path.join(here, "subnet/__init__.py"), encoding="utf-8"
+) as init_file:
+    version_match = re.search(
+        r"^__version__ = ['\"]([^'\"]*)['\"]", init_file.read(), re.MULTILINE
+    )
     version_string = version_match.group(1)
 
 extras = {}

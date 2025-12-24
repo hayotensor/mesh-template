@@ -44,9 +44,14 @@ async def test_mock_session():
     for i in range(peers_len):
         test_path = f"rsa_test_path_{i}.key"
         test_paths.append(test_path)
-        private_key, public_key, public_bytes, encoded_public_key, encoded_digest, peer_id = (
-            generate_rsa_private_key_file(test_path)
-        )
+        (
+            private_key,
+            public_key,
+            public_bytes,
+            encoded_public_key,
+            encoded_digest,
+            peer_id,
+        ) = generate_rsa_private_key_file(test_path)
         loaded_key = get_rsa_private_key(test_path)
         record_validator = SignatureValidator(loaded_key)
         record_validators.append(record_validator)
@@ -76,7 +81,7 @@ async def test_mock_session():
 
     declare_node_sig(
         dht=hoster_dht,
-        key="node",
+        key="heartbeat",
         server_info=server_info,
         expiration_time=get_dht_time() + 999,
         record_validator=hoster_record_validator,

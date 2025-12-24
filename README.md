@@ -1,10 +1,11 @@
-## Hypertensor subnet framework
+# Hypertensor subnet framework
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 A framework for building open & decentralized AI projects
 
 ---
 This includes all the core components required to launch a decentralized AI application, including:
+
 - **[Kademlia DHT (KAD-DHT)][bittorrent]** – for scalable, decentralized storage, routing, and communication
 - **Asyncio-based DHT Node** – designed for fast, concurrent communications
 - **DHT Protocol** – allows DHT nodes to request keys/neighbors from other DHT nodes, and manages routing tables
@@ -24,7 +25,7 @@ This includes all the core components required to launch a decentralized AI appl
 
 ## Full Documentation
 
-https://docs.hypertensor.org
+<https://docs.hypertensor.org>
 
 ## Installation From source
 
@@ -51,21 +52,21 @@ of [Go toolchain](https://golang.org/doc/install) (1.15 or 1.16 are supported).
 
 ### System requirements
 
-- __Linux__ is the default OS for which the container is developed and tested. We recommend Ubuntu 18.04+ (64-bit), but
+- **Linux** is the default OS for which the container is developed and tested. We recommend Ubuntu 18.04+ (64-bit), but
   other 64-bit distros should work as well. Legacy 32-bit is not recommended.
-- __macOS__ is partially supported.
+- **macOS** is partially supported.
   If you have issues, you can run the container using [Docker](https://docs.docker.com/desktop/mac/install/) instead.
   We recommend using [our Docker image](https://hub.docker.com/r/hypertensor-blockchain/subnet-template).
-- __Windows 10+ (experimental)__ can run the container
+- **Windows 10+ (experimental)** can run the container
   using [WSL](https://docs.microsoft.com/ru-ru/windows/wsl/install-win10). You can configure WSL to use GPU by
   following sections 1–3 of [this guide](https://docs.nvidia.com/cuda/wsl-user-guide/index.html) by NVIDIA. After
   that, you can simply follow the instructions above to install with pip or from source.
 
 ---
 
-# Documentation
+## Documentation
 
-## .env
+### .env
 
 Create an `.env` file for the environmental variables.
 
@@ -75,17 +76,29 @@ touch .env
 
 Fill out the `.env` file with the necessary variables from `.env.example`.
 
-## Keys
+### Keys
 
 There are 3 key types each node will need, a coldkey (blockchain account), a hotkey (blockchain account), and peer IDs (subnet identity).
 
 The template currently allows RSA and Ed25519 key types and is interoperable between the two.
 
-#### Generate coldkey (if needed)
+#### Generate Coldkey
 
-#### Generate hotkey
+##### Example Coldkey Key Generation
+
+```bash
+generate-key --words 12
+```
+
+#### Generate Hotkey
 
 - This is the hotkey of the node. It is used for validating and attesting only. Each hotkey is unique to each subnet node and no hotkey can be used twice.
+
+##### Example Hotkey Key Generation
+
+```bash
+generate-key --words 12
+```
 
 #### Generate peer private keys
 
@@ -96,9 +109,9 @@ The template currently allows RSA and Ed25519 key types and is interoperable bet
 
 The `bootstrap_peer_id` and `client_peer_id` are not required to be used as a peer, but they are required to be generated and stored on-chain when registering a node.
 
-<b>Example Private Key Generation</b>
+##### Example Private Key Generation
 
-<b>RSA:</b>
+**RSA:**
 
 ```bash
 keygen \
@@ -108,7 +121,7 @@ keygen \
 --key_type rsa
 ```
 
-<b>Ed25519:</b>
+**Ed25519:**
 
 ```bash
 keygen \
@@ -118,7 +131,7 @@ keygen \
 --key_type ed25519
 ```
 
-## Register and Activate Subnet Node (on-chain)
+### Register and Activate Subnet Node (on-chain)
 
 #### Register & Stake on Hypertensor
 
@@ -144,38 +157,39 @@ register-node \
 
 - Call `activate_subnet_node` in Hypertensor on your start epoch up to the grace period.
 
-##### Example Register & Stake CLI
+##### Example Activate Node
 
 ```bash
 activate-node --subnet_id 1
 ```
 
 ---
-## Running Nodes
+
+### Running Nodes
 
 - Replace port `31330` with your port of choice.
 - Replace `{your_ip}` with your IP.
 
-### Run a Bootnode
+#### Run a Bootnode
 
 A bootnode is an entry point into a decentralized network and should be ran on its own server.
 
 Each subnet must have at least one public and running bootnode at all times for nodes to enter and for for Overwatch Nodes to validate a subnet. See documentation for more information.
 
-<b>Note</b>: To be verified to have a proof-of-stake in-subnet, use the bootnode private key generated during the <b>Generate peer private keys</b> step that the subnet node was registered with under the `bootnode_peer_id`.
+**Note**: To be verified to have a proof-of-stake in-subnet, use the bootnode private key generated during the **Generate peer private keys** step that the subnet node was registered with under the `bootnode_peer_id`.
 
-<b>Note</b>: Bootnodes are not required by subnet nodes and are expected to be managed by the subnet owner entity.
+**Note**: Bootnodes are not required by subnet nodes and are expected to be managed by the subnet owner entity.
 
 #### Start Bootnode
 
 ```bash
 subnet-dht-api \
---host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
---announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
+--host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic-v1 \
+--announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic-v1 \
 --identity_path bootnode.id \
 ```
 
-##### Update `PUBLIC_INITIAL_PEERS`
+**Update `PUBLIC_INITIAL_PEERS`**
 
 Once you run it, look at the outputs and find the following line:
 
@@ -187,13 +201,13 @@ Once the bootnode is deployed, copy the `/ip4/YOUR_ADDRESS_HERE/tcp/31330/p2p/Qm
 
 #### Start Node and Join Subnet
 
-##### This joins an existing subnets and runs a bootnode.
+This joins an existing subnet.
 
 - Get the bootnode multiaddresses from the subnets team or blockchain and add them to the `initial_peers` argument and replace `/ip4/{ip}/p2p/{peer_id}`. In this example, we use 2 bootnodes to connect to, but one is required.
-- 
+
 ```bash
 subnet-dht-api \
---host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
+--host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic-v1 \
 --announce_maddrs /ip4/{your_ip} \
 --initial_peers /ip4/{ip}/p2p/{peer_id} /ip4/{ip}/p2p/{peer_id}
 ```
@@ -206,18 +220,18 @@ subnet-dht-api \
 
 #### Start DHT / Start Node
 
-This will start a new subnet (fresh swarm as initial node/bootnode and server in one). It is <b>not</b> required to run a node as a bootnode together. Bootnodes should be treated as contact point for entry only.
+This will start a new subnet (fresh swarm as initial node/bootnode and server in one). It is **not** required to run a node as a bootnode together. Bootnodes should be treated as contact point for entry only.
 
 ```bash
 subnet-server-mock \
---host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
---announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
+--host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic-v1 \
+--announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic-v1 \
 --identity_path bootnode.id \
 --new_swarm  \
 --subnet_id 1 --subnet_node_id 1
 ```
 
-##### Update `PUBLIC_INITIAL_PEERS`
+**Update `PUBLIC_INITIAL_PEERS`**
 
 Once you run it, look at the outputs and find the following line:
 
@@ -231,11 +245,12 @@ Once the bootnode is deployed, copy the `/ip4/YOUR_ADDRESS_HERE/tcp/31330/p2p/Qm
 
 ```bash
 subnet-server-mock \
---host_maddrs /ip4/0.0.0.0/tcp/31331 /ip4/0.0.0.0/udp/31331/quic \
---announce_maddrs /ip4/{your_ip}/tcp/31331 /ip4/{your_ip}/udp/31331/quic \
+--host_maddrs /ip4/0.0.0.0/tcp/31331 /ip4/0.0.0.0/udp/31331/quic-v1 \
+--announce_maddrs /ip4/{your_ip}/tcp/31331 /ip4/{your_ip}/udp/31331/quic-v1 \
 --identity_path alith.id \
 --subnet_id 1 --subnet_node_id 1
 ```
+
 ---
 
 ## Running Nodes Locally
@@ -244,23 +259,23 @@ Start a subnet template locally with 3 nodes and **no requirement for a blockcha
 
 (See below on how to run the nodes with a blockchain connection locally)
 
-#### Start the bootnode as a server
+### Start the bootnode as a server
 
-This is a node that as a bootnode and a server, although this is not recommended for production.
+This is a node that is both a bootnode and a server, although this is not recommended for production.
 
-<b>Note:</b> In production, a bootnode should <b>not</b> be ran as a server.
+**Note:** In production, a bootnode should **not** be ran as a server. It's sole function should be for other peers to connect to the subnet.
 
 ```bash
 subnet-server-mock \
-    --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
-    --announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
+    --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic-v1 \
+    --announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic-v1 \
     --identity_path bootnode.id \
     --subnet_id 1 --subnet_node_id 1 \
     --no_blockchain_rpc \
     --new_swarm
 ```
 
-##### Update `PUBLIC_INITIAL_PEERS`
+**Update `PUBLIC_INITIAL_PEERS`**
 
 Once you run it, look at the outputs and find the following line:
 
@@ -274,8 +289,8 @@ Once the bootnode is deployed, copy the `/ip4/YOUR_ADDRESS_HERE/tcp/31337/p2p/Qm
 
 ```bash
 subnet-server-mock \
-    --host_maddrs /ip4/0.0.0.0/tcp/31331 /ip4/0.0.0.0/udp/31331/quic \
-    --announce_maddrs /ip4/{your_ip}/tcp/31331 /ip4/{your_ip}/udp/31331/quic \
+    --host_maddrs /ip4/0.0.0.0/tcp/31331 /ip4/0.0.0.0/udp/31331/quic-v1 \
+    --announce_maddrs /ip4/{your_ip}/tcp/31331 /ip4/{your_ip}/udp/31331/quic-v1 \
     --identity_path alith.id \
     --subnet_id 1 --subnet_node_id 2 \
     --no_blockchain_rpc
@@ -285,23 +300,24 @@ subnet-server-mock \
 
 ```bash
 subnet-server-mock \
-    --host_maddrs /ip4/0.0.0.0/tcp/31332 /ip4/0.0.0.0/udp/31332/quic \
-    --announce_maddrs /ip4/{your_ip}/tcp/31332 /ip4/{your_ip}/udp/31332/quic \
+    --host_maddrs /ip4/0.0.0.0/tcp/31332 /ip4/0.0.0.0/udp/31332/quic-v1 \
+    --announce_maddrs /ip4/{your_ip}/tcp/31332 /ip4/{your_ip}/udp/31332/quic-v1 \
     --identity_path baltathar.id \
     --subnet_id 1 --subnet_node_id 3 \
     --no_blockchain_rpc
 ```
 
-##### Add more nodes by using the following test `identity_path`'s:
+**Add more nodes by using the following test `identity_path`'s**
 
 - `charleth.id`
 - `dorothy.id`
 - `ethan.id`
 - `faith.id`
 
-<b>Note:</b> Ensure each peer has its own unique `subnet_node_id` and `port`.
+**Note:** Ensure each peer has its own unique `subnet_node_id` and `port`.
 
 ---
+
 ## Running Nodes Locally With Local Blockchain
 
 In production, the codebase is set up to use the `.env` file for hotkey configuration via the mnemonic phrase (`PHRASE`). To run locally, we take advantage of the `--private_key` flag when registering the node on-chain, and when starting the node, by using the private key argument instead of the mnemonic phrase. This will be used in the following example for both registering the node on-chain, and running the node as a subnet node in the P2P DHT-based network.
@@ -310,7 +326,7 @@ The following example will use Alith as the subnet owner and as the node example
 
 See `subnet/subnet_cli/hypertensor/node/register.py` to register more test accounts.
 
-##### For testing with a running local blockchain
+### For testing with a running local blockchain
 
 1. Register subnet
 2. Register at least 3 nodes
@@ -319,7 +335,7 @@ See `subnet/subnet_cli/hypertensor/node/register.py` to register more test accou
 
 Once the subnet is activated, consensus will begin on the following epoch between all of the nodes in the subnet.
 
-#### Register a subnet:
+#### Register a subnet
 
 With Alith's coldkey as the owner and with Alith, Baltathar, Charleth, and Dorothy as the initial coldkeys:
 
@@ -343,9 +359,9 @@ register-subnet \
 --local_rpc
 ```
 
-#### Register a node:
+#### Register a node
 
-<b>Note:</b> The client peer ID, bootnode peer ID, and bootnode are only for testing purposes. In production, the client peer ID and bootnode peer ID should be generated beforehand and each have its own identity paths (the bootnode will be derived from the bootnode peer ID if utilized). The client and bootnode peer ID are required on-chain but not required to be used off-chain in the subnet. The bootnode is optional.
+**Note:** The client peer ID, bootnode peer ID, and bootnode are only for testing purposes. In production, the client peer ID and bootnode peer ID should be generated beforehand and each have its own identity paths (the bootnode will be derived from the bootnode peer ID if utilized). The client and bootnode peer ID are required on-chain but not required to be used off-chain in the subnet. The bootnode is optional.
 
 Using **Alith**'s coldkey private key:
 
@@ -410,8 +426,8 @@ Using **Alith**'s hotkey private key:
 
 ```bash
 subnet-server-mock \
-    --host_maddrs /ip4/0.0.0.0/tcp/31331 /ip4/0.0.0.0/udp/31331/quic \
-    --announce_maddrs /ip4/{your_ip}/tcp/31331 /ip4/{your_ip}/udp/31331/quic \
+    --host_maddrs /ip4/0.0.0.0/tcp/31331 /ip4/0.0.0.0/udp/31331/quic-v1 \
+    --announce_maddrs /ip4/{your_ip}/tcp/31331 /ip4/{your_ip}/udp/31331/quic-v1 \
     --identity_path alith.id \
     --subnet_id 1 --subnet_node_id 1 \
     --local_rpc \
@@ -422,8 +438,8 @@ Using **Baltathar**'s hotkey private key:
 
 ```bash
 subnet-server-mock \
-    --host_maddrs /ip4/0.0.0.0/tcp/31332 /ip4/0.0.0.0/udp/31332/quic \
-    --announce_maddrs /ip4/{your_ip}/tcp/31332 /ip4/{your_ip}/udp/31332/quic \
+    --host_maddrs /ip4/0.0.0.0/tcp/31332 /ip4/0.0.0.0/udp/31332/quic-v1 \
+    --announce_maddrs /ip4/{your_ip}/tcp/31332 /ip4/{your_ip}/udp/31332/quic-v1 \
     --identity_path baltathar.id \
     --subnet_id 1 --subnet_node_id 2 \
     --local_rpc \
@@ -434,8 +450,8 @@ Using **Charleth**'s hotkey private key:
 
 ```bash
 subnet-server-mock \
-    --host_maddrs /ip4/0.0.0.0/tcp/31333 /ip4/0.0.0.0/udp/31333/quic \
-    --announce_maddrs /ip4/{your_ip}/tcp/31333 /ip4/{your_ip}/udp/31333/quic \
+    --host_maddrs /ip4/0.0.0.0/tcp/31333 /ip4/0.0.0.0/udp/31333/quic-v1 \
+    --announce_maddrs /ip4/{your_ip}/tcp/31333 /ip4/{your_ip}/udp/31333/quic-v1 \
     --identity_path charleth.id \
     --subnet_id 1 --subnet_node_id 3 \
     --local_rpc \
@@ -488,10 +504,9 @@ Once activated, the subnet nodes will begin to run consensus on the following ep
 
 This is currently at the active development stage, and we welcome all contributions. Everything, from bug fixes and documentation improvements to entirely new features, is appreciated.
 
-If you want to contribute to this subnet template but don't know where to start, take a look at the unresolved [issues](https://github.com/hypertensor-blockchain/subnet-template/issues). 
+If you want to contribute to this subnet template but don't know where to start, take a look at the unresolved [issues](https://github.com/hypertensor-blockchain/subnet-template/issues).
 
 Open a new issue or join [our chat room](https://discord.gg/bY7NUEweQp) in case you want to discuss new functionality or report a possible bug. Bug fixes are always welcome, but new features should be preferably discussed with maintainers beforehand.
-
 
 [![Discord](https://img.shields.io/badge/Join-Discord-blue?logo=discord&logoColor=white)](https://discord.gg/bY7NUEweQp)
 [![X](https://img.shields.io/badge/Follow-On_X-black?logo=x&logoColor=white)](https://x.com/hyper_tensor)
@@ -499,11 +514,11 @@ Open a new issue or join [our chat room](https://discord.gg/bY7NUEweQp) in case 
 
 ## References
 
-[0]: Maymounkov, P., & Mazières, D. (2002). Kademlia: A Peer-to-Peer Information System Based on the XOR Metric. In P. Druschel, F. Kaashoek, & A. Rowstron (Eds.), Peer-to-Peer Systems (pp. 53–65). Berlin, Heidelberg: Springer Berlin Heidelberg. https://doi.org/10.1007/3-540-45748-8_5
+[0]: Maymounkov, P., & Mazières, D. (2002). Kademlia: A Peer-to-Peer Information System Based on the XOR Metric. In P. Druschel, F. Kaashoek, & A. Rowstron (Eds.), Peer-to-Peer Systems (pp. 53–65). Berlin, Heidelberg: Springer Berlin Heidelberg. <https://doi.org/10.1007/3-540-45748-8_5>
 
-[1]: Baumgart, I., & Mies, S. (2014). S / Kademlia : A practicable approach towards secure key-based routing S / Kademlia : A Practicable Approach Towards Secure Key-Based Routing, (June). https://doi.org/10.1109/ICPADS.2007.4447808
+[1]: Baumgart, I., & Mies, S. (2014). S / Kademlia : A practicable approach towards secure key-based routing S / Kademlia : A Practicable Approach Towards Secure Key-Based Routing, (June). <https://doi.org/10.1109/ICPADS.2007.4447808>
 
-[2]: Freedman, M. J., & Mazières, D. (2003). Sloppy Hashing and Self-Organizing Clusters. In IPTPS. Springer Berlin / Heidelberg. Retrieved from https://www.cs.princeton.edu/~mfreed/docs/coral-iptps03.pdf
+[2]: Freedman, M. J., & Mazières, D. (2003). Sloppy Hashing and Self-Organizing Clusters. In IPTPS. Springer Berlin / Heidelberg. Retrieved from <https://www.cs.princeton.edu/~mfreed/docs/coral-iptps03.pdf>
 
 [bittorrent]: http://bittorrent.org/beps/bep_0005.html
 

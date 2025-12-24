@@ -1,79 +1,87 @@
 import asyncio
-import math
 import threading
-import time
 from concurrent.futures import Future
 from contextlib import asynccontextmanager
 from functools import partial
 from typing import Optional
-
-import requests
 
 from subnet.dht import DHT, DHTNode
 from subnet.p2p import P2P, P2PContext, PeerID, ServicerBase
 from subnet.proto import dht_pb2
 from subnet.utils import get_logger
 from subnet.utils.authorizers.auth import AuthorizerBase
-from subnet.utils.constants import REACHABILITY_API_URL
 from subnet.utils.remote_worker import RemoteWorker
 
 logger = get_logger(__name__)
 
 
-def validate_reachability(peer_id, wait_time: float = 7 * 60, retry_delay: float = 15) -> None:
-    """verify that your peer is reachable from a (centralized) validator, whether directly or through a relay"""
-    for attempt_no in range(math.floor(wait_time / retry_delay) + 1):
-        try:
-            r = requests.get(f"{REACHABILITY_API_URL}/api/v1/is_reachable/{peer_id}", timeout=10)
-            r.raise_for_status()
-            response = r.json()
+# def validate_reachability(peer_id, wait_time: float = 7 * 60, retry_delay: float = 15) -> None:
+#     """verify that your peer is reachable from a (centralized) validator, whether directly or through a relay"""
+#     for attempt_no in range(math.floor(wait_time / retry_delay) + 1):
+#         try:
+#             r = requests.get(f"{REACHABILITY_API_URL}/api/v1/is_reachable/{peer_id}", timeout=10)
+#             r.raise_for_status()
+#             response = r.json()
 
-            if response["success"]:
-                logger.info(
-                    "Server is reachable from the Internet. It will appear at https://dashboard.example.com soon"
-                )
-                return
+#             if response["success"]:
+#                 logger.info(
+#                     "Server is reachable from the Internet. It will appear at https://dashboard.example.com soon"
+#                 )
+#                 return
 
-            if attempt_no == 0:
-                # Usually, libp2p manages to set up relays before we finish loading blocks.
-                # In other cases, we may need to wait for up to `wait_time` seconds before it's done.
-                logger.info("Detected a NAT or a firewall, connecting to libp2p relays. This takes a few minutes")
-            time.sleep(retry_delay)
-        except Exception as e:
-            logger.warning(f"Skipping reachability check because dashboard.example.com is down: {repr(e)}")
-            return
+#             if attempt_no == 0:
+#                 # Usually, libp2p manages to set up relays before we finish loading blocks.
+#                 # In other cases, we may need to wait for up to `wait_time` seconds before it's done.
+#                 logger.info("Detected a NAT or a firewall, connecting to libp2p relays. This takes a few minutes")
+#             time.sleep(retry_delay)
+#         except Exception as e:
+#             logger.warning(f"Skipping reachability check because dashboard.example.com is down: {repr(e)}")
+#             return
 
-    raise RuntimeError(
-        f"Server has not become reachable from the Internet:\n\n"
-        f"{response['message']}\n\n"
-        f"You need to fix your port forwarding and/or firewall settings. How to do that:\n\n"
-        f"    1. Choose a specific port for the Subnets server, for example, 31337.\n"
-        f"    2. Ensure that this port is accessible from the Internet and not blocked by your firewall.\n"
-        f"    3. Add these arguments to explicitly announce your IP address and port to other peers:\n"
-    )
+#     raise RuntimeError(
+#         f"Server has not become reachable from the Internet:\n\n"
+#         f"{response['message']}\n\n"
+#         f"You need to fix your port forwarding and/or firewall settings. How to do that:\n\n"
+#         f"    1. Choose a specific port for the Subnets server, for example, 31337.\n"
+#         f"    2. Ensure that this port is accessible from the Internet and not blocked by your firewall.\n"
+#         f"    3. Add these arguments to explicitly announce your IP address and port to other peers:\n"
+#     )
 
 
 def check_direct_reachability(
-    max_peers: int = 5, threshold: float = 0.5, authorizer: Optional[AuthorizerBase] = None, **kwargs
+    max_peers: int = 5,
+    threshold: float = 0.5,
+    authorizer: Optional[AuthorizerBase] = None,
+    **kwargs,
 ) -> Optional[bool]:
     """test if your peer is accessible by others in the swarm with the specified network options in **kwargs"""
 
     async def _check_direct_reachability():
-        target_dht = await DHTNode.create(client_mode=True, authorizer=authorizer, **kwargs)
+        target_dht = await DHTNode.create(
+            client_mode=True, authorizer=authorizer, **kwargs
+        )
         try:
             protocol = ReachabilityProtocol(probe=target_dht.protocol.p2p)
             async with protocol.serve(target_dht.protocol.p2p):
                 successes = requests = 0
-                for remote_peer in list(target_dht.protocol.routing_table.peer_id_to_uid.keys()):
-                    probe_available = await protocol.call_check(remote_peer=remote_peer, check_peer=target_dht.peer_id)
+                for remote_peer in list(
+                    target_dht.protocol.routing_table.peer_id_to_uid.keys()
+                ):
+                    probe_available = await protocol.call_check(
+                        remote_peer=remote_peer, check_peer=target_dht.peer_id
+                    )
                     if probe_available is None:
+                        logger.info(
+                            f"Requested {remote_peer} to check {target_dht.peer_id}, but failed to check probe. "
+                            "Bootnodes will always fail this check because they don't run reachability protocol"
+                        )
                         continue  # remote peer failed to check probe
                     successes += probe_available
                     requests += 1
                     if requests >= max_peers:
                         break
 
-            logger.debug(f"Direct reachability: {successes}/{requests}")
+            logger.info(f"Direct reachability success rate: {successes}/{requests}")
             return (successes / requests) >= threshold if requests > 0 else None
         finally:
             await target_dht.shutdown()
@@ -82,7 +90,12 @@ def check_direct_reachability(
 
 
 STRIPPED_PROBE_ARGS = dict(
-    dht_mode="client", use_relay=False, auto_nat=False, nat_port_map=False, no_listen=True, startup_timeout=60
+    dht_mode="client",
+    use_relay=False,
+    auto_nat=False,
+    nat_port_map=False,
+    no_listen=True,
+    startup_timeout=60,
 )
 
 
@@ -94,27 +107,77 @@ class ReachabilityProtocol(ServicerBase):
         self.wait_timeout = wait_timeout
         self._event_loop = self._stop = None
 
-    async def call_check(self, remote_peer: PeerID, *, check_peer: PeerID) -> Optional[bool]:
-        """Returns True if remote_peer can reach check_peer, False if it cannot, None if it did not respond"""
-        try:
-            request = dht_pb2.PingRequest(peer=dht_pb2.NodeInfo(node_id=check_peer.to_bytes()))
-            timeout = self.wait_timeout if check_peer == remote_peer else self.wait_timeout * 2
-            response = await self.get_stub(self.probe, remote_peer).rpc_check(request, timeout=timeout)
-            logger.debug(f"call_check(remote_peer={remote_peer}, check_peer={check_peer}) -> {response.available}")
-            return response.available
-        except Exception as e:
-            logger.debug(f"Requested {remote_peer} to check {check_peer}, but got:", exc_info=True)
-            return None
+    async def call_check(
+        self,
+        remote_peer: PeerID,
+        *,
+        check_peer: PeerID,
+        max_retries: int = 3,
+        retry_delay: float = 2.0,
+    ) -> Optional[bool]:
+        """Returns True if remote_peer can reach check_peer, False if it cannot, None if it did not respond
 
-    async def rpc_check(self, request: dht_pb2.PingRequest, context: P2PContext) -> dht_pb2.PingResponse:
+        :param max_retries: number of retry attempts on dial backoff errors
+        :param retry_delay: seconds to wait between retries
+        """
+        request = dht_pb2.PingRequest(
+            peer=dht_pb2.NodeInfo(node_id=check_peer.to_bytes())
+        )
+        timeout = (
+            self.wait_timeout if check_peer == remote_peer else self.wait_timeout * 2
+        )
+
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                response = await self.get_stub(self.probe, remote_peer).rpc_check(
+                    request, timeout=timeout
+                )
+                logger.info(
+                    f"call_check(remote_peer={remote_peer}, check_peer={check_peer}) -> {response.available}"
+                )
+                return response.available
+            except Exception as e:
+                last_error = e
+                error_str = str(e)
+                # Retry on dial backoff errors - libp2p is in cooldown period after failed dial
+                if "dial backoff" in error_str and attempt < max_retries - 1:
+                    logger.info(
+                        f"Dial backoff for {remote_peer}, retrying in {retry_delay}s (attempt {attempt + 1}/{max_retries})"
+                    )
+                    await asyncio.sleep(retry_delay)
+                    continue
+                # This is debug logger because bootnodes do not run reachability protocol
+                # When connecting to a bootnode, this protocol will always fail so we avoid
+                # logging to not confuse the user
+                logger.debug(
+                    f"Requested {remote_peer} to check {check_peer}, but got: {e}",
+                    exc_info=True,
+                )
+                return None
+
+        # All retries attempted
+        logger.debug(
+            f"Requested {remote_peer} to check {check_peer}, all retries attempted. Last error: {last_error}",
+            exc_info=True,
+        )
+        return None
+
+    async def rpc_check(
+        self, request: dht_pb2.PingRequest, context: P2PContext
+    ) -> dht_pb2.PingResponse:
         """Help another peer to check its reachability"""
         response = dht_pb2.PingResponse(available=True)
         check_peer = PeerID(request.peer.node_id)
-        if check_peer != context.local_id:  # remote peer wants us to check someone other than ourselves
-            response.available = await self.call_check(check_peer, check_peer=check_peer) is True
+        if (
+            check_peer != context.local_id
+        ):  # remote peer wants us to check someone other than ourselves
+            response.available = (
+                await self.call_check(check_peer, check_peer=check_peer) is True
+            )
             logger.info(
-                f"reachability.rpc_check(remote_peer=...{str(context.remote_id)[-6:]}, "
-                f"check_peer=...{str(check_peer)[-6:]}) -> {response.available}"
+                f"reachability.rpc_check(remote_peer=...{str(context.remote_id)}, "
+                f"check_peer=...{str(check_peer)}) -> {response.available}"
             )
         return response
 
@@ -139,27 +202,34 @@ class ReachabilityProtocol(ServicerBase):
                 protocol._event_loop = asyncio.get_event_loop()
                 protocol._stop = asyncio.Event()
 
-                initial_peers = [str(addr) for addr in await common_p2p.get_visible_maddrs(latest=True)]
+                initial_peers = [
+                    str(addr)
+                    for addr in await common_p2p.get_visible_maddrs(latest=True)
+                ]
                 for info in await common_p2p.list_peers():
-                    initial_peers.extend(f"{addr}/p2p/{info.peer_id}" for addr in info.addrs)
+                    initial_peers.extend(
+                        f"{addr}/p2p/{info.peer_id}" for addr in info.addrs
+                    )
                 protocol.probe = await P2P.create(initial_peers, **STRIPPED_PROBE_ARGS)
 
                 ready.set_result(True)
-                logger.debug("Reachability service started")
+                logger.info("Reachability service started")
 
                 async with protocol.serve(common_p2p):
                     await protocol._stop.wait()
             except Exception as e:
-                logger.debug("Reachability service failed:", exc_info=True)
+                logger.warning("Reachability service failed:", exc_info=True)
 
                 if not ready.done():
                     ready.set_exception(e)
             finally:
                 if protocol is not None and protocol.probe is not None:
                     await protocol.probe.shutdown()
-                logger.debug("Reachability service shut down")
+                logger.info("Reachability service shut down")
 
-        threading.Thread(target=partial(asyncio.run, _serve_with_probe()), daemon=True).start()
+        threading.Thread(
+            target=partial(asyncio.run, _serve_with_probe()), daemon=True
+        ).start()
         if await_ready:
             ready.result()  # Propagates startup exceptions, if any
         return protocol
