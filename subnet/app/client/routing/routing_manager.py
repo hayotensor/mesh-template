@@ -45,8 +45,12 @@ class RemoteManager:
         dht: Optional[DHT] = None,
         state: Optional[SequenceManagerState] = None,
     ):
-        assert config.initial_peers or dht is not None, "Please specify `config.initial_peers` or `dht`"
-        assert config.dht_prefix, "Could not find dht_prefix in config, please create model with dht_prefix=..."
+        assert config.initial_peers or dht is not None, (
+            "Please specify `config.initial_peers` or `dht`"
+        )
+        assert config.dht_prefix, (
+            "Could not find dht_prefix in config, please create model with dht_prefix=..."
+        )
 
         self.config = config
         if state is None:
@@ -61,14 +65,18 @@ class RemoteManager:
                 startup_timeout=config.daemon_startup_timeout,
                 start=True,
             )
-        assert isinstance(dht, DHT) and dht.is_alive(), "`dht` must be a running subnet.DHT instance"
+        assert isinstance(dht, DHT) and dht.is_alive(), (
+            "`dht` must be a running subnet.DHT instance"
+        )
         self.dht = dht
 
         if state.p2p is None:
             state.p2p = RemoteWorker.run_coroutine(dht.replicate_p2p())
 
         self.lock_changes = threading.Lock()
-        self._thread = _SequenceManagerUpdateThread(config.update_period, WeakMethod(self._update))
+        self._thread = _SequenceManagerUpdateThread(
+            config.update_period, WeakMethod(self._update)
+        )
         self._thread_start_lock = threading.Lock()
 
         self.allowed_servers = self._peer_ids_to_set(config.allowed_servers)
@@ -77,7 +85,9 @@ class RemoteManager:
         self.ping_aggregator = PingAggregator(dht)
 
         if state.banned_peers is None:
-            state.banned_peers = Blacklist(base_time=config.ban_timeout, backoff_rate=2.0)
+            state.banned_peers = Blacklist(
+                base_time=config.ban_timeout, backoff_rate=2.0
+            )
         if state.remote_servers_infos is None:
             state.remote_servers_infos = RemoteServerInfo.make_empty()
 
@@ -85,7 +95,9 @@ class RemoteManager:
             self._thread.ready.set()  # no need to await the first dht fetch
 
     @staticmethod
-    def _peer_ids_to_set(peer_ids: Optional[Sequence[Union[PeerID, str]]]) -> Optional[Set[PeerID]]:
+    def _peer_ids_to_set(
+        peer_ids: Optional[Sequence[Union[PeerID, str]]],
+    ) -> Optional[Set[PeerID]]:
         if peer_ids is None:
             return None
 
@@ -115,7 +127,9 @@ class RemoteManager:
             if not self.is_alive():
                 self._thread.start()
         if not self.ready.is_set():
-            self.update(wait=True)  # this will await an existing update or trigger a new one (if not updating)
+            self.update(
+                wait=True
+            )  # this will await an existing update or trigger a new one (if not updating)
 
         server = self._get_peer_with_max_throughput()
 
@@ -139,7 +153,11 @@ class RemoteManager:
         max_throughput_server = min(client_server_rtts, key=client_server_rtts.get)
 
         remote_info = next(
-            (info for info in self.state.remote_servers_infos.server_infos if info.peer_id == max_throughput_server),
+            (
+                info
+                for info in self.state.remote_servers_infos.server_infos
+                if info.peer_id == max_throughput_server
+            ),
             None,
         )
 
@@ -170,13 +188,15 @@ class RemoteManager:
         """
         Perform an immediate and synchronous refresh, may take time
         """
-        hoster_infos = get_node_infos(self.dht, uid="node", latest=True)
+        hoster_infos = get_node_infos(self.dht, uid="heartbeat", latest=True)
 
         with self.lock_changes:
             self.state.remote_servers_infos.update_(hoster_infos)
             all_servers = [server.peer_id for server in hoster_infos]
 
-        self.ping_aggregator.ping(list(all_servers), wait_timeout=self.config.ping_timeout)
+        self.ping_aggregator.ping(
+            list(all_servers), wait_timeout=self.config.ping_timeout
+        )
 
         self.ready.set()
 
@@ -208,7 +228,9 @@ class RemoteManager:
     def get_retry_delay(self, attempt_no: int) -> float:
         if attempt_no == 0:
             return 0
-        return min(self.config.min_backoff * 2 ** (attempt_no - 1), self.config.max_backoff)
+        return min(
+            self.config.min_backoff * 2 ** (attempt_no - 1), self.config.max_backoff
+        )
 
     def get_request_metadata(
         self, protocol: str, args_structure: Any = None, *args, **kwargs
@@ -242,7 +264,9 @@ class _SequenceManagerUpdateThread(threading.Thread):
         while not self.should_shutdown:
             update_manager = self.ref_update_manager()
             if update_manager is None:
-                logger.debug(f"{self.__class__.__name__} exited because the sequence manager no longer exists")
+                logger.debug(
+                    f"{self.__class__.__name__} exited because the sequence manager no longer exists"
+                )
                 break
 
             try:

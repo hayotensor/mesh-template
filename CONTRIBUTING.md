@@ -4,19 +4,17 @@ This document covers the technical details of making your contributions to the c
 contribute, read the [contributing guide](https://hypertensor-blockchain.readthedocs.io/en/latest/user/contributing.html) in
 our documentation.
 
-Before you begin, file a new issue on [GitHub](https://github.com/hypertensor-blockchain/subnet-template/issues) or announce that
-you are going to work on an existing one to avoid duplicate effort. After you finish, submit a pull request and wait
-for it to be reviewed by the library maintainers (and possibly other community members).
+Before you begin, file a new issue on [GitHub](https://github.com/hypertensor-blockchain/subnet-template/issues) or announce that you are going to work on an existing one to avoid duplicate effort. After you finish, submit a pull request and wait for it to be reviewed by the library maintainers (and possibly other community members).
 
 ## Environment setup
 
 First, install subnet-template in the development mode, preferably with Python 3.8+ on Linux.
 
-```
+```bash
 git clone https://github.com/hypertensor-blockchain/subnet-template
 cd subnet-template
 pip install -e .[dev]
-``` 
+```
 
 ## Pull Request checklist
 
@@ -89,8 +87,7 @@ the pull request description (if it adheres to the format) or a cleaned up compi
   if they make the pull request too large to review in a short period of time.
 * In general, when naming a pull request instead of a commit, it's best to highlight the major change in its title
   instead of listing all modifications. Also, if a pull request makes significant changes to the library, it's best to
-  give a high-level description in the title instead of a technical one:
-  compare `Implement decentralized parameter averaging` with `Add subnet.client.averaging`.
+  give a high-level description in the title instead of a technical one.
 
 For more on the philosophy of easy-to-review pull requests, read these
 guides: [1](https://mtlynch.io/code-review-love/)
@@ -100,7 +97,7 @@ changed by the PR; however, they should not dilute its major purpose.
 
 ## Running tests
 
-Mesh Template uses [pytest](https://github.com/pytest-dev/pytest/) for testing the behavior of the library modules. If you
+Subnet Template uses [pytest](https://github.com/pytest-dev/pytest/) for testing the behavior of the library modules. If you
 implement a new part of the library, you are expected to write a test for the correctness of its implementation. If you
 discovered a bug in the existing code base and intend to fix it, it's also best if you add the steps to reproduce it as
 a new test to make sure it's not reintroduced by future changes.
@@ -136,15 +133,6 @@ the maintainers to provide the benchmarking results for your branch and a compar
 * `benchmarks/benchmark_dht.py` measures the performance of core DHT operations.
 * `benchmarks/benchmark_throughput.py` measures the performance of a server hosting several expert layers under heavy
   load from multiple clients.
-
-Example benchmark runs are available in
-the [benchmarking](https://hypertensor-blockchain.readthedocs.io/en/latest/user/benchmarks.html) page of the documentation.
-
-## See also
-
-For more details on overall contributions, visit the contributing guide at:
-
-https://hypertensor-blockchain.readthedocs.io/en/latest/user/contributing.html
 
 This guide was inspired by several influential Python open source projects listed below:
 

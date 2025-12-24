@@ -79,7 +79,9 @@ def generate_ed25519_private_key_file(path: str):
 
     combined_key_bytes = raw_private_key + public_key
 
-    protobuf = crypto_pb2.PrivateKey(key_type=crypto_pb2.KeyType.Ed25519, data=combined_key_bytes)
+    protobuf = crypto_pb2.PrivateKey(
+        key_type=crypto_pb2.KeyType.Ed25519, data=combined_key_bytes
+    )
 
     with open(path, "wb") as f:
         f.write(protobuf.SerializeToString())
@@ -113,9 +115,15 @@ def generate_ed25519_private_key_file(path: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument(
-        "--path", type=str, required=False, default="private_key.key", help="File location of private key. "
+        "--path",
+        type=str,
+        required=False,
+        default="private_key.key",
+        help="File location of private key. ",
     )
     parser.add_argument(
         "--bootstrap_path",
@@ -132,7 +140,11 @@ def main():
         help="File location of bootstrap private key. ",
     )
     parser.add_argument(
-        "--key_type", type=str, required=False, default="ed25519", help="Key type used in subnet. ed25519, rsa"
+        "--key_type",
+        type=str,
+        required=False,
+        default="ed25519",
+        help="Key type used in subnet. ed25519, rsa",
     )
 
     args = parser.parse_args()
@@ -169,13 +181,17 @@ def main():
         return p2p_peer_id
 
     p2p_peer_id = asyncio.run(test_identity(path))
-    assert peer_id.__eq__(p2p_peer_id), "Generated Peer ID and subnet Peer ID are not equal"
+    assert peer_id.__eq__(p2p_peer_id), (
+        "Generated Peer ID and subnet Peer ID are not equal"
+    )
     p2p_bootstrap_peer_id = asyncio.run(test_identity(bootstrap_path))
     assert bootstrap_peer_id.__eq__(p2p_bootstrap_peer_id), (
         "Generated Bootstrap Peer ID and subnet Peer ID are not equal"
     )
     p2p_client_peer_id = asyncio.run(test_identity(client_path))
-    assert client_peer_id.__eq__(p2p_client_peer_id), "Generated Client Peer ID and subnet Peer ID are not equal"
+    assert client_peer_id.__eq__(p2p_client_peer_id), (
+        "Generated Client Peer ID and subnet Peer ID are not equal"
+    )
 
 
 if __name__ == "__main__":

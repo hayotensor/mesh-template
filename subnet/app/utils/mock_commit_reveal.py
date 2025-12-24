@@ -56,7 +56,7 @@ The following is an example predicate validator.
 
 This predicate validator ensures:
 
-- heatbeat (under "node" key) can be stored at any time, with a maximum expiration of 1.1 epochs
+- heatbeat (under "heartbeat" key) can be stored at any time, with a maximum expiration of 1.1 epochs
 - commits can only be stored within the 15-50% progress span of the epoch, with a maximum expiration of 2 epochs
 - reveals can only be stored within the 50-60% progress span on the epoch, with a maximum expiration of 2 epochs
 """
@@ -79,13 +79,15 @@ class MockHypertensorCommitReveal:
 
         # Maximum number of stores per key type, see `valid_keys` in `_get_key_type`
         self.per_peer_epoch_limits = {
-            "node": 100,
+            "heartbeat": 100,
             "commit": 1,
             "reveal": 1,
         }
 
         # Track the number of key stores per peer, per epoch
-        self._peer_store_tracker = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+        self._peer_store_tracker = defaultdict(
+            lambda: defaultdict(lambda: defaultdict(int))
+        )
 
         # Store `self.slot`
         self._ensure_slot()
@@ -100,7 +102,9 @@ class MockHypertensorCommitReveal:
         """Returns the current epoch data"""
         return self.hypertensor.get_subnet_epoch_data(self._ensure_slot())
 
-    def _has_exceeded_store_limit(self, peer_id: str, key_type: str, epoch: int) -> bool:
+    def _has_exceeded_store_limit(
+        self, peer_id: str, key_type: str, epoch: int
+    ) -> bool:
         """Check if the peer has already hit their per-epoch limit for this key type."""
         limit = self.per_peer_epoch_limits.get(key_type, 1)
         logger.debug(f"Current peer epoch limit {limit}")
@@ -117,15 +121,23 @@ class MockHypertensorCommitReveal:
         """Increment peer store counter after a successful PUT."""
         self._peer_store_tracker[epoch][key_type][peer_id] += 1
         new_count = self._peer_store_tracker[epoch][key_type][peer_id]
-        logger.debug(f"Recorded store for {peer_id} → {key_type} @ epoch {epoch} (new count={new_count})")
+        logger.debug(
+            f"Recorded store for {peer_id} → {key_type} @ epoch {epoch} (new count={new_count})"
+        )
 
     def _cleanup_old_epochs(self, current_epoch: int):
         """Remove records older than MAX_EPOCH_HISTORY epochs."""
-        old_epochs = [e for e in self._peer_store_tracker.keys() if e < current_epoch - self.MAX_EPOCH_HISTORY]
+        old_epochs = [
+            e
+            for e in self._peer_store_tracker.keys()
+            if e < current_epoch - self.MAX_EPOCH_HISTORY
+        ]
 
         for e in old_epochs:
             del self._peer_store_tracker[e]
-            logger.debug(f"Current epoch: {current_epoch} Cleaned up tracking data for old epoch {e}")
+            logger.debug(
+                f"Current epoch: {current_epoch} Cleaned up tracking data for old epoch {e}"
+            )
 
     def _get_key_type(self, record: DHTRecord, current_epoch: int) -> Optional[int]:
         """
@@ -136,7 +148,7 @@ class MockHypertensorCommitReveal:
         """
         valid_keys = {
             # Heartbeat
-            DHTID.generate(source="node").to_bytes(): "node",
+            DHTID.generate(source="heartbeat").to_bytes(): "heartbeat",
             # ⸺ 15-50%
             DHTID.generate(source=f"commit_epoch_{current_epoch}").to_bytes(): "commit",
             # ⸺ 50-60%
@@ -179,9 +191,13 @@ class MockHypertensorCommitReveal:
             # Get `EpochData`
             epoch_data = self.epoch_data()
             current_epoch = epoch_data.epoch
-            percent_complete = epoch_data.percent_complete  # Get progress of epoch for commit-reveal phases
+            percent_complete = (
+                epoch_data.percent_complete
+            )  # Get progress of epoch for commit-reveal phases
 
-            logger.debug(f"{caller_peer_id} is storing data at slot={self.slot}, epoch={current_epoch}")
+            logger.debug(
+                f"{caller_peer_id} is storing data at slot={self.slot}, epoch={current_epoch}"
+            )
 
             # Clean up old keys
             self._cleanup_old_epochs(current_epoch)
@@ -204,13 +220,13 @@ class MockHypertensorCommitReveal:
 
             In this mock class:
 
-            "node": The heartbeat can be stored up to 100 time per epoch
+            "heartbeat": The heartbeat can be stored up to 100 time per epoch
             "commit": Must be stored by the 50% elapsed of the epoch, 1 time per epoch
             "reveal": Must be stored between 50%-60% elapsed of the epoch, 1 time per epoch
             """
 
             # DEADLINES AND EXPIRATIONS
-            if key_type == "node":
+            if key_type == "heartbeat":
                 max_expiration = dht_time + MAX_HEART_BEAT_TIME
                 if record.expiration_time > max_expiration:
                     return False
@@ -222,7 +238,10 @@ class MockHypertensorCommitReveal:
                     return False
 
             elif key_type == "reveal":
-                if percent_complete <= COMMIT_DEADLINE or percent_complete > REVEAL_DEADLINE:
+                if (
+                    percent_complete <= COMMIT_DEADLINE
+                    or percent_complete > REVEAL_DEADLINE
+                ):
                     return False
                 if record.expiration_time > dht_time + MAX_REVEAL_TIME:
                     return False

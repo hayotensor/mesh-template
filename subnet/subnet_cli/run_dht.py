@@ -128,7 +128,7 @@
 #     else:
 #         peer_id = get_peer_id_from_identity_path(args.identity_path)
 #         reset_db = False
-#         if args.initial_peers:
+#         if not args.initial_peers:
 #             # Reset when deploying a new swarm
 #             reset_db = True
 #         hypertensor = LocalMockHypertensor(

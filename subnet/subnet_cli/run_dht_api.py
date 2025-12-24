@@ -2,6 +2,7 @@
 !See README.md
 """
 
+import math
 import os
 import re
 from argparse import ArgumentParser
@@ -32,6 +33,11 @@ from subnet.utils.logging import get_logger, setup_mp_logging, use_subnet_log_ha
 from subnet.utils.networking import log_visible_maddrs
 from subnet.utils.p2p_utils import get_peers_ips
 from subnet.utils.proof_of_stake import ProofOfStake
+from subnet.dht.routing import DHTID
+from subnet.utils.key import (
+    extract_peer_id_from_record_validator,
+)
+from subnet.utils.data_structures import ServerInfo
 
 use_subnet_log_handler("in_root_logger")
 logger = get_logger(__name__)
@@ -43,6 +49,7 @@ load_dotenv(os.path.join(Path.cwd(), ".env"))
 PHRASE = os.getenv("PHRASE")
 
 dht: DHT = None
+record_validator = None
 
 """
 Bootnode API
@@ -55,7 +62,7 @@ Example:
             {
                 "value": [
                     "/ip4/123.123.123.123/tcp/31330/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v",
-                    "/ip4/123.123.123.123/udp/31330/quic/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v"
+                    "/ip4/123.123.123.123/udp/31330/quic-v1/p2p/QmSjcNmhbRvek3YDQAAQ3rV8GKR8WByfW8LC4aMxk6gj7v"
                 ]
             }
     curl -H "X-API-Key: key-party1-abc123" http://localhost:8000/v1/get_heartbeat
@@ -220,7 +227,9 @@ async def get_api_key(api_key_header: str = Security(api_key_header)):
     active_keys = get_active_keys(api_keys)
     if api_key_header in active_keys:
         return api_key_header
-    raise HTTPException(status_code=HTTP_403_FORBIDDEN, detail="Invalid or missing API Key")
+    raise HTTPException(
+        status_code=HTTP_403_FORBIDDEN, detail="Invalid or missing API Key"
+    )
 
 
 try:
@@ -243,44 +252,63 @@ async def attach_api_key(request: Request, call_next):
     return await call_next(request)
 
 
-def serialize_object(obj):
+def serialize_object(obj, seen=None):
     """Recursively serialize objects to JSON-compatible formats"""
+    if seen is None:
+        seen = set()
+
     # Handle None
     if obj is None:
         return None
 
     # Handle primitive types
-    if isinstance(obj, (str, int, float, bool)):
+    if isinstance(obj, (str, int, bool)):
         return obj
 
-    # Handle peer_id specifically (libp2p ID objects)
-    if hasattr(obj, "_b58_str"):
-        return obj._b58_str  # Return the base58 string representation
+    if isinstance(obj, float):
+        if math.isinf(obj) or math.isnan(obj):
+            return None  # Or return str(obj) if you prefer "inf" as string
+        return obj
 
-    # Handle enums
-    if hasattr(obj, "value") and hasattr(obj, "name"):
-        return obj.name
+    # Cycle detection
+    obj_id = id(obj)
+    if obj_id in seen:
+        return "<circular_reference>"
+    seen.add(obj_id)
 
-    # Handle lists/tuples
-    if isinstance(obj, (list, tuple)):
-        return [serialize_object(item) for item in obj]
+    try:
+        # Handle peer_id specifically (libp2p ID objects)
+        if hasattr(obj, "_b58_str"):
+            return obj._b58_str  # Return the base58 string representation
 
-    # Handle dictionaries
-    if isinstance(obj, dict):
-        return {key: serialize_object(value) for key, value in obj.items()}
+        # Handle enums
+        if hasattr(obj, "value") and hasattr(obj, "name"):
+            return obj.name
 
-    # Handle objects with __dict__ (most custom classes)
-    if hasattr(obj, "__dict__"):
-        result = {}
-        for key, value in obj.__dict__.items():
-            # Skip private/internal attributes
-            if key.startswith("_"):
-                continue
-            result[key] = serialize_object(value)
-        return result
+        # Handle lists/tuples
+        if isinstance(obj, (list, tuple)):
+            return [serialize_object(item, seen) for item in obj]
 
-    # Fallback to string representation
-    return str(obj)
+        # Handle dictionaries
+        if isinstance(obj, dict):
+            return {
+                str(key): serialize_object(value, seen) for key, value in obj.items()
+            }
+
+        # Handle objects with __dict__ (most custom classes)
+        if hasattr(obj, "__dict__"):
+            result = {}
+            for key, value in obj.__dict__.items():
+                # Skip private/internal attributes
+                if key.startswith("_"):
+                    continue
+                result[key] = serialize_object(value, seen)
+            return result
+
+        # Fallback to string representation
+        return str(obj)
+    finally:
+        seen.remove(obj_id)
 
 
 @app.get("/v1/get_heartbeat")
@@ -292,7 +320,7 @@ async def get_heartbeat(request: Request, api_key: str = Depends(get_api_key)):
     """
     if dht is None:
         return {"error": "DHT not initialized"}
-    results = get_node_heartbeats(dht, uid="node", latest=True)
+    results = get_node_heartbeats(dht, uid="heartbeat", latest=True)
     if results:
         try:
             serialized_results = serialize_object(results)
@@ -366,7 +394,9 @@ async def get_peers_info(request: Request, api_key: str = Depends(get_api_key)):
                 if ip not in ip_to_peer_ids:
                     ip_to_peer_ids[ip] = []
                     all_ips.append(ip)
-                if peer_id not in ip_to_peer_ids[ip]:  # Avoid duplicate peer_ids for same IP
+                if (
+                    peer_id not in ip_to_peer_ids[ip]
+                ):  # Avoid duplicate peer_ids for same IP
                     ip_to_peer_ids[ip].append(peer_id)
 
     # 2. Batch IP lookups in chunks of MAX_IP_ADDRESSES_PER_REQUEST
@@ -436,19 +466,48 @@ def run_api():
 Bootnode
 
 subnet-dht \
-    --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic \
-    --announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic \
+    --host_maddrs /ip4/0.0.0.0/tcp/31330 /ip4/0.0.0.0/udp/31330/quic-v1 \
+    --announce_maddrs /ip4/{your_ip}/tcp/31330 /ip4/{your_ip}/udp/31330/quic-v1 \
     --identity_path bootnode.id
 
 Use `--no_blockchain_rpc` to run with no blockchain RPC.
 """
 
+HEARTBEAT_KEY = DHTID.generate(source="heartbeat")
+
 
 async def report_status(dht: DHT, node: DHTNode):
+    print("heartbeat key", HEARTBEAT_KEY)
     logger.info(
         f"{len(node.protocol.routing_table.uid_to_peer_id) + 1} DHT nodes (including this one) "
         f"are in the local routing table "
     )
+    logger.info("Routing table IDs:")
+    for item in node.protocol.routing_table.uid_to_peer_id.items():
+        logger.info(f"ID: {item}")
+
+    for dht_id, value_with_exp in node.protocol.storage.items():
+        logger.info(f"Storage DHTID: {dht_id}")
+        logger.info(f"Expiration: {value_with_exp.expiration_time}")
+
+        inner_dict = value_with_exp.value
+        if hasattr(inner_dict, "items"):
+            for subkey, values in inner_dict.items():
+                caller_peer_id = extract_peer_id_from_record_validator(subkey)
+                logger.info(f"Record owner peer ID: {caller_peer_id}")
+
+                if dht_id == HEARTBEAT_KEY:
+                    from subnet.utils import MSGPackSerializer
+
+                    value_bytes = record_validator.strip_value(values)
+                    decoded_value = MSGPackSerializer.loads(value_bytes)
+                    logger.info(f"  Decoded value: {decoded_value}")
+                    server_info = ServerInfo.from_tuple(decoded_value)
+                    logger.info(f"  Server info: {server_info}")
+                else:
+                    logger.info(f"  Subkey: {subkey}")
+                    logger.info(f"  Values: {values}")
+
     logger.debug(f"Routing table contents: {node.protocol.routing_table}")
     logger.info(f"Local storage contains {len(node.protocol.storage)} keys")
     logger.debug(f"Local storage contents: {node.protocol.storage}")
@@ -501,18 +560,34 @@ def main():
         help="Look for libp2p relays to become reachable if we are behind NAT/firewall",
     )
     parser.add_argument(
-        "--refresh_period", type=int, default=30, help="Period (in seconds) for fetching the keys from DHT"
+        "--refresh_period",
+        type=int,
+        default=30,
+        help="Period (in seconds) for fetching the keys from DHT",
     )
-    parser.add_argument("--subnet_id", type=int, required=True, help="Subnet ID running a node for ")
-    parser.add_argument("--no_blockchain_rpc", action="store_true", help="[Testing] Run with no RPC")
-    parser.add_argument("--local_rpc", action="store_true", help="[Testing] Run in local RPC mode, uses LOCAL_RPC")
+    parser.add_argument(
+        "--subnet_id", type=int, required=True, help="Subnet ID running a node for "
+    )
+    parser.add_argument(
+        "--no_blockchain_rpc", action="store_true", help="[Testing] Run with no RPC"
+    )
+    parser.add_argument(
+        "--local_rpc",
+        action="store_true",
+        help="[Testing] Run in local RPC mode, uses LOCAL_RPC",
+    )
     parser.add_argument(
         "--phrase",
         type=str,
         required=False,
         help="[Testing] Coldkey phrase that controls actions which include funds, such as registering, and staking",
     )
-    parser.add_argument("--private_key", type=str, required=False, help="[Testing] Hypertensor blockchain private key")
+    parser.add_argument(
+        "--private_key",
+        type=str,
+        required=False,
+        help="[Testing] Hypertensor blockchain private key",
+    )
 
     args = parser.parse_args()
     subnet_id = args.subnet_id
@@ -531,7 +606,9 @@ def main():
             hypertensor = Hypertensor(rpc, phrase)
         elif private_key is not None:
             hypertensor = Hypertensor(rpc, private_key, KeypairFrom.PRIVATE_KEY)
-            keypair = Keypair.create_from_private_key(private_key, crypto_type=KeypairType.ECDSA)
+            keypair = Keypair.create_from_private_key(
+                private_key, crypto_type=KeypairType.ECDSA
+            )
             hotkey = keypair.ss58_address
             logger.info(f"hotkey: {hotkey}")
         else:
@@ -539,7 +616,7 @@ def main():
     else:
         peer_id = get_peer_id_from_identity_path(args.identity_path)
         reset_db = False
-        if args.initial_peers:
+        if not args.initial_peers:
             # Reset when deploying a new swarm
             reset_db = True
         hypertensor = LocalMockHypertensor(
@@ -555,6 +632,8 @@ def main():
 
     pk = get_private_key(args.identity_path)
     signature_validator = SignatureValidator(pk)
+    global record_validator
+    record_validator = signature_validator
     record_validators = [signature_validator]
 
     signature_authorizer = SignatureAuthorizer(pk)
@@ -596,7 +675,9 @@ def main():
     exit_event = Event()
 
     def signal_handler(signal_number: int, _) -> None:
-        logger.info(f"Caught signal {signal_number} ({strsignal(signal_number)}), shutting down")
+        logger.info(
+            f"Caught signal {signal_number} ({strsignal(signal_number)}), shutting down"
+        )
         exit_event.set()
 
     signal(SIGTERM, signal_handler)

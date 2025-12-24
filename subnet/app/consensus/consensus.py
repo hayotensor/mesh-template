@@ -4,7 +4,11 @@ from dataclasses import asdict
 from typing import List
 
 from subnet import DHT, PeerID
-from subnet.app.consensus.utils import compare_consensus_data, did_node_attest, is_validator_or_attestor
+from subnet.app.consensus.utils import (
+    compare_consensus_data,
+    did_node_attest,
+    is_validator_or_attestor,
+)
 from subnet.dht.validation import RecordValidatorBase
 from subnet.substrate.chain_data import SubnetNodeConsensusData
 from subnet.substrate.chain_functions import Hypertensor, SubnetNodeClass
@@ -80,20 +84,28 @@ class Consensus(mp.Process):
         These scores must be deterministic - See docs
         """
         # Get all nodes
-        nodes = get_node_infos_sig(self.dht, uid="node", latest=True, record_validator=self.record_validator)
+        nodes = get_node_infos_sig(
+            self.dht,
+            uid="heartbeat",
+            latest=True,
+            record_validator=self.record_validator,
+        )
 
         node_peer_ids = {n.peer_id for n in nodes}
 
-        # Get all included nodes
-        if self.hypertensor is None:
-            self.logger.warning("Hypertensor RPC node required to get node scores")
-            return []
+        self.logger.debug(f"Included peers: {node_peer_ids}")
 
         # Get each subnet node ID that is included onchain AND in the subnet
         included_nodes = self.hypertensor.get_min_class_subnet_nodes_formatted(
             self.subnet_id, target_epoch, SubnetNodeClass.Included
         )
-        subnet_node_ids = [n.subnet_node_id for n in included_nodes if PeerID.from_base58(n.peer_id) in node_peer_ids]
+        subnet_node_ids = [
+            n.subnet_node_id
+            for n in included_nodes
+            if PeerID.from_base58(n.peer_id) in node_peer_ids
+        ]
+
+        self.logger.debug(f"Included node IDs: {subnet_node_ids}")
 
         """
             {
@@ -106,8 +118,11 @@ class Consensus(mp.Process):
             We use asdict() when submitting
         """
         consensus_score_list = [
-            SubnetNodeConsensusData(subnet_node_id=node_id, score=int(1e18)) for node_id in subnet_node_ids
+            SubnetNodeConsensusData(subnet_node_id=node_id, score=int(1e18))
+            for node_id in subnet_node_ids
         ]
+
+        self.logger.debug(f"Consensus score list: {consensus_score_list}")
 
         return consensus_score_list
 
@@ -120,7 +135,9 @@ class Consensus(mp.Process):
         """
         # Useful if subnet is already active and for testing
         if self.skip_activate_subnet:
-            self.logger.info("Skipping subnet activation and attempting to start consensus")
+            self.logger.info(
+                "Skipping subnet activation and attempting to start consensus"
+            )
             return True
 
         last_epoch = None
@@ -141,18 +158,18 @@ class Consensus(mp.Process):
 
             epoch_data = self.hypertensor.get_epoch_data()
             current_epoch = epoch_data.epoch
-            logger.info(f"Current epoch: {current_epoch}, checking subnet activation status")
+            logger.info(
+                f"Current epoch: {current_epoch}, checking subnet activation status"
+            )
 
             if current_epoch != last_epoch:
-                # # Sleep for one block to ensure we get the data updated on the epoch transition
-                # await asyncio.sleep(BLOCK_SECS)
-
-                # offset_sleep = 0
                 subnet_info = self.hypertensor.get_formatted_subnet_info(self.subnet_id)
                 if subnet_info is None or subnet_info == None:  # noqa: E711
                     # None means the subnet is likely deactivated
                     if errors_count > max_errors:
-                        self.logger.warning("Cannot find subnet ID: %s, shutting down", self.subnet_id)
+                        self.logger.warning(
+                            "Cannot find subnet ID: %s, shutting down", self.subnet_id
+                        )
                         self.shutdown()
                         subnet_active = False
                         break
@@ -163,7 +180,9 @@ class Consensus(mp.Process):
                         errors_count = errors_count + 1
                 else:
                     if subnet_info.state == "Active":
-                        self.logger.info(f"Subnet ID {self.subnet_id} is active, starting consensus")
+                        self.logger.info(
+                            f"Subnet ID {self.subnet_id} is active, starting consensus"
+                        )
                         subnet_active = True
                         break
                     else:
@@ -173,8 +192,9 @@ class Consensus(mp.Process):
 
                 last_epoch = current_epoch
 
-            self.logger.info("Waiting for subnet to be activated. Sleeping until next epoch")
-            # await asyncio.sleep(max(0.0, epoch_data.seconds_remaining - BLOCK_SECS))
+            self.logger.info(
+                "Waiting for subnet to be activated. Sleeping until next epoch"
+            )
             await asyncio.sleep(max(0.0, epoch_data.seconds_remaining))
 
         return subnet_active
@@ -194,9 +214,6 @@ class Consensus(mp.Process):
             current_epoch = epoch_data.epoch
 
             if current_epoch != last_epoch:
-                # Sleep for one block to ensure we get the data updated on the epoch transition
-                # await asyncio.sleep(BLOCK_SECS)
-
                 nodes = self.hypertensor.get_min_class_subnet_nodes_formatted(
                     self.subnet_id, current_epoch, SubnetNodeClass.Idle
                 )
@@ -233,6 +250,7 @@ class Consensus(mp.Process):
         self._async_stop_event = asyncio.Event()
         last_epoch = None
         started = False
+        logged_started = False
 
         self.logger.info("About to begin consensus")
 
@@ -244,18 +262,21 @@ class Consensus(mp.Process):
                 if started is False:
                     started = True
                     try:
-                        self.logger.info(f"Starting consensus on next epoch in {epoch_data.seconds_remaining}s")
-                        await asyncio.wait_for(self._async_stop_event.wait(), timeout=epoch_data.seconds_remaining)
+                        self.logger.info(
+                            f"Starting consensus on next epoch in {epoch_data.seconds_remaining}s"
+                        )
+                        await asyncio.wait_for(
+                            self._async_stop_event.wait(),
+                            timeout=epoch_data.seconds_remaining,
+                        )
                         break  # Stop event was set
                     except asyncio.TimeoutError:
                         continue  # Timeout reached, continue to next iteration
-                else:
+                elif not logged_started:
                     self.logger.info("✅ Starting consensus")
+                    logged_started = True
 
                 current_epoch = epoch_data.epoch
-
-                # Track if we slept the one-block offset this iteration
-                # slept_offset = False
 
                 if current_epoch != last_epoch:
                     """
@@ -263,30 +284,27 @@ class Consensus(mp.Process):
 
                     The logic here should be for qualifying nodes (proving work), generating scores, etc.
                     """
-                    # Attest/Validate
-
-                    # Sleep for one block to ensure we get the data updated on the epoch transition
-                    # await asyncio.sleep(BLOCK_SECS)
-                    # slept_offset = True
-
-                    await self.run_consensus(current_epoch)
+                    logger.info(f"🆕 Epoch {current_epoch}")
                     last_epoch = current_epoch
 
-                    # Get fresh epoch data after processing
-                    epoch_data = self.hypertensor.get_subnet_epoch_data(self.slot)
+                    # Attest/Validate
+                    await self.run_consensus(current_epoch)
 
-                # Wait for either stop event or timeout based on remaining time
-                # Only subtract BLOCK_SECS if we slept the offset this iteration
-                # wait_timeout = (
-                #     epoch_data.seconds_remaining - BLOCK_SECS if slept_offset else epoch_data.seconds_remaining
-                # )
                 try:
-                    await asyncio.wait_for(self._async_stop_event.wait(), timeout=max(0, epoch_data.seconds_remaining))
+                    # Get fresh epoch data after processing for `seconds_remaining`
+                    epoch_data = self.hypertensor.get_subnet_epoch_data(self.slot)
+                    self.logger.info(
+                        f"Sleeping until next epoch for {max(0, epoch_data.seconds_remaining)}s"
+                    )
+                    await asyncio.wait_for(
+                        self._async_stop_event.wait(),
+                        timeout=max(0, epoch_data.seconds_remaining),
+                    )
                     break  # Stop event was set
                 except asyncio.TimeoutError:
                     pass  # Timeout reached, continue to next iteration
             except Exception as e:
-                # logger.warning(e, exc_info=True)
+                self.logger.warning(e, exc_info=True)
                 await asyncio.sleep(BLOCK_SECS)
 
     async def run_consensus(self, current_epoch: int):
@@ -311,6 +329,8 @@ class Consensus(mp.Process):
 
         scores = self.get_scores(current_epoch)
 
+        self.logger.debug(f"Scores: {scores}")
+
         if scores is None:
             return
 
@@ -333,17 +353,26 @@ class Consensus(mp.Process):
         if validator is None or validator == None:  # noqa: E711
             return
 
+        self.logger.info(
+            f"Elected validator on epoch {current_epoch} is node ID {validator}"
+        )
+
         if validator == self.subnet_node_id:
             self.logger.info(
-                f"🎖️ Acting as elected validator for epoch {current_epoch} and proposing an attestation to the blockchain"
+                f"🎖️ Acting as elected validator for epoch {current_epoch} and attempting to propose an attestation to the blockchain"
             )
 
             # See if attestation proposal submitted
-            consensus_data = self.hypertensor.get_consensus_data_formatted(self.subnet_id, current_epoch)
+            consensus_data = self.hypertensor.get_consensus_data_formatted(
+                self.subnet_id, current_epoch
+            )
+
             if consensus_data is not None:  # noqa: E711
                 self.logger.info("Already submitted data, moving to next epoch")
 
                 return
+
+            self.logger.info("Preparing to attempt to propose attestation")
 
             if len(scores) == 0:
                 """
@@ -363,30 +392,45 @@ class Consensus(mp.Process):
 
                 Any successful epoch following will remove these penalties on the subnet
                 """
-                self.hypertensor.propose_attestation(self.subnet_id, data=[asdict(s) for s in scores])
+                self.hypertensor.propose_attestation(
+                    self.subnet_id, data=[asdict(s) for s in scores]
+                )
             else:
-                self.hypertensor.propose_attestation(self.subnet_id, data=[asdict(s) for s in scores])
+                self.hypertensor.propose_attestation(
+                    self.subnet_id, data=[asdict(s) for s in scores]
+                )
 
         elif validator is not None:
-            self.logger.info(f"🗳️ Acting as attestor/voter for epoch {current_epoch}")
+            self.logger.info(
+                f"🗳️ Attempting to act as attestor/voter for epoch {current_epoch}"
+            )
 
             consensus_data = None  # Fetch one time once not None
             _is_validator_or_attestor = False  # Check only once
             while not self.stop.is_set():
                 # Check consensus data exists in case attest fails
                 if consensus_data is None or consensus_data == None:  # noqa: E711
-                    consensus_data = self.hypertensor.get_consensus_data_formatted(self.subnet_id, current_epoch)
+                    consensus_data = self.hypertensor.get_consensus_data_formatted(
+                        self.subnet_id, current_epoch
+                    )
 
                 epoch_data = self.hypertensor.get_subnet_epoch_data(self.slot)
                 _current_epoch = epoch_data.epoch
 
                 # If next epoch or validator took too long, move onto next steps
-                if _current_epoch != current_epoch or epoch_data.percent_complete > 0.15:
-                    logger.info("Skipping attestation, validator took too long to submit consensus data or next epoch")
+                if (
+                    _current_epoch != current_epoch
+                    or epoch_data.percent_complete > 0.25
+                ):
+                    logger.info(
+                        "Skipping attestation, validator took too long to submit consensus data or next epoch"
+                    )
                     break
 
                 if consensus_data is None or consensus_data == None:  # noqa: E711
-                    logger.info("Waiting for consensus data to be submitted, checking again in 1 block")
+                    logger.info(
+                        "Waiting for consensus data to be submitted, checking again in 1 block"
+                    )
                     await asyncio.sleep(BLOCK_SECS)
                     continue
 
@@ -401,14 +445,16 @@ class Consensus(mp.Process):
                     self.logger.info(
                         "Skipping attestation, validator used prioritize_queue_node_id or remove_queue_node_id"
                     )
-                    return
+                    break
 
                 validator_data = consensus_data.data
 
                 """
                 Get all of the hosters inference outputs they stored to the DHT
                 """
-                if 1.0 == compare_consensus_data(my_data=scores, validator_data=validator_data):
+                if 1.0 == compare_consensus_data(
+                    my_data=scores, validator_data=validator_data
+                ):
                     # Check if we can attest
                     # This is important in case a node sets emergency validators
                     if not _is_validator_or_attestor:
@@ -418,7 +464,9 @@ class Consensus(mp.Process):
                         # If False, break
                         # If True, check once
                         if not _is_validator_or_attestor:
-                            self.logger.info("Not attestor or validator, moving to next epoch")
+                            self.logger.info(
+                                "Not attestor or validator, moving to next epoch"
+                            )
                             break
 
                     # Check if we already attested
@@ -431,10 +479,11 @@ class Consensus(mp.Process):
                     )
 
                     receipt = self.hypertensor.attest(self.subnet_id)
+
                     if isinstance(self.hypertensor, MockHypertensor) or isinstance(
                         self.hypertensor, LocalMockHypertensor
                     ):  # don't check receipt if using mock
-                        return
+                        break
 
                     if receipt.is_success:
                         break
@@ -454,7 +503,11 @@ class Consensus(mp.Process):
         if self.is_alive():
             self.join(3)
             if self.is_alive():
-                logger.warning("Consensus did not shut down within the grace period; terminating it the hard way")
+                logger.warning(
+                    "Consensus did not shut down within the grace period; terminating it the hard way"
+                )
                 self.terminate()
         else:
-            logger.warning("Consensus shutdown had no effect, the process is already dead")
+            logger.warning(
+                "Consensus shutdown had no effect, the process is already dead"
+            )
